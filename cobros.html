@@ -11,7 +11,6 @@
         :root { --bg: #0f172a; --card: #1e293b; --accent: #0ea5e9; }
         body { background-color: var(--bg); font-family: 'Inter', sans-serif; color: white; }
         .input-dark { background: #334155; border: 1px solid #475569; padding: 1rem; border-radius: 1rem; width: 100%; color: white; font-weight: 700; outline: none; }
-        .input-dark:focus { border-color: var(--accent); ring: 2px ring var(--accent); }
         .btn-cobrar { background: linear-gradient(to right, #0ea5e9, #2563eb); }
         #bloqueo { background: #050b16; display: flex; align-items: center; justify-content: center; z-index: 9999; position: fixed; inset: 0; }
         .cliente-card { background: var(--card); border: 1px solid #334155; border-radius: 1.2rem; margin-bottom: 0.8rem; }
@@ -22,14 +21,12 @@
     <div id="bloqueo">
         <div class="text-center p-8 bg-slate-900 rounded-[2.5rem] shadow-2xl w-80 border border-slate-800">
             <div class="text-4xl mb-4">🏠</div>
-            <h2 class="font-black text-white uppercase italic mb-2">Cobrador de Campo</h2>
-            <p class="text-[10px] font-bold text-slate-400 uppercase mb-6 tracking-widest">Ingrese PIN de Ruta</p>
-            <div class="relative mb-4">
+            <h2 class="font-black text-white uppercase italic mb-2 text-lg">Acceso Cobrador</h2>
+            <div class="relative mb-4 mt-4">
                 <input type="password" id="pin-ruta" inputmode="numeric" placeholder="****" maxlength="4"
                     class="w-full p-4 bg-slate-800 border-none rounded-2xl text-center text-2xl font-black tracking-[0.5em] text-white outline-none">
-                <button type="button" onclick="togglePin()" class="absolute right-4 top-1/2 -translate-y-1/2">👁️</button>
             </div>
-            <button onclick="validarRuta()" class="w-full py-4 btn-cobrar text-white font-black rounded-2xl uppercase shadow-lg">Iniciar Jornada</button>
+            <button onclick="validarRuta()" class="w-full py-4 btn-cobrar text-white font-black rounded-2xl uppercase shadow-lg">Abrir Ruta</button>
         </div>
     </div>
 
@@ -37,50 +34,57 @@
         <nav class="p-6 bg-slate-900 border-b border-slate-800 sticky top-0 z-50">
             <div class="max-w-xl mx-auto flex flex-col gap-4">
                 <div class="flex justify-between items-center">
-                    <h1 class="font-black text-white italic uppercase tracking-tighter text-xl">Ruta Santiago</h1>
-                    <span class="bg-green-500/10 text-green-400 text-[10px] font-black px-3 py-1 rounded-full border border-green-500/20">EN LÍNEA</span>
+                    <div>
+                        <h1 class="font-black text-white italic uppercase tracking-tighter text-xl">Santiago de María</h1>
+                        <p id="fecha-actual" class="text-[10px] font-bold text-slate-500 uppercase"></p>
+                    </div>
+                    <span class="bg-sky-500/10 text-sky-400 text-[10px] font-black px-3 py-1 rounded-full border border-sky-500/20">COBROS</span>
                 </div>
-                <input type="text" id="buscador" onkeyup="filtrarClientes()" placeholder="🔍 Nombre o DUI del cliente..." 
+                <input type="text" id="buscador" onkeyup="filtrarClientes()" placeholder="🔍 Buscar cliente o DUI..." 
                     class="input-dark text-sm shadow-2xl">
             </div>
         </nav>
 
         <main class="max-w-xl mx-auto px-6 mt-6">
-            <div id="lista-ruta" class="space-y-3">
-                </div>
+            <div id="lista-ruta" class="space-y-3"></div>
         </main>
     </div>
 
     <div id="modalCobro" class="fixed inset-0 z-[100] hidden flex items-end sm:items-center justify-center">
         <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="cerrarCobro()"></div>
-        <div class="relative bg-slate-900 w-full max-w-lg rounded-t-[2.5rem] sm:rounded-[2.5rem] p-8 border-t border-slate-800 shadow-2xl">
-            <div class="flex justify-between items-start mb-6">
+        <div class="relative bg-slate-900 w-full max-w-lg rounded-t-[2.5rem] sm:rounded-[2.5rem] p-8 border-t border-slate-700 shadow-2xl">
+            
+            <div class="flex justify-between items-start mb-4">
                 <div>
                     <h2 id="c-nombre" class="text-2xl font-black text-white uppercase italic leading-tight">CLIENTE</h2>
-                    <p id="c-cuota-info" class="text-sky-400 font-bold text-xs uppercase mt-1 italic"></p>
+                    <p id="c-cuota-info" class="text-sky-400 font-bold text-[10px] uppercase mt-1 tracking-widest"></p>
                 </div>
                 <button onclick="cerrarCobro()" class="bg-slate-800 text-slate-400 p-3 rounded-full">✕</button>
             </div>
 
-            <div class="grid grid-cols-2 gap-3 mb-8">
-                <div class="bg-slate-800/50 p-4 rounded-2xl border border-slate-700">
-                    <p class="text-[9px] font-black text-slate-400 uppercase">Saldo Pendiente</p>
-                    <p id="c-saldo" class="text-xl font-black text-white">$0.00</p>
+            <div class="bg-slate-800/30 border border-slate-700 rounded-2xl p-4 mb-6 grid grid-cols-3 gap-2">
+                <div class="text-center">
+                    <p class="text-[7px] font-black text-slate-500 uppercase">Total Crédito</p>
+                    <p id="m-total" class="text-xs font-black text-slate-300">$0.00</p>
                 </div>
-                <div class="bg-slate-800/50 p-4 rounded-2xl border border-slate-700">
-                    <p class="text-[9px] font-black text-sky-400 uppercase italic">Estado de Pago</p>
-                    <p id="c-estado" class="text-xl font-black text-sky-400">AL DÍA</p>
+                <div class="text-center border-x border-slate-700">
+                    <p class="text-[7px] font-black text-green-600 uppercase">Ha Pagado</p>
+                    <p id="m-pagado" class="text-xs font-black text-green-500">$0.00</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-[7px] font-black text-red-500 uppercase">Saldo Actual</p>
+                    <p id="m-saldo" class="text-xs font-black text-red-500">$0.00</p>
                 </div>
             </div>
 
             <div class="mb-6">
-                <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-2">Monto a Recibir ($)</label>
+                <label class="block text-[9px] font-black text-slate-500 uppercase mb-2 ml-2 tracking-tighter text-center">Monto a cobrar hoy</label>
                 <input type="number" id="monto-recibido" inputmode="decimal" step="0.01"
-                    class="w-full p-6 bg-slate-800 border-2 border-slate-700 rounded-3xl text-4xl font-black text-center text-sky-400 outline-none focus:border-sky-500 transition-all">
+                    class="w-full p-6 bg-slate-800 border-2 border-sky-900/50 rounded-3xl text-5xl font-black text-center text-sky-400 outline-none focus:border-sky-500 shadow-inner">
             </div>
 
-            <button onclick="registrarPago()" class="w-full py-6 btn-cobrar text-white font-black rounded-[1.5rem] uppercase text-lg shadow-2xl transform active:scale-95 transition-all">
-                Confirmar Pago y Guardar
+            <button onclick="registrarPago()" class="w-full py-6 btn-cobrar text-white font-black rounded-[1.5rem] uppercase text-lg shadow-2xl active:scale-95 transition-all">
+                Guardar Pago
             </button>
         </div>
     </div>
@@ -94,22 +98,17 @@
         let clienteActualId = null;
         let indiceCuota = null;
 
-        function togglePin() {
-            const p = document.getElementById('pin-ruta');
-            p.type = p.type === 'password' ? 'text' : 'password';
-        }
+        // Mostrar fecha automática en el nav
+        const fechaHoy = new Date();
+        document.getElementById('fecha-actual').innerText = fechaHoy.toLocaleDateString('es-SV', { weekday: 'long', day: 'numeric', month: 'long' });
 
         function validarRuta() {
-            const pin = document.getElementById('pin-ruta').value.trim();
-            if(pin === PIN_ACCESO) {
+            if(document.getElementById('pin-ruta').value === PIN_ACCESO) {
                 sessionStorage.setItem('cobrador_auth', 'true');
                 document.getElementById('bloqueo').style.display = 'none';
                 document.getElementById('app-cobros').classList.remove('hidden');
                 cargarRuta();
-            } else {
-                alert("PIN DE RUTA INVÁLIDO");
-                document.getElementById('pin-ruta').value = "";
-            }
+            } else { alert("PIN Incorrecto"); }
         }
 
         window.onload = () => {
@@ -124,28 +123,20 @@
             db.ref('clientes').on('value', snap => {
                 const container = document.getElementById('lista-ruta');
                 container.innerHTML = "";
-                
                 snap.forEach(child => {
                     const c = child.val();
                     if(c.tipo === "ACTIVO") {
-                        // Buscar la primera cuota pendiente
-                        let cuotaPendiente = (c.cuotas || []).find(cuo => !cuo.pagada);
-                        let valorSugerido = cuotaPendiente ? cuotaPendiente.valorPagado : "0.00";
-                        
+                        let cuoP = (c.cuotas || []).find(cuo => !cuo.pagada);
                         container.innerHTML += `
                             <div class="cliente-card p-5 flex justify-between items-center item-ruta" data-search="${c.nombre.toLowerCase()} ${c.dui}">
                                 <div>
-                                    <h3 class="font-black uppercase italic text-sm text-white leading-tight">${c.nombre}</h3>
-                                    <div class="flex gap-3 mt-1">
-                                        <p class="text-[10px] font-bold text-slate-400 uppercase">Saldo: <span class="text-white">$${parseFloat(c.saldo || 0).toFixed(2)}</span></p>
-                                        <p class="text-[10px] font-bold text-sky-400 uppercase italic">Cuota: $${parseFloat(valorSugerido).toFixed(2)}</p>
-                                    </div>
+                                    <h3 class="font-black uppercase italic text-sm text-white leading-none">${c.nombre}</h3>
+                                    <p class="text-[10px] font-bold text-slate-500 mt-2 uppercase tracking-tighter">Debe: <span class="text-red-400">$${parseFloat(c.saldo || 0).toFixed(2)}</span></p>
                                 </div>
-                                <button onclick="abrirCobro('${child.key}')" class="bg-sky-600 hover:bg-sky-500 text-white w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg transition-all">
+                                <button onclick="abrirCobro('${child.key}')" class="bg-slate-700 text-white w-12 h-12 rounded-2xl flex items-center justify-center active:bg-sky-600 transition-colors">
                                     <span class="text-xl">💵</span>
                                 </button>
-                            </div>
-                        `;
+                            </div>`;
                     }
                 });
             });
@@ -155,54 +146,51 @@
             clienteActualId = id;
             const snap = await db.ref('clientes/' + id).once('value');
             const c = snap.val();
-            
-            // Buscar índice de la cuota a pagar
             const idx = (c.cuotas || []).findIndex(cuo => !cuo.pagada);
-            if(idx === -1) {
-                alert("Este cliente ya no tiene cuotas pendientes.");
-                return;
-            }
+            
+            if(idx === -1) return alert("Sin cuotas pendientes");
             indiceCuota = idx;
 
+            const total = parseFloat(c.total || 0);
+            const saldo = parseFloat(c.saldo || 0);
+
+            // Poblar Modal
             document.getElementById('c-nombre').innerText = c.nombre;
-            document.getElementById('c-saldo').innerText = `$${parseFloat(c.saldo || 0).toFixed(2)}`;
-            document.getElementById('c-cuota-info').innerText = `Cuota #${c.cuotas[idx].n} - ${c.frecuencia}`;
+            document.getElementById('m-total').innerText = `$${total.toFixed(2)}`;
+            document.getElementById('m-pagado').innerText = `$${(total - saldo).toFixed(2)}`;
+            document.getElementById('m-saldo').innerText = `$${saldo.toFixed(2)}`;
+            document.getElementById('c-cuota-info').innerText = `Cuota pendiente #${c.cuotas[idx].n}`;
             document.getElementById('monto-recibido').value = c.cuotas[idx].valorPagado;
             
             document.getElementById('modalCobro').classList.remove('hidden');
-            setTimeout(() => document.getElementById('monto-recibido').focus(), 300);
+            setTimeout(() => document.getElementById('monto-recibido').select(), 200);
         }
 
         async function registrarPago() {
             const monto = parseFloat(document.getElementById('monto-recibido').value);
-            if(!monto || monto <= 0) return alert("Ingrese un monto válido");
-
-            const confirmacion = confirm(`¿Confirmar recibo de $${monto.toFixed(2)}?`);
-            if(!confirmacion) return;
+            if(!monto || monto <= 0) return;
 
             const snap = await db.ref('clientes/' + clienteActualId).once('value');
             let s = snap.val();
-            const hoyISO = new Date().toISOString().split('T')[0];
+            
+            // Fecha Automática para el registro
+            const ahora = new Date();
+            const fechaISO = ahora.toISOString().split('T')[0]; // YYYY-MM-DD
+            const fechaSV = ahora.toLocaleDateString('es-SV'); // DD/MM/YYYY
 
-            // Actualizar la cuota
             s.cuotas[indiceCuota].pagada = true;
             s.cuotas[indiceCuota].valorPagado = monto;
-            s.cuotas[indiceCuota].fecha_ISO = hoyISO;
-            s.cuotas[indiceCuota].fecha = hoyISO.split('-').reverse().join('/');
-            
-            // Actualizar saldo general
-            s.saldo = parseFloat(s.saldo || s.total) - monto;
+            s.cuotas[indiceCuota].fecha_ISO = fechaISO;
+            s.cuotas[indiceCuota].fecha = fechaSV;
+            s.saldo = parseFloat(s.saldo) - monto;
 
             await db.ref('clientes/' + clienteActualId).update(s);
             
-            alert("✅ PAGO REGISTRADO EXITOSAMENTE");
+            alert("✅ PAGO GUARDADO");
             cerrarCobro();
         }
 
-        function cerrarCobro() {
-            document.getElementById('modalCobro').classList.add('hidden');
-        }
-
+        function cerrarCobro() { document.getElementById('modalCobro').classList.add('hidden'); }
         function filtrarClientes() {
             const txt = document.getElementById('buscador').value.toLowerCase();
             document.querySelectorAll('.item-ruta').forEach(card => {
