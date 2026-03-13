@@ -10,81 +10,80 @@
     <style>
         :root { --dark: #050b16; --cyan: #00d2ff; }
         body { background-color: var(--dark); color: white; font-family: sans-serif; }
-        .input-pago { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 0.5rem; border-radius: 0.8rem; color: white; outline: none; font-size: 0.8rem; width: 100%; }
-        .card-cliente { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); transition: all 0.3s; }
-        .card-cliente:hover { border-color: var(--cyan); }
+        .input-pago { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 0.8rem; border-radius: 1rem; color: white; outline: none; width: 100%; font-size: 0.9rem; }
+        .card-cliente { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); transition: all 0.3s; }
     </style>
 </head>
 <body class="pb-20">
 
-    <nav class="p-6 border-b border-white/5 sticky top-0 bg-[#050b16]/90 backdrop-blur-md z-50">
+    <nav class="p-6 border-b border-white/5 sticky top-0 bg-[#050b16]/95 backdrop-blur-md z-50">
         <div class="max-w-5xl mx-auto flex flex-col gap-4">
             <div class="flex justify-between items-center">
-                <button onclick="location.href='gestionar.html'" class="text-cyan-500 text-xs font-black uppercase">← Volver</button>
-                <p class="font-black italic text-cyan-400 uppercase">Gestión de Pagos</p>
+                <button onclick="location.href='gestionar.html'" class="text-cyan-500 text-[10px] font-black uppercase tracking-widest">← Volver</button>
+                <p class="font-black italic text-cyan-400 uppercase text-sm">Cobros Santiago de María</p>
             </div>
-            <input type="text" id="buscador" onkeyup="filtrarClientes()" placeholder="Buscar por Nombre o DUI..." class="w-full py-4 bg-white/5 border border-white/10 rounded-2xl px-6 outline-none focus:border-cyan-500 text-sm">
+            <input type="text" id="buscador" onkeyup="filtrarClientes()" placeholder="Escribe nombre o DUI para buscar..." class="w-full py-4 bg-white/5 border border-white/10 rounded-2xl px-6 outline-none focus:border-cyan-500 text-sm">
         </div>
     </nav>
 
     <main class="max-w-5xl mx-auto px-6 mt-8">
-        <div id="lista-activos" class="grid grid-cols-1 gap-4">
-            </div>
+        <div id="lista-activos" class="grid grid-cols-1 gap-3">
+            <p class="text-center text-slate-600 animate-pulse py-10">Cargando clientes activos...</p>
+        </div>
     </main>
 
-    <div id="modalGestion" class="fixed inset-0 bg-black/98 z-[300] hidden flex-col overflow-y-auto p-6">
-        <div class="max-w-2xl mx-auto w-full">
-            <div class="flex justify-between items-center mb-8">
-                <h2 id="m-nombre" class="text-2xl font-black text-cyan-400 italic uppercase">Nombre Cliente</h2>
-                <button onclick="cerrarModal()" class="text-slate-500 font-black uppercase text-xs">Cerrar</button>
+    <div id="modalGestion" class="fixed inset-0 bg-black/98 z-[300] hidden flex-col overflow-y-auto p-4">
+        <div class="max-w-2xl mx-auto w-full pt-10 pb-20">
+            <div class="flex justify-between items-center mb-6">
+                <h2 id="m-nombre" class="text-2xl font-black text-white italic uppercase leading-none">Cargando...</h2>
+                <button onclick="cerrarModal()" class="bg-white/10 p-3 rounded-full text-white">✕</button>
             </div>
 
             <div class="grid grid-cols-3 gap-2 mb-8">
-                <div class="bg-white/5 p-4 rounded-2xl text-center">
-                    <p class="text-[8px] text-slate-500 uppercase font-black">Préstamo + Int.</p>
-                    <p id="c-total" class="text-lg font-black">$0.00</p>
+                <div class="bg-white/5 p-4 rounded-3xl text-center">
+                    <p class="text-[7px] text-slate-500 uppercase font-black mb-1">Préstamo</p>
+                    <p id="c-total" class="text-sm font-black text-white">$0.00</p>
                 </div>
-                <div class="bg-white/5 p-4 rounded-2xl text-center border border-green-500/20">
-                    <p class="text-[8px] text-green-500 uppercase font-black">Pagado</p>
-                    <p id="c-pagado" class="text-lg font-black text-green-400">$0.00</p>
+                <div class="bg-white/5 p-4 rounded-3xl text-center border border-green-500/10">
+                    <p class="text-[7px] text-green-500 uppercase font-black mb-1">Abonado</p>
+                    <p id="c-pagado" class="text-sm font-black text-green-400">$0.00</p>
                 </div>
-                <div class="bg-white/5 p-4 rounded-2xl text-center border border-red-500/20">
-                    <p class="text-[8px] text-red-500 uppercase font-black">Debe</p>
-                    <p id="c-debe" class="text-lg font-black text-red-400">$0.00</p>
+                <div class="bg-white/5 p-4 rounded-3xl text-center border border-red-500/10">
+                    <p class="text-[7px] text-red-500 uppercase font-black mb-1">Pendiente</p>
+                    <p id="c-debe" class="text-sm font-black text-red-400">$0.00</p>
                 </div>
             </div>
 
             <div class="mb-10">
-                <h3 class="text-[10px] font-black uppercase text-slate-500 mb-4 tracking-widest">Plan de Pagos</h3>
-                <div id="tabla-cuotas" class="space-y-2">
-                    </div>
+                <h3 class="text-[10px] font-black uppercase text-slate-500 mb-4 px-2">Control de Cuotas</h3>
+                <div id="tabla-cuotas" class="space-y-2"></div>
             </div>
 
-            <div class="bg-white/5 p-6 rounded-[30px] border border-white/10 space-y-6">
-                <h3 class="text-xs font-black uppercase text-cyan-400">Ficha Técnica y Documentos</h3>
-                <div class="grid grid-cols-2 gap-4">
-                    <input type="text" id="e-nombre" placeholder="Nombre" class="input-pago">
-                    <input type="text" id="e-dui" placeholder="DUI" class="input-pago">
+            <div class="bg-white/5 p-6 rounded-[35px] border border-white/5 space-y-4">
+                <h3 class="text-[10px] font-black uppercase text-cyan-400 mb-2">Editar Información / Documentos</h3>
+                <div class="grid grid-cols-2 gap-3">
+                    <input type="text" id="e-nombre" class="input-pago" placeholder="Nombre">
+                    <input type="text" id="e-dui" class="input-pago" placeholder="DUI">
                 </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <input type="tel" id="e-tel" placeholder="Teléfono" class="input-pago">
-                    <input type="text" id="e-pass" placeholder="Contraseña App" class="input-pago">
+                <div class="grid grid-cols-2 gap-3">
+                    <input type="tel" id="e-tel" class="input-pago" placeholder="WhatsApp">
+                    <input type="text" id="e-pass" class="input-pago" placeholder="Clave Cliente">
                 </div>
                 
-                <div class="grid grid-cols-2 gap-4 pt-4">
-                    <div>
-                        <label class="text-[9px] uppercase font-black text-slate-500 block mb-2">Contrato Digital</label>
-                        <input type="file" id="f-contrato" class="text-[9px] block w-full">
+                <div class="grid grid-cols-2 gap-4 py-4">
+                    <div class="bg-white/5 p-4 rounded-2xl border border-dashed border-white/10 text-center">
+                        <p class="text-[8px] font-black text-slate-500 uppercase mb-2">Contrato</p>
+                        <input type="file" id="f-contrato" class="text-[10px] w-full text-slate-400">
                     </div>
-                    <div>
-                        <label class="text-[9px] uppercase font-black text-slate-500 block mb-2">Letra de Cambio</label>
-                        <input type="file" id="f-letra" class="text-[9px] block w-full">
+                    <div class="bg-white/5 p-4 rounded-2xl border border-dashed border-white/10 text-center">
+                        <p class="text-[8px] font-black text-slate-500 uppercase mb-2">Letra Cambio</p>
+                        <input type="file" id="f-letra" class="text-[10px] w-full text-slate-400">
                     </div>
                 </div>
 
-                <div class="flex gap-2 pt-4">
-                    <button onclick="actualizarDatos()" class="flex-1 py-4 bg-cyan-500 text-[#050b16] font-black uppercase rounded-2xl text-xs">Actualizar Ficha</button>
-                    <button onclick="cerrarCiclo()" class="flex-1 py-4 bg-white text-black font-black uppercase rounded-2xl text-xs">Cerrar Ciclo (Finalizar)</button>
+                <div class="grid grid-cols-2 gap-3 pt-2">
+                    <button onclick="actualizarDatos()" class="bg-cyan-500 text-black font-black py-4 rounded-2xl text-[10px] uppercase">Guardar Cambios</button>
+                    <button onclick="cerrarCiclo()" class="bg-white text-black font-black py-4 rounded-2xl text-[10px] uppercase italic">Finalizar Crédito</button>
                 </div>
             </div>
         </div>
@@ -96,71 +95,65 @@
         const db = firebase.database();
         let currentId = null;
 
-        // CARGAR CLIENTES ACTIVOS
         function cargarClientes() {
             db.ref('clientes').on('value', (snap) => {
                 const container = document.getElementById('lista-activos');
                 container.innerHTML = "";
+                let hayActivos = false;
+
                 snap.forEach((child) => {
                     const s = child.val();
                     if (s.tipo === "ACTIVO") {
+                        hayActivos = true;
+                        const saldo = s.saldo || 0;
                         container.innerHTML += `
-                            <div class="card-cliente p-6 rounded-[25px] flex justify-between items-center item-cliente" data-nombre="${s.nombre}" data-dui="${s.dui}">
+                            <div class="card-cliente p-5 rounded-[25px] flex justify-between items-center item-cliente" data-nombre="${s.nombre}" data-dui="${s.dui}">
                                 <div>
-                                    <h3 class="font-black uppercase text-white">${s.nombre}</h3>
-                                    <p class="text-[10px] text-slate-500 font-bold uppercase">Saldo Pendiente: $${s.saldo.toFixed(2)}</p>
+                                    <h3 class="font-black uppercase text-white leading-none mb-1 text-sm">${s.nombre}</h3>
+                                    <p class="text-[10px] text-slate-500 font-bold uppercase tracking-tight">Saldo: <span class="text-cyan-400">$${parseFloat(saldo).toFixed(2)}</span></p>
                                 </div>
                                 <div class="flex gap-2">
-                                    <button onclick="gestionarPago('${child.key}')" class="bg-cyan-500/10 text-cyan-400 px-4 py-2 rounded-xl text-[10px] font-black uppercase">Gestión</button>
-                                    <button onclick="eliminarCliente('${child.key}')" class="bg-red-500/10 text-red-500 px-4 py-2 rounded-xl text-[10px] font-black uppercase">Eliminar</button>
+                                    <button onclick="gestionarPago('${child.key}')" class="bg-cyan-500/10 text-cyan-400 p-3 rounded-xl text-[9px] font-black uppercase">GESTIÓN</button>
+                                    <button onclick="eliminarCliente('${child.key}')" class="bg-red-500/10 text-red-500 p-3 rounded-xl text-[9px] font-black uppercase">✕</button>
                                 </div>
                             </div>`;
                     }
                 });
+                if(!hayActivos) container.innerHTML = "<p class='text-center text-slate-700 py-10 text-xs uppercase font-black'>No hay clientes activos en este momento</p>";
             });
         }
 
-        // BÚSQUEDA FILTRADA
-        function filtrarClientes() {
-            const busqueda = document.getElementById('buscador').value.toLowerCase();
-            const items = document.querySelectorAll('.item-cliente');
-            items.forEach(item => {
-                const texto = item.getAttribute('data-nombre').toLowerCase() + item.getAttribute('data-dui');
-                item.style.display = texto.includes(busqueda) ? "flex" : "none";
-            });
-        }
-
-        // MODAL DE GESTIÓN
         async function gestionarPago(id) {
             currentId = id;
             const snap = await db.ref('clientes/' + id).once('value');
             const s = snap.val();
 
             document.getElementById('m-nombre').innerText = s.nombre;
-            document.getElementById('c-total').innerText = `$${s.total.toFixed(2)}`;
-            document.getElementById('c-pagado').innerText = `$${(s.total - s.saldo).toFixed(2)}`;
-            document.getElementById('c-debe').innerText = `$${s.saldo.toFixed(2)}`;
+            document.getElementById('c-total').innerText = `$${parseFloat(s.total || 0).toFixed(2)}`;
+            document.getElementById('c-pagado').innerText = `$${(parseFloat(s.total || 0) - parseFloat(s.saldo || 0)).toFixed(2)}`;
+            document.getElementById('c-debe').innerText = `$${parseFloat(s.saldo || 0).toFixed(2)}`;
             
-            // Llenar ficha de edición
             document.getElementById('e-nombre').value = s.nombre;
             document.getElementById('e-dui').value = s.dui;
-            document.getElementById('e-tel').value = s.tel;
-            document.getElementById('e-pass').value = s.pass;
+            document.getElementById('e-tel').value = s.tel || "";
+            document.getElementById('e-pass').value = s.pass || "";
 
-            // Renderizar cuotas
             const tabla = document.getElementById('tabla-cuotas');
             tabla.innerHTML = "";
-            s.cuotas.forEach((c, index) => {
-                const checked = c.pagada ? 'bg-green-500/20 border-green-500' : 'bg-white/5 border-white/5';
-                const opacity = c.pagada ? 'opacity-50' : 'opacity-100';
-                
+            const cuotas = s.cuotas || [];
+
+            cuotas.forEach((c, index) => {
+                const estatusClase = c.pagada ? 'bg-green-500/10 border-green-500/30' : 'bg-white/5 border-white/10';
                 tabla.innerHTML += `
-                    <div class="${checked} ${opacity} p-4 rounded-2xl flex items-center gap-3 border transition-all">
-                        <div class="text-[10px] font-black text-slate-500 w-8">#${c.n}</div>
-                        <input type="number" id="val-${index}" value="${c.valorPagado}" class="w-20 bg-black/20 border-none rounded-lg text-xs font-black p-1 text-center" ${c.pagada ? 'disabled' : ''}>
-                        <input type="text" id="fec-${index}" value="${c.fecha || ''}" placeholder="DD/MM" class="w-16 bg-black/20 border-none rounded-lg text-[10px] p-1 text-center" ${c.pagada ? 'disabled' : ''}>
+                    <div class="${estatusClase} p-4 rounded-2xl flex items-center gap-2 border">
+                        <span class="text-[9px] font-black text-slate-500">#${c.n}</span>
+                        <input type="number" id="val-${index}" value="${c.valorPagado}" class="w-16 bg-black/40 border-none rounded-lg text-xs font-black p-2 text-center text-white" ${c.pagada ? 'disabled' : ''}>
+                        <input type="text" id="fec-${index}" value="${c.fecha || ''}" placeholder="DD/MM" class="w-16 bg-black/40 border-none rounded-lg text-[10px] p-2 text-center text-white" ${c.pagada ? 'disabled' : ''}>
                         <div class="flex-1"></div>
-                        ${!c.pagada ? `<button onclick="confirmarCuota(${index})" class="bg-cyan-500 text-black font-black text-[9px] px-3 py-2 rounded-lg uppercase">Cobrar</button>` : `<span class="text-green-500 text-[9px] font-black uppercase">✓ Pagado</span>`}
+                        ${!c.pagada ? 
+                            `<button onclick="confirmarCuota(${index})" class="bg-cyan-500 text-black font-black text-[9px] px-4 py-2 rounded-lg uppercase">Cobrar</button>` : 
+                            `<span class="text-green-500 text-[8px] font-black uppercase mr-2">✓ PAGADO</span>`
+                        }
                     </div>`;
             });
 
@@ -168,54 +161,53 @@
         }
 
         async function confirmarCuota(index) {
-            const pin = prompt("Confirma con clave de seguridad:");
-            if(pin !== "lazaroemanuel") return alert("Clave incorrecta");
+            const pin = prompt("Ingresa PIN de seguridad:");
+            if(pin !== "lazaroemanuel") return;
 
             const montoEditado = parseFloat(document.getElementById(`val-${index}`).value);
-            const fechaEditada = document.getElementById(`fec-${index}`).value || new Date().toLocaleDateString();
+            const fechaManual = document.getElementById(`fec-${index}`).value || new Date().toLocaleDateString('es-SV', {day:'2-digit', month:'2-digit'});
 
             const snap = await db.ref('clientes/' + currentId).once('value');
             let s = snap.val();
 
-            // Actualizar la cuota específica
             s.cuotas[index].pagada = true;
             s.cuotas[index].valorPagado = montoEditado;
-            s.cuotas[index].fecha = fechaEditada;
-
-            // Recalcular saldo general
-            s.saldo = s.saldo - montoEditado;
+            s.cuotas[index].fecha = fechaManual;
+            s.saldo = parseFloat(s.saldo) - montoEditado;
 
             await db.ref('clientes/' + currentId).update(s);
-            gestionarPago(currentId); // Refrescar modal
+            gestionarPago(currentId);
+        }
+
+        function filtrarClientes() {
+            const b = document.getElementById('buscador').value.toLowerCase();
+            document.querySelectorAll('.item-cliente').forEach(item => {
+                const t = item.getAttribute('data-nombre').toLowerCase() + item.getAttribute('data-dui');
+                item.style.display = t.includes(b) ? "flex" : "none";
+            });
         }
 
         async function actualizarDatos() {
-            const updates = {
+            await db.ref('clientes/' + currentId).update({
                 nombre: document.getElementById('e-nombre').value.toUpperCase(),
                 dui: document.getElementById('e-dui').value,
                 tel: document.getElementById('e-tel').value,
                 pass: document.getElementById('e-pass').value
-            };
-            await db.ref('clientes/' + currentId).update(updates);
-            alert("Ficha actualizada correctamente");
+            });
+            alert("Información actualizada");
         }
 
         async function cerrarCiclo() {
-            if(confirm("¿Deseas cerrar este ciclo? Se guardará en el historial y se borrará de activos.")){
+            if(confirm("¿Finalizar crédito y mover a historial?")){
                 const snap = await db.ref('clientes/' + currentId).once('value');
-                const s = snap.val();
-                // Guardar en nodo 'historial'
-                await db.ref('historial').push({ ...s, fechaCierre: new Date().toLocaleDateString() });
-                // Eliminar de 'clientes'
+                await db.ref('historial').push({ ...snap.val(), fechaFinal: new Date().toLocaleDateString() });
                 await db.ref('clientes/' + currentId).remove();
                 cerrarModal();
             }
         }
 
         function eliminarCliente(id) {
-            if(confirm("¿Eliminar permanentemente a este cliente?")) {
-                db.ref('clientes/' + id).remove();
-            }
+            if(confirm("¿Eliminar cliente activo?")) db.ref('clientes/' + id).remove();
         }
 
         function cerrarModal() { document.getElementById('modalGestion').style.display = "none"; }
