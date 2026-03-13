@@ -6,10 +6,10 @@
     <title>Solicitud | CrediListo</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-database-compat.js"></script>
     <style>
-        :root { --dark: #050b16; --cyan: #00d2ff; --green: #3aef9b; }
-        body { background-color: var(--dark); color: white; }
+        :root { --dark: #050b16; --cyan: #00d2ff; }
+        body { background-color: var(--dark); color: white; font-family: 'Inter', sans-serif; }
         .input-field { 
             width: 100%; padding: 1rem; background: rgba(255,255,255,0.05); 
             border: 1px solid rgba(255,255,255,0.1); border-radius: 1rem;
@@ -22,17 +22,16 @@
 <body class="pb-20">
 
     <nav class="w-full py-6 flex justify-center sticky top-0 bg-[#050b16]/90 backdrop-blur-md z-50">
-        <img src="logocredi.png" alt="Logo" class="h-8 opacity-80" style="mix-blend-mode: lighten;">
+        <h1 class="text-xl font-black italic uppercase tracking-tighter">Credi<span class="text-cyan-400">Listo</span></h1>
     </nav>
 
     <main class="max-w-xl mx-auto px-6 mt-10">
         <header class="text-center mb-10">
             <h1 class="text-3xl font-black italic uppercase tracking-tighter">Nueva <span class="text-cyan-400">Solicitud</span></h1>
-            <p class="text-slate-500 text-[10px] font-black uppercase mt-2 tracking-widest">Completa tu información de perfil</p>
+            <p class="text-slate-500 text-[10px] font-black uppercase mt-2 tracking-widest">Completa tu información para evaluar tu crédito</p>
         </header>
 
         <form id="formCredito" class="space-y-6">
-            
             <div class="space-y-4">
                 <h2 class="text-cyan-400 text-[10px] font-black uppercase tracking-[0.2em] border-b border-white/5 pb-2">Identidad y Contacto</h2>
                 <div>
@@ -51,23 +50,32 @@
                 </div>
                 <div>
                     <span class="label-style">Dirección de Casa</span>
-                    <textarea id="direccion_casa" rows="2" placeholder="Barrio, Calle, # de casa..." required class="input-field"></textarea>
+                    <textarea id="direccion_casa" rows="2" required class="input-field"></textarea>
                 </div>
             </div>
 
             <div class="space-y-4 pt-4">
-                <h2 class="text-cyan-400 text-[10px] font-black uppercase tracking-[0.2em] border-b border-white/5 pb-2">Actividad Económica</h2>
+                <h2 class="text-cyan-400 text-[10px] font-black uppercase tracking-[0.2em] border-b border-white/5 pb-2">Datos del Crédito</h2>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <span class="label-style">Monto Solicitado</span>
+                        <input type="number" id="monto" placeholder="Ej: 300" required class="input-field">
+                    </div>
+                    <div>
+                        <span class="label-style">Frecuencia de Pago</span>
+                        <select id="frecuencia" class="input-field">
+                            <option value="diario">DIARIO (30 días)</option>
+                            <option value="semanal">SEMANAL (4 semanas)</option>
+                        </select>
+                    </div>
+                </div>
                 <div>
                     <span class="label-style">Negocio o Rubro</span>
-                    <input type="text" id="rubro" placeholder="Ej: Tienda, Pupusería, Taller" required class="input-field">
+                    <input type="text" id="rubro" required class="input-field">
                 </div>
                 <div>
-                    <span class="label-style">Dirección del Negocio</span>
-                    <textarea id="direccion_negocio" rows="2" placeholder="Ubicación donde trabaja..." required class="input-field"></textarea>
-                </div>
-                <div>
-                    <span class="label-style">Propósito del Crédito</span>
-                    <input type="text" id="proposito" placeholder="Ej: Compra de materia prima" required class="input-field">
+                    <span class="label-style">Propósito</span>
+                    <input type="text" id="proposito" required class="input-field">
                 </div>
             </div>
 
@@ -92,45 +100,46 @@
     </main>
 
     <script>
-        // Configuración de Firebase (Asegúrate de que tus llaves estén en github secret o aquí)
-        const firebaseConfig = {
-            apiKey: "TU_API_KEY",
-            authDomain: "credilisto-sm.firebaseapp.com",
-            projectId: "credilisto-sm",
-            storageBucket: "credilisto-sm.appspot.com",
-            messagingSenderId: "XXXXXXXX",
-            appId: "XXXXXXXX"
-        };
+        // CONFIGURACIÓN CORREGIDA PARA REALTIME DATABASE
+        const firebaseConfig = { databaseURL: "https://credilistosv-default-rtdb.firebaseio.com" };
         firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
+        const db = firebase.database();
 
         document.getElementById('formCredito').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = e.target.querySelector('button');
-            btn.disabled = true; btn.innerText = "ENVIANDO...";
+            btn.disabled = true; 
+            btn.innerText = "PROCESANDO...";
+
+            const idGenerado = Date.now();
+            const montoVal = document.getElementById('monto').value;
+            const frecVal = document.getElementById('frecuencia').value;
 
             const datos = {
-                nombre: document.getElementById('nombre').value,
+                id: idGenerado,
+                nombre: document.getElementById('nombre').value.toUpperCase(),
                 dui: document.getElementById('dui').value,
-                telefono: document.getElementById('telefono').value,
-                direccion_casa: document.getElementById('direccion_casa').value,
-                rubro: document.getElementById('rubro').value,
-                direccion_negocio: document.getElementById('direccion_negocio').value,
-                proposito: document.getElementById('proposito').value,
-                referencia: {
-                    nombre: document.getElementById('ref_nombre').value,
-                    tel: document.getElementById('ref_tel').value
-                },
-                estado: 'pendiente',
-                fecha: firebase.firestore.FieldValue.serverTimestamp()
+                tel: document.getElementById('telefono').value,
+                dirCasa: document.getElementById('direccion_casa').value,
+                negocio: document.getElementById('rubro').value,
+                inversion: document.getElementById('proposito').value,
+                monto: montoVal,
+                frecuencia: frecVal,
+                refNom: document.getElementById('ref_nombre').value,
+                refTel: document.getElementById('ref_tel').value,
+                tipo: "PENDIENTE",
+                fecha: new Date().toLocaleDateString('es-SV')
             };
 
             try {
-                await db.collection('solicitudes').add(datos);
-                window.location.href = 'enviado.html';
+                // Guardamos directamente en la rama 'clientes' como PENDIENTE
+                await db.ref('clientes/' + idGenerado).set(datos);
+                // Enviamos los datos a la página enviado.html por la URL para el cálculo
+                window.location.href = `enviado.html?monto=${montoVal}&frecuencia=${frecVal}`;
             } catch (error) {
-                alert("Error: " + error.message);
-                btn.disabled = false; btn.innerText = "ENVIAR SOLICITUD";
+                alert("Error al enviar: " + error.message);
+                btn.disabled = false; 
+                btn.innerText = "ENVIAR SOLICITUD";
             }
         });
     </script>
