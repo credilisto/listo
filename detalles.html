@@ -1,0 +1,20 @@
+async function confirmarAbono() {
+    const monto = parseFloat(document.getElementById('input-abono').value);
+    const clienteRef = db.collection('clientes').doc(idDoc);
+    
+    await db.runTransaction(async (t) => {
+        const doc = await t.get(clienteRef);
+        const nuevoSaldo = doc.data().saldo - monto;
+        t.update(clienteRef, { saldo: nuevoSaldo });
+        
+        // Registro en historial
+        const pagoRef = db.collection('pagos').doc();
+        t.set(pagoRef, {
+            clienteId: idDoc,
+            monto: monto,
+            fecha: firebase.firestore.FieldValue.serverTimestamp(),
+            detalle: "Pago en ruta / Santiago de María"
+        });
+    });
+    alert("Saldo actualizado correctamente.");
+}

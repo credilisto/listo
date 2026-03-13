@@ -1,0 +1,16 @@
+<script>
+    async function consultarSaldo() {
+        const dui = document.getElementById('dui-consulta').value;
+        const q = await db.collection('clientes').where('dui', '==', dui).get();
+        if (!q.empty) {
+            const cliente = q.docs[0].data();
+            document.getElementById('resultado').innerHTML = `
+                <div class="mt-8 p-8 bg-white/5 rounded-[35px] border border-cyan-500/30">
+                    <p class="text-[10px] uppercase font-black text-slate-500">Saldo Pendiente</p>
+                    <p class="text-5xl font-black text-cyan-400">$${cliente.saldo.toFixed(2)}</p>
+                </div>`;
+        } else {
+            alert("DUI no encontrado o sin crédito activo.");
+        }
+    }
+</script>

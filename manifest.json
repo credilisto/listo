@@ -1,0 +1,12 @@
+{
+  "name": "CrediListo Gestión",
+  "short_name": "CrediAdmin",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#050b16",
+  "theme_color": "#050b16",
+  "icons": [
+    { "src": "logocredi.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "logocredi.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

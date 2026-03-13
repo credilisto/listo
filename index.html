@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CrediListo | Soluciones Financieras</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#050b16">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root { --dark: #050b16; --cyan: #00d2ff; --green: #3aef9b; }
+        body { background-color: var(--dark); color: white; font-family: sans-serif; }
+        .gradient-text {
+            background: linear-gradient(to right, var(--cyan), var(--green));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .img-featured { border-radius: 40px; box-shadow: 0 30px 60px rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.05); }
+        .logo-nav { mix-blend-mode: lighten; }
+    </style>
+</head>
+<body>
+    <nav class="w-full py-8 flex justify-center sticky top-0 z-50 border-b border-white/5 shadow-2xl" style="background-color: var(--dark);">
+        <img src="logocredi.png" alt="CrediListo" class="h-10 md:h-12 object-contain logo-nav">
+    </nav>
+
+    <header class="max-w-5xl mx-auto px-6 pt-16 pb-12 text-center">
+        <h1 class="text-5xl md:text-8xl font-black italic uppercase leading-[0.9] tracking-tighter mb-8">
+            SOLUCIONES <br> <span class="gradient-text">PARA TU NEGOCIO</span>
+        </h1>
+        <p class="text-slate-400 text-sm md:text-xl max-w-2xl mx-auto font-medium leading-relaxed">
+            Sin bancos y con aprobación en 24 horas. El apoyo financiero que Santiago de María estaba esperando.
+        </p>
+    </header>
+
+    <main class="max-w-5xl mx-auto px-6">
+        <section class="py-12 space-y-12">
+            <img src="image2.png" alt="Información de Créditos" class="img-featured w-full max-w-3xl mx-auto h-auto">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
+                <div class="p-8 rounded-[35px] bg-white/5 border border-white/5">
+                    <h3 class="text-4xl font-black gradient-text italic">$50</h3>
+                    <p class="text-[10px] uppercase font-black text-slate-500 mt-2 tracking-widest">Inversión Inicial</p>
+                </div>
+                <div class="p-8 rounded-[35px] bg-white/5 border border-white/5">
+                    <h3 class="text-4xl font-black gradient-text italic">$100</h3>
+                    <p class="text-[10px] uppercase font-black text-slate-500 mt-2 tracking-widest">Crecimiento</p>
+                </div>
+                <div class="p-8 rounded-[35px] bg-white/5 border border-white/5">
+                    <h3 class="text-4xl font-black gradient-text italic">$200</h3>
+                    <p class="text-[10px] uppercase font-black text-slate-500 mt-2 tracking-widest">Impulso Total</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="py-20 grid grid-cols-1 md:grid-cols-2 gap-16 items-center border-t border-white/5">
+            <div class="order-2 md:order-1"><img src="image1.png" alt="Beneficios" class="img-featured w-full h-auto"></div>
+            <div class="order-1 md:order-2 space-y-8">
+                <h2 class="text-4xl font-black italic uppercase leading-none tracking-tight">Rapidez y <br>Confianza</h2>
+                <div class="space-y-6 text-slate-300 italic">
+                    <p>• Sin revisión de récord crediticio. Valoramos tu esfuerzo.</p>
+                    <p>• Respuesta inmediata. Recibe tu crédito en menos de 24 horas.</p>
+                    <p>• Trato local y directo en Santiago de María y Usulután Norte.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="py-32 text-center border-t border-white/5 space-y-16">
+            <div class="flex flex-col md:flex-row justify-center gap-6 max-w-xl mx-auto">
+                <a href="solicitud.html" class="flex-1 py-5 px-10 rounded-3xl bg-white text-black font-black text-xs uppercase tracking-[0.2em] hover:scale-105 transition-all shadow-xl text-center">Nueva Solicitud</a>
+                <a href="consulta.html" class="flex-1 py-5 px-10 rounded-3xl border-2 border-white/10 text-white font-black text-xs uppercase tracking-[0.2em] hover:bg-white/5 transition-all text-center">Consultar Saldo</a>
+            </div>
+        </section>
+    </main>
+
+    <footer class="py-16 border-t border-white/5 text-center bg-black/20">
+        <img src="logocredi.png" alt="CrediListo" class="h-8 mx-auto opacity-20 logo-nav mb-8">
+        <p class="text-slate-700 text-[9px] font-bold uppercase tracking-[0.6em]">Santiago de María · El Salvador · 2026</p>
+    </footer>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js'); });
+        }
+    </script>
+</body>
+</html>

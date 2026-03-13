@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión | CrediListo</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#050b16">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root { --dark: #050b16; --cyan: #00d2ff; --green: #3aef9b; }
+        body { background-color: var(--dark); color: white; font-family: sans-serif; }
+        .gradient-brand { background: linear-gradient(135deg, var(--cyan), var(--green)); }
+        .card-cliente { 
+            background: rgba(255, 255, 255, 0.03); 
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            transition: all 0.3s ease;
+        }
+        .card-cliente:hover { border-color: var(--cyan); background: rgba(255, 255, 255, 0.05); }
+    </style>
+</head>
+<body class="pb-20">
+
+    <nav class="w-full py-6 px-6 flex justify-between items-center sticky top-0 z-50 border-b border-white/5 shadow-2xl" style="background-color: var(--dark);">
+        <img src="logocredi.png" alt="Logo" class="h-8 object-contain opacity-80" style="mix-blend-mode: lighten;">
+        <div class="flex gap-4">
+            <button class="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white">Cerrar Sesión</button>
+        </div>
+    </nav>
+
+    <main class="max-w-4xl mx-auto px-6 pt-10">
+        
+        <header class="mb-10 space-y-4">
+            <h1 class="text-3xl font-black italic uppercase tracking-tighter">Panel de <span class="text-cyan-400">Gestión</span></h1>
+            <div class="relative">
+                <input type="text" placeholder="Buscar cliente por nombre o DUI..." class="w-full py-4 px-6 bg-white/5 border border-white/10 rounded-2xl focus:outline-none focus:border-cyan-500 transition-colors text-sm">
+            </div>
+        </header>
+
+        <div class="grid grid-cols-2 gap-4 mb-10">
+            <div class="p-6 rounded-3xl bg-white/5 border border-white/5">
+                <p class="text-[9px] uppercase font-black text-slate-500 tracking-widest">Cartera Total</p>
+                <p class="text-2xl font-black italic mt-1">$1,240.00</p>
+            </div>
+            <div class="p-6 rounded-3xl bg-white/5 border border-white/5">
+                <p class="text-[9px] uppercase font-black text-slate-500 tracking-widest">Pendientes</p>
+                <p class="text-2xl font-black italic mt-1 text-orange-400">12 Pagos</p>
+            </div>
+        </div>
+
+        <section class="space-y-4">
+            <h2 class="text-xs font-black uppercase tracking-[0.3em] text-slate-500 mb-6">Clientes Activos</h2>
+
+            <div class="card-cliente p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <h3 class="font-black text-lg italic uppercase leading-none">Juan Pérez Vasquez</h3>
+                    <p class="text-[10px] text-slate-500 mt-1 font-bold">DUI: 01234567-8</p>
+                </div>
+                <div class="flex gap-6 items-center w-full md:w-auto justify-between md:justify-end">
+                    <div class="text-right">
+                        <p class="text-[9px] uppercase font-black text-slate-500">Saldo Pendiente</p>
+                        <p class="font-black text-cyan-400">$45.00</p>
+                    </div>
+                    <button class="py-3 px-6 rounded-xl bg-white text-black font-black text-[10px] uppercase tracking-widest hover:bg-cyan-400 transition-colors">Ver Detalles</button>
+                </div>
+            </div>
+
+            <div class="card-cliente p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <h3 class="font-black text-lg italic uppercase leading-none">María Elena Santos</h3>
+                    <p class="text-[10px] text-slate-500 mt-1 font-bold">DUI: 09876543-2</p>
+                </div>
+                <div class="flex gap-6 items-center w-full md:w-auto justify-between md:justify-end">
+                    <div class="text-right">
+                        <p class="text-[9px] uppercase font-black text-slate-500 text-green-400">Al Día</p>
+                        <p class="font-black text-white">$0.00</p>
+                    </div>
+                    <button class="py-3 px-6 rounded-xl bg-white text-black font-black text-[10px] uppercase tracking-widest hover:bg-cyan-400 transition-colors">Ver Detalles</button>
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <div class="fixed bottom-8 right-8">
+        <button class="w-16 h-16 rounded-full gradient-brand shadow-2xl flex items-center justify-center text-black text-3xl font-bold hover:scale-110 transition-transform">
+            +
+        </button>
+    </div>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js'); });
+        }
+    </script>
+</body>
+</html>
