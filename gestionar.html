@@ -3,96 +3,134 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestión | CrediListo</title>
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#050b16">
+    <title>Gestión Administrativa | CrediListo</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-firestore-compat.js"></script>
     <style>
         :root { --dark: #050b16; --cyan: #00d2ff; --green: #3aef9b; }
         body { background-color: var(--dark); color: white; font-family: sans-serif; }
-        .gradient-brand { background: linear-gradient(135deg, var(--cyan), var(--green)); }
-        .card-cliente { 
-            background: rgba(255, 255, 255, 0.03); 
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 24px;
-            transition: all 0.3s ease;
-        }
-        .card-cliente:hover { border-color: var(--cyan); background: rgba(255, 255, 255, 0.05); }
+        .card-stat { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 1.5rem; border-radius: 2rem; }
+        .btn-action { transition: all 0.2s; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; }
+        .btn-action:active { transform: scale(0.95); }
+        .input-admin { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); width: 100%; padding: 0.8rem; border-radius: 1rem; color: white; outline: none; }
     </style>
 </head>
 <body class="pb-20">
 
-    <nav class="w-full py-6 px-6 flex justify-between items-center sticky top-0 z-50 border-b border-white/5 shadow-2xl" style="background-color: var(--dark);">
-        <img src="logocredi.png" alt="Logo" class="h-8 object-contain opacity-80" style="mix-blend-mode: lighten;">
-        <div class="flex gap-4">
-            <button class="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white">Cerrar Sesión</button>
-        </div>
+    <nav class="w-full py-6 px-6 flex justify-between items-center border-b border-white/5 sticky top-0 bg-[#050b16]/90 backdrop-blur-md z-50">
+        <img src="logocredi.png" class="h-8 opacity-80" style="mix-blend-mode: lighten;">
+        <a href="detalles.html" class="bg-white text-black px-6 py-2 rounded-full font-black text-[10px] uppercase tracking-widest btn-action">Gestionar Pagos →</a>
     </nav>
 
-    <main class="max-w-4xl mx-auto px-6 pt-10">
+    <main class="max-w-6xl mx-auto px-6 mt-10">
         
-        <header class="mb-10 space-y-4">
-            <h1 class="text-3xl font-black italic uppercase tracking-tighter">Panel de <span class="text-cyan-400">Gestión</span></h1>
-            <div class="relative">
-                <input type="text" placeholder="Buscar cliente por nombre o DUI..." class="w-full py-4 px-6 bg-white/5 border border-white/10 rounded-2xl focus:outline-none focus:border-cyan-500 transition-colors text-sm">
+        <section class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
+            <div class="card-stat">
+                <p class="text-[9px] uppercase font-black text-slate-500 tracking-widest">Dinero en Calle</p>
+                <p id="stat-calle" class="text-2xl font-black italic text-white mt-1">$0.00</p>
             </div>
-        </header>
-
-        <div class="grid grid-cols-2 gap-4 mb-10">
-            <div class="p-6 rounded-3xl bg-white/5 border border-white/5">
-                <p class="text-[9px] uppercase font-black text-slate-500 tracking-widest">Cartera Total</p>
-                <p class="text-2xl font-black italic mt-1">$1,240.00</p>
+            <div class="card-stat">
+                <p class="text-[9px] uppercase font-black text-slate-500 tracking-widest">Ganancia Esp.</p>
+                <p id="stat-ganancia" class="text-2xl font-black italic text-green-400 mt-1">$0.00</p>
             </div>
-            <div class="p-6 rounded-3xl bg-white/5 border border-white/5">
-                <p class="text-[9px] uppercase font-black text-slate-500 tracking-widest">Pendientes</p>
-                <p class="text-2xl font-black italic mt-1 text-orange-400">12 Pagos</p>
+            <div class="card-stat border-cyan-500/20">
+                <p class="text-[9px] uppercase font-black text-slate-500 tracking-widest">Cobrado Hoy</p>
+                <p id="stat-hoy" class="text-2xl font-black italic text-cyan-400 mt-1">$0.00</p>
             </div>
-        </div>
-
-        <section class="space-y-4">
-            <h2 class="text-xs font-black uppercase tracking-[0.3em] text-slate-500 mb-6">Clientes Activos</h2>
-
-            <div class="card-cliente p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                    <h3 class="font-black text-lg italic uppercase leading-none">Juan Pérez Vasquez</h3>
-                    <p class="text-[10px] text-slate-500 mt-1 font-bold">DUI: 01234567-8</p>
-                </div>
-                <div class="flex gap-6 items-center w-full md:w-auto justify-between md:justify-end">
-                    <div class="text-right">
-                        <p class="text-[9px] uppercase font-black text-slate-500">Saldo Pendiente</p>
-                        <p class="font-black text-cyan-400">$45.00</p>
-                    </div>
-                    <button class="py-3 px-6 rounded-xl bg-white text-black font-black text-[10px] uppercase tracking-widest hover:bg-cyan-400 transition-colors">Ver Detalles</button>
-                </div>
+            <div class="card-stat">
+                <p class="text-[9px] uppercase font-black text-slate-500 tracking-widest">En Deuda</p>
+                <p id="stat-deuda" class="text-2xl font-black italic text-red-400 mt-1">$0.00</p>
             </div>
-
-            <div class="card-cliente p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                    <h3 class="font-black text-lg italic uppercase leading-none">María Elena Santos</h3>
-                    <p class="text-[10px] text-slate-500 mt-1 font-bold">DUI: 09876543-2</p>
-                </div>
-                <div class="flex gap-6 items-center w-full md:w-auto justify-between md:justify-end">
-                    <div class="text-right">
-                        <p class="text-[9px] uppercase font-black text-slate-500 text-green-400">Al Día</p>
-                        <p class="font-black text-white">$0.00</p>
-                    </div>
-                    <button class="py-3 px-6 rounded-xl bg-white text-black font-black text-[10px] uppercase tracking-widest hover:bg-cyan-400 transition-colors">Ver Detalles</button>
-                </div>
-            </div>
-
         </section>
 
+        <section class="mb-12">
+            <details class="group bg-white/5 rounded-[30px] border border-white/10 overflow-hidden">
+                <summary class="list-none p-6 cursor-pointer flex justify-between items-center">
+                    <span class="font-black uppercase italic tracking-tighter text-lg">+ Registro Manual de Cliente</span>
+                    <span class="text-cyan-400 transition-transform group-open:rotate-180">▼</span>
+                </summary>
+                <div class="p-8 border-t border-white/5 space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <input type="text" placeholder="Nombre Completo" class="input-admin">
+                        <input type="text" placeholder="DUI" class="input-admin">
+                        <input type="password" placeholder="Asignar Contraseña" class="input-admin">
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-[9px] font-black text-slate-500 uppercase ml-2 mb-1 block">Foto de Contrato</label>
+                            <input type="file" class="input-admin text-xs">
+                        </div>
+                        <div>
+                            <label class="text-[9px] font-black text-slate-500 uppercase ml-2 mb-1 block">Foto Letra de Cambio</label>
+                            <input type="file" class="input-admin text-xs">
+                        </div>
+                    </div>
+                    <button class="w-full py-4 bg-cyan-500 text-black font-black uppercase tracking-widest rounded-2xl btn-action">Guardar Cliente Nuevo</button>
+                </div>
+            </details>
+        </section>
+
+        <section class="space-y-6">
+            <h2 class="text-xs font-black uppercase tracking-[0.4em] text-slate-500 ml-4">Solicitudes Entrantes</h2>
+            <div id="lista-solicitudes" class="space-y-4">
+                <div class="animate-pulse text-slate-700 font-black text-center py-10 italic">Sincronizando con base de datos...</div>
+            </div>
+        </section>
     </main>
 
-    <div class="fixed bottom-8 right-8">
-        <button class="w-16 h-16 rounded-full gradient-brand shadow-2xl flex items-center justify-center text-black text-3xl font-bold hover:scale-110 transition-transform">
-            +
-        </button>
+    <div id="modalSolicitud" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[100] hidden items-center justify-center p-6">
+        <div class="bg-[#0b1221] w-full max-w-2xl rounded-[40px] border border-white/10 p-8 max-h-[90vh] overflow-y-auto">
+            <div id="contenidoModal"></div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-8">
+                <button onclick="cerrarModal()" class="col-span-2 md:col-span-4 mb-4 py-2 text-slate-500 font-bold uppercase text-[10px]">Cerrar</button>
+                <button class="bg-green-500 text-black p-3 rounded-xl font-black text-[10px] btn-action">APROBAR</button>
+                <button class="bg-orange-500 text-black p-3 rounded-xl font-black text-[10px] btn-action">OBSERVAR</button>
+                <button class="bg-red-500 text-white p-3 rounded-xl font-black text-[10px] btn-action">RECHAZAR</button>
+                <button class="bg-slate-800 text-red-500 p-3 rounded-xl font-black text-[10px] btn-action">ELIMINAR</button>
+            </div>
+        </div>
     </div>
 
     <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js'); });
+        // Inicialización de Firebase
+        const firebaseConfig = { projectId: "credilisto-sm" /* Resto de tu config */ };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // Cargar Solicitudes en Tiempo Real
+        db.collection("solicitudes").orderBy("fecha", "desc").onSnapshot((snapshot) => {
+            const lista = document.getElementById("lista-solicitudes");
+            lista.innerHTML = "";
+            snapshot.forEach((doc) => {
+                const s = doc.data();
+                lista.innerHTML += `
+                    <div onclick="verSolicitud('${doc.id}')" class="bg-white/5 p-6 rounded-[25px] border border-white/5 flex justify-between items-center cursor-pointer hover:bg-white/10 transition-all">
+                        <div>
+                            <p class="text-[10px] font-black text-cyan-500 uppercase italic tracking-widest">${s.rubro}</p>
+                            <h3 class="font-black text-lg italic uppercase">${s.nombre}</h3>
+                            <p class="text-[10px] text-slate-500 font-bold uppercase">Monto: $${s.monto} | DUI: ${s.dui}</p>
+                        </div>
+                        <span class="text-xl opacity-30">→</span>
+                    </div>
+                `;
+            });
+        });
+
+        // Lógica de Consolidado (Simulada para estructura)
+        function actualizarConsolidado() {
+            // Aquí irían las sumatorias de db.collection("clientes") y db.collection("pagos")
+            document.getElementById("stat-calle").innerText = "$1,540.00"; 
+            document.getElementById("stat-ganancia").innerText = "$320.00";
+        }
+
+        function verSolicitud(id) {
+            document.getElementById("modalSolicitud").style.display = "flex";
+            // Aquí cargaríamos los datos específicos del doc.id en contenidoModal
+        }
+
+        function cerrarModal() {
+            document.getElementById("modalSolicitud").style.display = "none";
         }
     </script>
 </body>
