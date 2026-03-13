@@ -1,10 +1,85 @@
 <!DOCTYPE html>
 <html lang="es">
-<body class="bg-[#050b16] text-white flex items-center justify-center min-h-screen text-center px-6">
-    <div class="space-y-6">
-        <div class="w-20 h-20 bg-green-400 rounded-full flex items-center justify-center mx-auto text-black text-4xl">✓</div>
-        <h1 class="text-3xl font-black italic uppercase">¡Recibido!</h1>
-        <p class="text-slate-400">Analizaremos tu información y te contactaremos en menos de 24 horas.</p>
-        <a href="index.html" class="block py-4 text-cyan-400 font-bold uppercase tracking-widest">Volver al inicio</a>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solicitud Enviada - CrediListo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes bounce-short {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        .animate-bounce-short { animation: bounce-short 2s ease-in-out infinite; }
+        body { background-color: #050b16; font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <div class="bg-white w-full max-w-md rounded-[40px] shadow-2xl overflow-hidden animate-bounce-short">
+        <div class="bg-green-500 p-8 text-white text-center">
+            <div class="bg-white/20 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span class="text-4xl">✅</span>
+            </div>
+            <h1 class="text-2xl font-black uppercase tracking-tighter">¡Solicitud Recibida!</h1>
+        </div>
+
+        <div class="p-8 text-center">
+            <p class="text-gray-500 text-sm mb-6">Hemos recibido tus datos correctamente. Un asesor de <span class="font-bold text-sky-600 italic">CrediListo</span> te contactará pronto al número proporcionado para finalizar el proceso.</p>
+            
+            <div class="bg-slate-50 rounded-3xl p-6 border border-dashed border-slate-300 mb-6">
+                <h2 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Resumen de tu Plan</h2>
+                
+                <div class="flex justify-between items-center mb-3">
+                    <span class="text-gray-600 text-sm font-medium">Monto solicitado:</span>
+                    <span id="resMonto" class="font-black text-slate-900 text-lg">$0.00</span>
+                </div>
+                
+                <div class="flex justify-between items-center mb-3 border-t border-slate-200 pt-3">
+                    <span class="text-gray-600 text-sm italic font-medium" id="txtCuota">Tu cuota diaria:</span>
+                    <span id="resCuota" class="font-black text-green-600 text-xl">$0.00</span>
+                </div>
+
+                <div class="flex justify-between items-center border-t border-slate-200 pt-3">
+                    <span class="text-gray-600 text-[10px] uppercase font-bold text-slate-400">Total a pagar (con 20%):</span>
+                    <span id="resTotal" class="font-bold text-slate-500 text-sm">$0.00</span>
+                </div>
+            </div>
+
+            <p class="text-[9px] text-gray-400 mb-8 italic leading-tight">
+                * El monto final, la cuota y la aprobación están sujetos a la verificación de tus datos por nuestro equipo administrativo en Santiago de María.
+            </p>
+
+            <button onclick="window.location.href='index.html'" class="w-full bg-slate-900 text-white font-black py-4 rounded-2xl text-xs uppercase tracking-widest hover:bg-sky-600 transition-colors shadow-lg">
+                Finalizar y Salir
+            </button>
+        </div>
     </div>
+
+    <script>
+        window.onload = function() {
+            // Capturar parámetros de la URL enviados desde solicitud.html
+            const params = new URLSearchParams(window.location.search);
+            const monto = parseFloat(params.get('monto')) || 0;
+            const frecuencia = params.get('frecuencia') || 'diario';
+
+            // Lógica de Negocio: 20% de interés
+            const total = monto * 1.20;
+            const numCuotas = (frecuencia === 'diario') ? 30 : 4;
+            const valorCuota = total / numCuotas;
+
+            // Mostrar resultados en pantalla
+            document.getElementById('resMonto').innerText = `$${monto.toFixed(2)}`;
+            document.getElementById('resCuota').innerText = `$${valorCuota.toFixed(2)}`;
+            document.getElementById('resTotal').innerText = `$${total.toFixed(2)}`;
+            
+            // Ajustar texto según frecuencia
+            if(frecuencia === 'semanal') {
+                document.getElementById('txtCuota').innerText = "Tu cuota semanal:";
+            } else {
+                document.getElementById('txtCuota').innerText = "Tu cuota diaria:";
+            }
+        }
+    </script>
 </body>
+</html>
