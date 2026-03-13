@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cobros de Campo | CrediListo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-database-compat.js"></script>
+    <style>
+        :root { --bg: #0f172a; --card: #1e293b; --accent: #0ea5e9; }
+        body { background-color: var(--bg); font-family: 'Inter', sans-serif; color: white; }
+        .input-dark { background: #334155; border: 1px solid #475569; padding: 1rem; border-radius: 1rem; width: 100%; color: white; font-weight: 700; outline: none; }
+        .input-dark:focus { border-color: var(--accent); ring: 2px ring var(--accent); }
+        .btn-cobrar { background: linear-gradient(to right, #0ea5e9, #2563eb); }
+        #bloqueo { background: #050b16; display: flex; align-items: center; justify-content: center; z-index: 9999; position: fixed; inset: 0; }
+        .cliente-card { background: var(--card); border: 1px solid #334155; border-radius: 1.2rem; margin-bottom: 0.8rem; }
+    </style>
+</head>
+<body class="pb-10">
+
+    <div id="bloqueo">
+        <div class="text-center p-8 bg-slate-900 rounded-[2.5rem] shadow-2xl w-80 border border-slate-800">
+            <div class="text-4xl mb-4">🏠</div>
+            <h2 class="font-black text-white uppercase italic mb-2">Cobrador de Campo</h2>
+            <p class="text-[10px] font-bold text-slate-400 uppercase mb-6 tracking-widest">Ingrese PIN de Ruta</p>
+            <div class="relative mb-4">
+                <input type="password" id="pin-ruta" inputmode="numeric" placeholder="****" maxlength="4"
+                    class="w-full p-4 bg-slate-800 border-none rounded-2xl text-center text-2xl font-black tracking-[0.5em] text-white outline-none">
+                <button type="button" onclick="togglePin()" class="absolute right-4 top-1/2 -translate-y-1/2">👁️</button>
+            </div>
+            <button onclick="validarRuta()" class="w-full py-4 btn-cobrar text-white font-black rounded-2xl uppercase shadow-lg">Iniciar Jornada</button>
+        </div>
+    </div>
+
+    <div id="app-cobros" class="hidden">
+        <nav class="p-6 bg-slate-900 border-b border-slate-800 sticky top-0 z-50">
+            <div class="max-w-xl mx-auto flex flex-col gap-4">
+                <div class="flex justify-between items-center">
+                    <h1 class="font-black text-white italic uppercase tracking-tighter text-xl">Ruta Santiago</h1>
+                    <span class="bg-green-500/10 text-green-400 text-[10px] font-black px-3 py-1 rounded-full border border-green-500/20">EN LÍNEA</span>
+                </div>
+                <input type="text" id="buscador" onkeyup="filtrarClientes()" placeholder="🔍 Nombre o DUI del cliente..." 
+                    class="input-dark text-sm shadow-2xl">
+            </div>
+        </nav>
+
+        <main class="max-w-xl mx-auto px-6 mt-6">
+            <div id="lista-ruta" class="space-y-3">
+                </div>
+        </main>
+    </div>
+
+    <div id="modalCobro" class="fixed inset-0 z-[100] hidden flex items-end sm:items-center justify-center">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="cerrarCobro()"></div>
+        <div class="relative bg-slate-900 w-full max-w-lg rounded-t-[2.5rem] sm:rounded-[2.5rem] p-8 border-t border-slate-800 shadow-2xl">
+            <div class="flex justify-between items-start mb-6">
+                <div>
+                    <h2 id="c-nombre" class="text-2xl font-black text-white uppercase italic leading-tight">CLIENTE</h2>
+                    <p id="c-cuota-info" class="text-sky-400 font-bold text-xs uppercase mt-1 italic"></p>
+                </div>
+                <button onclick="cerrarCobro()" class="bg-slate-800 text-slate-400 p-3 rounded-full">✕</button>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 mb-8">
+                <div class="bg-slate-800/50 p-4 rounded-2xl border border-slate-700">
+                    <p class="text-[9px] font-black text-slate-400 uppercase">Saldo Pendiente</p>
+                    <p id="c-saldo" class="text-xl font-black text-white">$0.00</p>
+                </div>
+                <div class="bg-slate-800/50 p-4 rounded-2xl border border-slate-700">
+                    <p class="text-[9px] font-black text-sky-400 uppercase italic">Estado de Pago</p>
+                    <p id="c-estado" class="text-xl font-black text-sky-400">AL DÍA</p>
+                </div>
+            </div>
+
+            <div class="mb-6">
+                <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-2">Monto a Recibir ($)</label>
+                <input type="number" id="monto-recibido" inputmode="decimal" step="0.01"
+                    class="w-full p-6 bg-slate-800 border-2 border-slate-700 rounded-3xl text-4xl font-black text-center text-sky-400 outline-none focus:border-sky-500 transition-all">
+            </div>
+
+            <button onclick="registrarPago()" class="w-full py-6 btn-cobrar text-white font-black rounded-[1.5rem] uppercase text-lg shadow-2xl transform active:scale-95 transition-all">
+                Confirmar Pago y Guardar
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const PIN_ACCESO = "2025";
+        const firebaseConfig = { databaseURL: "https://credilistosv-default-rtdb.firebaseio.com" };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        
+        let clienteActualId = null;
+        let indiceCuota = null;
+
+        function togglePin() {
+            const p = document.getElementById('pin-ruta');
+            p.type = p.type === 'password' ? 'text' : 'password';
+        }
+
+        function validarRuta() {
+            const pin = document.getElementById('pin-ruta').value.trim();
+            if(pin === PIN_ACCESO) {
+                sessionStorage.setItem('cobrador_auth', 'true');
+                document.getElementById('bloqueo').style.display = 'none';
+                document.getElementById('app-cobros').classList.remove('hidden');
+                cargarRuta();
+            } else {
+                alert("PIN DE RUTA INVÁLIDO");
+                document.getElementById('pin-ruta').value = "";
+            }
+        }
+
+        window.onload = () => {
+            if(sessionStorage.getItem('cobrador_auth') === 'true') {
+                document.getElementById('bloqueo').style.display = 'none';
+                document.getElementById('app-cobros').classList.remove('hidden');
+                cargarRuta();
+            }
+        };
+
+        function cargarRuta() {
+            db.ref('clientes').on('value', snap => {
+                const container = document.getElementById('lista-ruta');
+                container.innerHTML = "";
+                
+                snap.forEach(child => {
+                    const c = child.val();
+                    if(c.tipo === "ACTIVO") {
+                        // Buscar la primera cuota pendiente
+                        let cuotaPendiente = (c.cuotas || []).find(cuo => !cuo.pagada);
+                        let valorSugerido = cuotaPendiente ? cuotaPendiente.valorPagado : "0.00";
+                        
+                        container.innerHTML += `
+                            <div class="cliente-card p-5 flex justify-between items-center item-ruta" data-search="${c.nombre.toLowerCase()} ${c.dui}">
+                                <div>
+                                    <h3 class="font-black uppercase italic text-sm text-white leading-tight">${c.nombre}</h3>
+                                    <div class="flex gap-3 mt-1">
+                                        <p class="text-[10px] font-bold text-slate-400 uppercase">Saldo: <span class="text-white">$${parseFloat(c.saldo || 0).toFixed(2)}</span></p>
+                                        <p class="text-[10px] font-bold text-sky-400 uppercase italic">Cuota: $${parseFloat(valorSugerido).toFixed(2)}</p>
+                                    </div>
+                                </div>
+                                <button onclick="abrirCobro('${child.key}')" class="bg-sky-600 hover:bg-sky-500 text-white w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg transition-all">
+                                    <span class="text-xl">💵</span>
+                                </button>
+                            </div>
+                        `;
+                    }
+                });
+            });
+        }
+
+        async function abrirCobro(id) {
+            clienteActualId = id;
+            const snap = await db.ref('clientes/' + id).once('value');
+            const c = snap.val();
+            
+            // Buscar índice de la cuota a pagar
+            const idx = (c.cuotas || []).findIndex(cuo => !cuo.pagada);
+            if(idx === -1) {
+                alert("Este cliente ya no tiene cuotas pendientes.");
+                return;
+            }
+            indiceCuota = idx;
+
+            document.getElementById('c-nombre').innerText = c.nombre;
+            document.getElementById('c-saldo').innerText = `$${parseFloat(c.saldo || 0).toFixed(2)}`;
+            document.getElementById('c-cuota-info').innerText = `Cuota #${c.cuotas[idx].n} - ${c.frecuencia}`;
+            document.getElementById('monto-recibido').value = c.cuotas[idx].valorPagado;
+            
+            document.getElementById('modalCobro').classList.remove('hidden');
+            setTimeout(() => document.getElementById('monto-recibido').focus(), 300);
+        }
+
+        async function registrarPago() {
+            const monto = parseFloat(document.getElementById('monto-recibido').value);
+            if(!monto || monto <= 0) return alert("Ingrese un monto válido");
+
+            const confirmacion = confirm(`¿Confirmar recibo de $${monto.toFixed(2)}?`);
+            if(!confirmacion) return;
+
+            const snap = await db.ref('clientes/' + clienteActualId).once('value');
+            let s = snap.val();
+            const hoyISO = new Date().toISOString().split('T')[0];
+
+            // Actualizar la cuota
+            s.cuotas[indiceCuota].pagada = true;
+            s.cuotas[indiceCuota].valorPagado = monto;
+            s.cuotas[indiceCuota].fecha_ISO = hoyISO;
+            s.cuotas[indiceCuota].fecha = hoyISO.split('-').reverse().join('/');
+            
+            // Actualizar saldo general
+            s.saldo = parseFloat(s.saldo || s.total) - monto;
+
+            await db.ref('clientes/' + clienteActualId).update(s);
+            
+            alert("✅ PAGO REGISTRADO EXITOSAMENTE");
+            cerrarCobro();
+        }
+
+        function cerrarCobro() {
+            document.getElementById('modalCobro').classList.add('hidden');
+        }
+
+        function filtrarClientes() {
+            const txt = document.getElementById('buscador').value.toLowerCase();
+            document.querySelectorAll('.item-ruta').forEach(card => {
+                card.style.display = card.dataset.search.includes(txt) ? "flex" : "none";
+            });
+        }
+    </script>
+</body>
+</html>
