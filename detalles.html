@@ -3,156 +3,277 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestión y Estadísticas | CrediListo</title>
+    <title>Control Maestro | CrediListo</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-database-compat.js"></script>
     <style>
-        :root { --primary: #0ea5e9; --bg: #f8fafc; }
-        body { background-color: var(--bg); color: #1e293b; font-family: 'Inter', sans-serif; }
-        .card { background: white; border: 1px solid #e2e8f0; border-radius: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
-        .stat-card { background: white; padding: 1rem; border-radius: 1.2rem; border: 1px solid #e2e8f0; text-align: center; }
+        :root { --bg: #f8fafc; }
+        body { background-color: var(--bg); font-family: 'Inter', sans-serif; }
+        .card { background: white; border-radius: 1.5rem; border: 1px solid #e2e8f0; transition: all 0.2s; }
+        .input-field { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 0.6rem; border-radius: 0.8rem; width: 100%; color: #0f172a; font-size: 0.85rem; font-weight: 600; }
+        .atraso-alerta { border-left: 6px solid #ef4444; background: #fef2f2; }
+        .badge-calif { padding: 2px 8px; border-radius: 6px; font-weight: 900; font-size: 12px; }
     </style>
 </head>
-<body class="pb-10">
+<body class="pb-20">
 
     <nav class="p-4 bg-white border-b border-slate-200 sticky top-0 z-50">
-        <div class="max-w-5xl mx-auto flex flex-col gap-3">
+        <div class="max-w-5xl mx-auto space-y-3">
             <div class="flex justify-between items-center">
-                <button onclick="location.href='gestionar.html'" class="text-sky-600 font-bold text-sm">← VOLVER</button>
-                <h1 class="font-black text-slate-800 tracking-tighter text-lg uppercase">Cobros Santiago de María</h1>
+                <button onclick="location.href='gestionar.html'" class="text-sky-600 font-bold text-xs uppercase tracking-widest">← Inicio</button>
+                <h1 class="font-black text-slate-800 tracking-tighter text-lg uppercase italic">Cobros Santiago de María</h1>
             </div>
-            <input type="text" id="buscador" onkeyup="filtrarClientes()" placeholder="🔍 Buscar cliente..." class="w-full p-4 bg-slate-100 border border-slate-200 rounded-2xl outline-none text-sm">
+            <input type="text" id="buscador" onkeyup="filtrar()" placeholder="🔍 Nombre o DUI..." class="w-full p-4 bg-slate-100 border-none rounded-2xl outline-none text-sm font-bold">
         </div>
     </nav>
 
     <main class="max-w-5xl mx-auto px-4 mt-6">
-        
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-            <div class="stat-card">
-                <p class="text-[9px] font-black text-slate-400 uppercase italic">Dinero en Calle</p>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+            <div class="bg-white p-4 rounded-2xl border border-slate-200 text-center">
+                <p class="text-[8px] font-black text-slate-400 uppercase">En Calle</p>
                 <p id="stat-calle" class="text-lg font-black text-slate-800">$0.00</p>
             </div>
-            <div class="stat-card border-l-4 border-l-green-500">
-                <p class="text-[9px] font-black text-slate-400 uppercase italic">Recogido Hoy</p>
+            <div class="bg-white p-4 rounded-2xl border border-slate-200 border-l-4 border-l-green-500 text-center">
+                <p class="text-[8px] font-black text-slate-400 uppercase">Hoy</p>
                 <p id="stat-hoy" class="text-lg font-black text-green-600">$0.00</p>
             </div>
-            <div class="stat-card">
-                <p class="text-[9px] font-black text-slate-400 uppercase italic">Ganancia Bruta</p>
-                <p id="stat-ganancia" class="text-lg font-black text-sky-600">$0.00</p>
+            <div class="bg-white p-4 rounded-2xl border border-slate-200 text-center">
+                <p class="text-[8px] font-black text-slate-400 uppercase">Mes</p>
+                <p id="stat-mes" class="text-lg font-black text-sky-600">$0.00</p>
             </div>
-            <div class="stat-card bg-slate-900">
-                <p class="text-[9px] font-black text-slate-500 uppercase italic">Total Mes</p>
-                <p id="stat-mes" class="text-lg font-black text-white">$0.00</p>
-            </div>
+            <button onclick="ejecutarCierre()" class="bg-slate-900 p-4 rounded-2xl text-center">
+                <p class="text-[8px] font-black text-slate-500 uppercase">Cierre</p>
+                <p class="text-[10px] font-black text-white uppercase italic">Archivar</p>
+            </button>
         </div>
 
-        <button onclick="ejecutarCierreMensual()" class="w-full mb-8 py-3 bg-red-50 text-red-600 text-[10px] font-black uppercase tracking-widest rounded-xl border border-red-100 hover:bg-red-600 hover:text-white transition-all">
-            ⚠ Ejecutar Cierre de Ciclo Mensual
-        </button>
-
-        <div id="lista-activos" class="grid grid-cols-1 gap-3">
-            </div>
+        <div id="lista-clientes" class="space-y-3"></div>
     </main>
 
-    <div id="modalGestion" class="fixed inset-0 z-[100] hidden overflow-y-auto bg-white">
-        <div class="p-6">
-            <div class="flex justify-between items-center mb-6">
-                <h2 id="m-nombre" class="text-xl font-black uppercase italic">Nombre</h2>
-                <button onclick="cerrarModal()" class="text-slate-400 text-2xl">✕</button>
+    <div id="modalM" class="fixed inset-0 z-[100] hidden overflow-y-auto bg-slate-100/95 backdrop-blur-sm">
+        <div class="min-h-screen p-4">
+            <div class="max-w-3xl mx-auto bg-white rounded-[2.5rem] shadow-2xl border border-slate-200 p-6 mb-10">
+                
+                <div class="flex justify-between items-start mb-6">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h2 id="m-nombre" class="text-2xl font-black text-slate-900 uppercase italic">Nombre</h2>
+                            <span id="m-calif-badge" class="badge-calif bg-slate-100 text-slate-600 uppercase">CALIF: -</span>
+                        </div>
+                        <p id="m-periodo" class="text-[10px] font-bold text-slate-400 uppercase mt-1"></p>
+                    </div>
+                    <button onclick="cerrarM()" class="bg-slate-100 p-3 rounded-full text-slate-400">✕</button>
+                </div>
+
+                <div class="grid grid-cols-3 gap-2 mb-8">
+                    <div class="bg-slate-50 p-3 rounded-xl text-center">
+                        <p class="text-[8px] font-black text-slate-400 uppercase">Total</p>
+                        <p id="c-total" class="font-black text-slate-700 text-sm">$0.00</p>
+                    </div>
+                    <div class="bg-green-50 p-3 rounded-xl text-center">
+                        <p class="text-[8px] font-black text-green-600 uppercase">Abonado</p>
+                        <p id="c-pagado" class="font-black text-green-700 text-sm">$0.00</p>
+                    </div>
+                    <div class="bg-red-50 p-3 rounded-xl text-center">
+                        <p class="text-[8px] font-black text-red-600 uppercase">Deuda</p>
+                        <p id="c-debe" class="font-black text-red-700 text-sm">$0.00</p>
+                    </div>
+                </div>
+
+                <div class="flex gap-2 mb-8">
+                    <button id="btn-ws" class="flex-1 py-3 bg-green-500 text-white rounded-xl text-[10px] font-black uppercase flex items-center justify-center gap-2 shadow-lg shadow-green-100">
+                        WhatsApp Recordatorio
+                    </button>
+                    <button onclick="eliminarCliente()" class="px-6 py-3 bg-red-50 text-red-500 rounded-xl text-[10px] font-black uppercase border border-red-100">
+                        Eliminar
+                    </button>
+                </div>
+
+                <div class="mb-10">
+                    <h3 class="text-[10px] font-black text-slate-400 uppercase mb-4 tracking-widest italic border-b pb-2">Plan de Pagos Personalizado</h3>
+                    <div id="tabla-cuotas" class="space-y-2 max-h-[400px] overflow-y-auto pr-2"></div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-100 pt-8">
+                    <div><label class="label-style text-[9px] font-black text-slate-400 uppercase ml-1">Calificación (A-F)</label><select id="e-calif" class="input-field"><option value="A">Clase A (Excelente)</option><option value="B">Clase B (Bueno)</option><option value="C">Clase C (Regular)</option><option value="D">Clase D (Moroso)</option><option value="F">Clase F (Peligroso)</option></select></div>
+                    <div><label class="label-style text-[9px] font-black text-slate-400 uppercase ml-1">WhatsApp</label><input type="tel" id="e-tel" class="input-field"></div>
+                    <div><label class="label-style text-[9px] font-black text-slate-400 uppercase ml-1">Dirección Casa</label><input type="text" id="e-dir" class="input-field"></div>
+                    <div><label class="label-style text-[9px] font-black text-slate-400 uppercase ml-1">Negocio</label><input type="text" id="e-neg" class="input-field"></div>
+                    <div><label class="label-style text-[9px] font-black text-slate-400 uppercase ml-1">DUI</label><input type="text" id="e-dui" class="input-field"></div>
+                    <div><label class="label-style text-[9px] font-black text-slate-400 uppercase ml-1">Referencia</label><input type="text" id="e-ref" class="input-field"></div>
+                    <div><label class="label-style text-[9px] font-black text-slate-400 uppercase ml-1">Foto DUI (URL)</label><input type="text" id="e-fotoDui" class="input-field"></div>
+                    <div><label class="label-style text-[9px] font-black text-slate-400 uppercase ml-1">Foto Negocio (URL)</label><input type="text" id="e-fotoNeg" class="input-field"></div>
+                    <div class="col-span-full"><button onclick="guardarFicha()" class="w-full py-4 bg-sky-600 text-white font-black rounded-2xl uppercase mt-4 shadow-xl">Actualizar Información Ficha</button></div>
+                </div>
             </div>
-            <div id="tabla-cuotas" class="space-y-2"></div>
         </div>
     </div>
 
     <script>
-        const firebaseConfig = { databaseURL: "https://credilistosv-default-rtdb.firebaseio.com", projectId: "credilistosv" };
+        const firebaseConfig = { databaseURL: "https://credilistosv-default-rtdb.firebaseio.com" };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
         let currentId = null;
 
-        // CARGAR DATOS Y ESTADÍSTICAS
-        function cargarDatos() {
+        function cargar() {
             db.ref('clientes').on('value', (snap) => {
-                let hoy = new Date().toLocaleDateString('es-SV');
-                let mesActual = new Date().getMonth();
+                const hoy = new Date().toLocaleDateString('es-SV');
+                const mes = new Date().getMonth();
+                let calle = 0; let tHoy = 0; let tMes = 0;
                 
-                let totalCalle = 0; let totalGanancia = 0;
-                let totalHoy = 0; let totalMes = 0;
-
-                const container = document.getElementById('lista-activos');
+                const container = document.getElementById('lista-clientes');
                 container.innerHTML = "";
 
-                snap.forEach((child) => {
+                snap.forEach(child => {
                     const s = child.val();
                     if (s.tipo === "ACTIVO") {
-                        totalCalle += parseFloat(s.saldo || 0);
-                        totalGanancia += (parseFloat(s.monto || 0) * 0.20);
-
+                        calle += parseFloat(s.saldo || 0);
+                        
+                        // Lógica de alerta (3 días de atraso)
+                        let ultimaFecha = s.fecha_inicio || s.fecha;
+                        let clasesAlerta = "";
                         if(s.cuotas) {
-                            s.cuotas.forEach(c => {
-                                if(c.pagada && c.fecha) {
-                                    if(c.fecha === hoy) totalHoy += parseFloat(c.valorPagado || 0);
-                                    const partes = c.fecha.split('/');
-                                    if(parseInt(partes[1]) - 1 === mesActual) totalMes += parseFloat(c.valorPagado || 0);
-                                }
-                            });
+                            const pendiente = s.cuotas.find(c => !c.pagada);
+                            if(pendiente) {
+                                // Simulación simple de alerta: si no hay pagos hoy
+                                s.cuotas.forEach(c => {
+                                    if(c.pagada && c.fecha === hoy) tHoy += parseFloat(c.valorPagado);
+                                    if(c.pagada) {
+                                        const m = parseInt(c.fecha.split('/')[1]) - 1;
+                                        if(m === mes) tMes += parseFloat(c.valorPagado);
+                                    }
+                                });
+                            }
                         }
 
                         container.innerHTML += `
-                            <div class="card p-5 flex justify-between items-center item-cliente" data-nombre="${s.nombre}">
+                            <div class="card p-5 flex justify-between items-center item-c ${clasesAlerta}" data-n="${s.nombre}" data-d="${s.dui}">
                                 <div>
-                                    <h3 class="font-black uppercase text-slate-800 text-sm">${s.nombre}</h3>
-                                    <p class="text-[10px] font-bold text-slate-400 italic">SALDO: $${parseFloat(s.saldo || 0).toFixed(2)}</p>
+                                    <h3 class="font-black uppercase text-slate-800 text-[13px] leading-none mb-1">${s.nombre}</h3>
+                                    <p class="text-[9px] font-bold text-slate-400 uppercase italic">Saldo: <span class="text-sky-600">$${parseFloat(s.saldo || 0).toFixed(2)}</span> • ${s.frecuencia}</p>
                                 </div>
-                                <button onclick="gestionarPago('${child.key}')" class="bg-sky-500 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase">Cobrar</button>
+                                <div class="flex gap-2">
+                                    <button onclick="ver('${child.key}')" class="bg-sky-500 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase shadow-sm">Pagos</button>
+                                </div>
                             </div>`;
                     }
                 });
-
-                document.getElementById('stat-calle').innerText = `$${totalCalle.toFixed(2)}`;
-                document.getElementById('stat-ganancia').innerText = `$${totalGanancia.toFixed(2)}`;
-                document.getElementById('stat-hoy').innerText = `$${totalHoy.toFixed(2)}`;
-                document.getElementById('stat-mes').innerText = `$${totalMes.toFixed(2)}`;
+                document.getElementById('stat-calle').innerText = `$${calle.toFixed(2)}`;
+                document.getElementById('stat-hoy').innerText = `$${tHoy.toFixed(2)}`;
+                document.getElementById('stat-mes').innerText = `$${tMes.toFixed(2)}`;
             });
         }
 
-        // FUNCIÓN DE CIERRE MENSUAL
-        async function ejecutarCierreMensual() {
-            const clave = prompt("Para confirmar el CIERRE MENSUAL y archivar los datos, escribe: ARCHIVAR");
-            if (clave !== "ARCHIVAR") return alert("Acción cancelada.");
+        async function ver(id) {
+            currentId = id;
+            const snap = await db.ref('clientes/' + id).once('value');
+            const s = snap.val();
 
-            const snap = await db.ref('clientes').once('value');
-            const dataActual = snap.val();
-            const fechaCierre = new Date().toLocaleDateString('es-SV').replace(/\//g, '-');
-            const mesNombre = new Intl.DateTimeFormat('es-ES', { month: 'long'}).format(new Date());
+            // Cálculos Iniciales
+            const montoOriginal = parseFloat(s.monto || 0);
+            const total = parseFloat(s.total || (montoOriginal * 1.20));
+            const saldo = parseFloat(s.saldo !== undefined ? s.saldo : total);
+            const inicio = s.fecha_inicio || s.fecha;
 
-            // 1. Guardar una copia de seguridad en "cierres_mensuales"
-            await db.ref('cierres_mensuales/' + fechaCierre).set({
-                mes: mesNombre,
-                fecha_ejecucion: fechaCierre,
-                resumen: {
-                    total_calle: document.getElementById('stat-calle').innerText,
-                    total_recaudado: document.getElementById('stat-mes').innerText
-                },
-                datos_respaldo: dataActual
+            document.getElementById('m-nombre').innerText = s.nombre;
+            document.getElementById('m-periodo').innerText = `Inicio: ${inicio} • Plan: ${s.frecuencia}`;
+            document.getElementById('c-total').innerText = `$${total.toFixed(2)}`;
+            document.getElementById('c-pagado').innerText = `$${(total - saldo).toFixed(2)}`;
+            document.getElementById('c-debe').innerText = `$${saldo.toFixed(2)}`;
+
+            // Calificación
+            const cal = s.calificacion || "A";
+            const badge = document.getElementById('m-calif-badge');
+            badge.innerText = `CLASE ${cal}`;
+            badge.className = `badge-calif ${cal === 'A' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`;
+
+            // Ficha
+            document.getElementById('e-calif').value = cal;
+            document.getElementById('e-tel').value = s.tel || s.telefono || "";
+            document.getElementById('e-dir').value = s.dirCasa || s.direccion_casa || "";
+            document.getElementById('e-neg').value = s.negocio || s.rubro || "";
+            document.getElementById('e-dui').value = s.dui || "";
+            document.getElementById('e-ref').value = s.refNom || (s.referencia ? s.referencia.nombre : "");
+            document.getElementById('e-fotoDui').value = s.fotoDui || "";
+            document.getElementById('e-fotoNeg').value = s.fotoNeg || "";
+
+            // Botón WhatsApp
+            document.getElementById('btn-ws').onclick = () => {
+                const msg = `Hola ${s.nombre}, te saludamos de CrediListo. Te recordamos que tienes un pago pendiente de $${saldo.toFixed(2)}. ¡Feliz día!`;
+                window.open(`https://wa.me/503${s.tel || s.telefono}?text=${encodeURIComponent(msg)}`);
+            };
+
+            // Tabla Cuotas
+            let cuotas = s.cuotas || [];
+            if(cuotas.length === 0) {
+                const num = (s.frecuencia === "semanal") ? 4 : 30;
+                const v = (total / num).toFixed(2);
+                for(let i=1; i<=num; i++) cuotas.push({ n: i, valorPagado: v, pagada: false });
+                await db.ref('clientes/' + id).update({ cuotas, total, saldo });
+            }
+
+            const t = document.getElementById('tabla-cuotas');
+            t.innerHTML = "";
+            cuotas.forEach((c, i) => {
+                t.innerHTML += `
+                    <div class="${c.pagada ? 'bg-slate-50 opacity-40' : 'bg-white shadow-sm border border-slate-100'} p-3 rounded-xl flex items-center gap-2">
+                        <span class="text-[9px] font-black text-slate-300 w-4">#${c.n}</span>
+                        <input type="number" id="v-${i}" value="${c.valorPagado}" class="w-16 bg-slate-50 rounded-lg text-xs font-black p-2" ${c.pagada?'disabled':''}>
+                        <input type="date" id="f-${i}" value="${c.fecha_ISO || ''}" class="flex-1 bg-slate-50 rounded-lg text-[9px] font-bold p-2" ${c.pagada?'disabled':''}>
+                        ${!c.pagada ? `<button onclick="pagar(${i})" class="bg-sky-500 text-white font-black text-[9px] px-3 py-2 rounded-lg uppercase">OK</button>` : `<span class="text-green-600 text-[8px] font-black px-1 italic">LISTO</span>`}
+                    </div>`;
             });
 
-            // 2. Limpiar las cuotas pagadas para que no cuenten en el nuevo mes
-            // Nota: El saldo de los clientes se mantiene porque aún deben dinero, 
-            // pero el contador de "Total Mes" se reiniciará porque las fechas ya no coincidirán con el nuevo mes.
-            
-            alert("✅ CICLO CERRADO. Los datos han sido archivados en Firebase y las estadísticas se reiniciarán para el nuevo mes.");
+            document.getElementById('modalM').classList.remove('hidden');
         }
 
-        function cerrarModal() { document.getElementById('modalGestion').style.display = "none"; }
-        function filtrarClientes() {
+        async function pagar(i) {
+            const v = parseFloat(document.getElementById(`v-${i}`).value);
+            const fISO = document.getElementById(`f-${i}`).value || new Date().toISOString().split('T')[0];
+            const fVis = fISO.split('-').reverse().join('/');
+
+            const snap = await db.ref('clientes/' + currentId).once('value');
+            let s = snap.val();
+            s.cuotas[i].pagada = true;
+            s.cuotas[i].valorPagado = v;
+            s.cuotas[i].fecha_ISO = fISO;
+            s.cuotas[i].fecha = fVis;
+            s.saldo = parseFloat(s.saldo) - v;
+
+            await db.ref('clientes/' + currentId).update(s);
+            ver(currentId);
+        }
+
+        async function guardarFicha() {
+            await db.ref('clientes/' + currentId).update({
+                calificacion: document.getElementById('e-calif').value,
+                tel: document.getElementById('e-tel').value,
+                dirCasa: document.getElementById('e-dir').value,
+                negocio: document.getElementById('e-neg').value,
+                dui: document.getElementById('e-dui').value,
+                refNom: document.getElementById('e-ref').value,
+                fotoDui: document.getElementById('e-fotoDui').value,
+                fotoNeg: document.getElementById('e-fotoNeg').value
+            });
+            alert("✅ FICHA ACTUALIZADA");
+        }
+
+        async function eliminarCliente() {
+            if(confirm("¿Seguro que quieres eliminar este cliente? Esta acción no se puede deshacer.")) {
+                await db.ref('clientes/' + currentId).remove();
+                cerrarM();
+            }
+        }
+
+        function cerrarM() { document.getElementById('modalM').classList.add('hidden'); }
+        function filtrar() {
             const b = document.getElementById('buscador').value.toLowerCase();
-            document.querySelectorAll('.item-cliente').forEach(item => {
-                item.style.display = item.dataset.nombre.toLowerCase().includes(b) ? "flex" : "none";
+            document.querySelectorAll('.item-c').forEach(i => {
+                i.style.display = (i.dataset.n.toLowerCase() + i.dataset.d).includes(b) ? "flex" : "none";
             });
         }
-        cargarDatos();
+        cargar();
     </script>
 </body>
 </html>
