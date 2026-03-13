@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestión de Pagos | CrediListo</title>
+    <title>Gestión y Estadísticas | CrediListo</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-database-compat.js"></script>
@@ -11,9 +11,8 @@
         :root { --primary: #0ea5e9; --bg: #f8fafc; }
         body { background-color: var(--bg); color: #1e293b; font-family: 'Inter', sans-serif; }
         .card { background: white; border: 1px solid #e2e8f0; border-radius: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        .stat-card { background: white; padding: 1rem; border-radius: 1.2rem; border: 1px solid #e2e8f0; text-align: center; }
         .input-field { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 0.7rem; border-radius: 0.8rem; width: 100%; color: #0f172a; font-size: 0.9rem; }
-        .label-field { font-size: 0.7rem; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 0.3rem; margin-left: 0.2rem; display: block; }
-        /* Modal sólido para evitar transparencias confusas */
         #modalGestion { background-color: #f8fafc; }
     </style>
 </head>
@@ -25,11 +24,31 @@
                 <button onclick="location.href='gestionar.html'" class="text-sky-600 font-bold text-sm">← VOLVER</button>
                 <h1 class="font-black text-slate-800 tracking-tighter text-lg uppercase">Cobros Santiago de María</h1>
             </div>
-            <input type="text" id="buscador" onkeyup="filtrarClientes()" placeholder="🔍 Buscar por nombre o DUI..." class="w-full p-4 bg-slate-100 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-sky-500 text-sm">
+            <input type="text" id="buscador" onkeyup="filtrarClientes()" placeholder="🔍 Buscar cliente o DUI..." class="w-full p-4 bg-slate-100 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-sky-500 text-sm">
         </div>
     </nav>
 
     <main class="max-w-5xl mx-auto px-4 mt-6">
+        
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+            <div class="stat-card">
+                <p class="text-[9px] font-black text-slate-400 uppercase">Dinero en Calle</p>
+                <p id="stat-calle" class="text-lg font-black text-slate-800">$0.00</p>
+            </div>
+            <div class="stat-card border-l-4 border-l-green-500">
+                <p class="text-[9px] font-black text-slate-400 uppercase">Recogido Hoy</p>
+                <p id="stat-hoy" class="text-lg font-black text-green-600">$0.00</p>
+            </div>
+            <div class="stat-card">
+                <p class="text-[9px] font-black text-slate-400 uppercase">Ganancia Proyectada</p>
+                <p id="stat-ganancia" class="text-lg font-black text-sky-600">$0.00</p>
+            </div>
+            <div class="stat-card bg-slate-900">
+                <p class="text-[9px] font-black text-slate-500 uppercase">Cierre Mensual</p>
+                <p id="stat-mes" class="text-lg font-black text-white">$0.00</p>
+            </div>
+        </div>
+
         <div id="lista-activos" class="grid grid-cols-1 gap-3">
             </div>
     </main>
@@ -37,72 +56,40 @@
     <div id="modalGestion" class="fixed inset-0 z-[100] hidden overflow-y-auto">
         <div class="min-h-screen p-4">
             <div class="max-w-3xl mx-auto bg-white rounded-[2.5rem] shadow-2xl border border-slate-200 p-6 mb-10">
-                
                 <div class="flex justify-between items-start mb-6">
                     <div>
-                        <h2 id="m-nombre" class="text-2xl font-black text-slate-900 leading-tight uppercase italic">Nombre</h2>
-                        <span id="m-frecuencia" class="bg-sky-100 text-sky-700 text-[10px] px-3 py-1 rounded-full font-bold uppercase">Diario</span>
+                        <h2 id="m-nombre" class="text-2xl font-black text-slate-900 uppercase italic">Nombre</h2>
+                        <span id="m-frecuencia" class="bg-sky-100 text-sky-700 text-[10px] px-3 py-1 rounded-full font-bold uppercase italic">Diario</span>
                     </div>
-                    <button onclick="cerrarModal()" class="bg-slate-100 p-3 rounded-full text-slate-500 hover:bg-red-50">✕</button>
+                    <button onclick="cerrarModal()" class="bg-slate-100 p-3 rounded-full text-slate-500">✕</button>
                 </div>
 
                 <div class="grid grid-cols-3 gap-3 mb-8">
-                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                        <p class="label-field text-center">Préstamo</p>
-                        <p id="c-total" class="text-center font-black text-slate-700">$0.00</p>
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-center">
+                        <p class="text-[8px] font-black text-slate-400 uppercase mb-1">Total</p>
+                        <p id="c-total" class="font-black text-slate-700">$0.00</p>
                     </div>
-                    <div class="bg-green-50 p-4 rounded-2xl border border-green-100">
-                        <p class="label-field text-center text-green-600 italic">Pagado</p>
-                        <p id="c-pagado" class="text-center font-black text-green-700">$0.00</p>
+                    <div class="bg-green-50 p-4 rounded-2xl border border-green-100 text-center">
+                        <p class="text-[8px] font-black text-green-600 uppercase mb-1">Abonado</p>
+                        <p id="c-pagado" class="font-black text-green-700">$0.00</p>
                     </div>
-                    <div class="bg-red-50 p-4 rounded-2xl border border-red-100">
-                        <p class="label-field text-center text-red-600 italic">Pendiente</p>
-                        <p id="c-debe" class="text-center font-black text-red-700">$0.00</p>
+                    <div class="bg-red-50 p-4 rounded-2xl border border-red-100 text-center">
+                        <p class="text-[8px] font-black text-red-600 uppercase mb-1">Deuda</p>
+                        <p id="c-debe" class="font-black text-red-700">$0.00</p>
                     </div>
                 </div>
 
-                <div class="mb-10">
-                    <h3 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Plan de Pagos Activo</h3>
+                <div class="mb-8">
+                    <h3 class="text-xs font-black text-slate-400 uppercase mb-4 tracking-widest italic">Plan de Pagos</h3>
                     <div id="tabla-cuotas" class="space-y-2"></div>
                 </div>
 
-                <hr class="border-slate-100 mb-8">
-
-                <h3 class="text-xs font-black text-sky-600 uppercase mb-6 italic underline">Ficha Técnica y Documentación</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div><label class="label-field">Nombre Completo</label><input type="text" id="e-nombre" class="input-field"></div>
-                    <div><label class="label-field">DUI</label><input type="text" id="e-dui" class="input-field"></div>
-                    <div><label class="label-field">Teléfono / WhatsApp</label><input type="tel" id="e-tel" class="input-field"></div>
-                    <div><label class="label-field">Contraseña Cliente</label><input type="text" id="e-pass" class="input-field"></div>
-                    <div><label class="label-field">Dirección Casa</label><input type="text" id="e-dirCasa" class="input-field"></div>
-                    <div><label class="label-field">Nombre Negocio</label><input type="text" id="e-negocio" class="input-field"></div>
-                    <div><label class="label-field">Dirección Negocio</label><input type="text" id="e-dirNeg" class="input-field"></div>
-                    <div><label class="label-field">Propósito de Inversión</label><input type="text" id="e-inversion" class="input-field"></div>
-                    <div><label class="label-field">Ingresos Mensuales</label><input type="text" id="e-ingresos" class="input-field"></div>
-                    <div><label class="label-field">Referencia Nombre</label><input type="text" id="e-refNom" class="input-field"></div>
-                    <div><label class="label-field">Referencia Teléfono</label><input type="text" id="e-refTel" class="input-field"></div>
-                    <div>
-                        <label class="label-field text-sky-600">Monto Original</label>
-                        <input type="number" id="e-monto" class="input-field bg-sky-50 border-sky-200" readonly>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8 p-6 bg-slate-50 rounded-3xl border border-slate-200">
-                    <div>
-                        <label class="label-field">Foto del Contrato</label>
-                        <input type="file" id="f-contrato" class="text-xs">
-                        <div id="prev-contrato" class="mt-2 text-[10px] text-slate-400 font-bold italic uppercase">Sin archivo</div>
-                    </div>
-                    <div>
-                        <label class="label-field">Foto Letra de Cambio</label>
-                        <input type="file" id="f-letra" class="text-xs">
-                        <div id="prev-letra" class="mt-2 text-[10px] text-slate-400 font-bold italic uppercase">Sin archivo</div>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-10">
-                    <button onclick="actualizarTodo()" class="bg-sky-600 text-white font-black py-4 rounded-2xl uppercase shadow-lg shadow-sky-200">Actualizar Datos Cliente</button>
-                    <button onclick="cerrarCiclo()" class="bg-slate-900 text-white font-black py-4 rounded-2xl uppercase italic">Finalizar y Archivar</button>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-100 pt-8">
+                    <div><label class="text-[10px] font-black text-slate-400 uppercase ml-2">Dirección Casa</label><input type="text" id="e-dirCasa" class="input-field"></div>
+                    <div><label class="text-[10px] font-black text-slate-400 uppercase ml-2">Negocio</label><input type="text" id="e-negocio" class="input-field"></div>
+                    <div><label class="text-[10px] font-black text-slate-400 uppercase ml-2">WhatsApp</label><input type="tel" id="e-tel" class="input-field"></div>
+                    <div><label class="text-[10px] font-black text-slate-400 uppercase ml-2">Referencia</label><input type="text" id="e-refNom" class="input-field"></div>
+                    <div class="col-span-full"><button onclick="actualizarTodo()" class="w-full py-4 bg-sky-600 text-white font-black rounded-2xl uppercase mt-4">Guardar Cambios Ficha</button></div>
                 </div>
             </div>
         </div>
@@ -114,27 +101,58 @@
         const db = firebase.database();
         let currentId = null;
 
-        function cargarClientes() {
+        function cargarDatos() {
             db.ref('clientes').on('value', (snap) => {
+                let hoy = new Date().toLocaleDateString('es-SV', {day:'2-digit', month:'2-digit', year:'numeric'}).replace(/\//g, '/');
+                let mesActual = new Date().getMonth();
+                
+                let totalCalle = 0;
+                let totalGanancia = 0;
+                let totalHoy = 0;
+                let totalMes = 0;
+
                 const container = document.getElementById('lista-activos');
                 container.innerHTML = "";
+
                 snap.forEach((child) => {
                     const s = child.val();
                     if (s.tipo === "ACTIVO") {
-                        const saldo = s.saldo || 0;
+                        totalCalle += parseFloat(s.saldo || 0);
+                        // Ganancia es el 20% del monto original
+                        totalGanancia += (parseFloat(s.monto || 0) * 0.20);
+
+                        // Calcular recaudación de cuotas
+                        if(s.cuotas) {
+                            s.cuotas.forEach(c => {
+                                if(c.pagada && c.fecha) {
+                                    // Sumar si es hoy
+                                    if(c.fecha === hoy) totalHoy += parseFloat(c.valorPagado || 0);
+                                    
+                                    // Sumar si es este mes (formato DD/MM/YYYY)
+                                    const partes = c.fecha.split('/');
+                                    if(partes.length === 3 && parseInt(partes[1]) - 1 === mesActual) {
+                                        totalMes += parseFloat(c.valorPagado || 0);
+                                    }
+                                }
+                            });
+                        }
+
                         container.innerHTML += `
                             <div class="card p-5 flex justify-between items-center item-cliente" data-nombre="${s.nombre}" data-dui="${s.dui}">
                                 <div>
                                     <h3 class="font-black uppercase text-slate-800 text-sm leading-tight">${s.nombre}</h3>
-                                    <p class="text-[11px] font-bold text-slate-400">DUI: ${s.dui} | SALDO: <span class="text-sky-600">$${parseFloat(saldo).toFixed(2)}</span></p>
+                                    <p class="text-[10px] font-bold text-slate-400">SALDO: <span class="text-sky-600">$${parseFloat(s.saldo || 0).toFixed(2)}</span></p>
                                 </div>
-                                <div class="flex gap-2">
-                                    <button onclick="gestionarPago('${child.key}')" class="bg-sky-500 text-white p-3 rounded-xl text-[10px] font-black uppercase">Cobrar</button>
-                                    <button onclick="eliminarCliente('${child.key}')" class="bg-slate-100 text-slate-400 p-3 rounded-xl">✕</button>
-                                </div>
+                                <button onclick="gestionarPago('${child.key}')" class="bg-sky-500 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase">Cobrar</button>
                             </div>`;
                     }
                 });
+
+                // Actualizar Tablero
+                document.getElementById('stat-calle').innerText = `$${totalCalle.toFixed(2)}`;
+                document.getElementById('stat-ganancia').innerText = `$${totalGanancia.toFixed(2)}`;
+                document.getElementById('stat-hoy').innerText = `$${totalHoy.toFixed(2)}`;
+                document.getElementById('stat-mes').innerText = `$${totalMes.toFixed(2)}`;
             });
         }
 
@@ -142,66 +160,41 @@
             currentId = id;
             const snap = await db.ref('clientes/' + id).once('value');
             const s = snap.val();
-
-            // Cabecera
             document.getElementById('m-nombre').innerText = s.nombre;
-            document.getElementById('m-frecuencia').innerText = s.frecuencia;
             document.getElementById('c-total').innerText = `$${parseFloat(s.total || 0).toFixed(2)}`;
             document.getElementById('c-pagado').innerText = `$${(parseFloat(s.total || 0) - parseFloat(s.saldo || 0)).toFixed(2)}`;
             document.getElementById('c-debe').innerText = `$${parseFloat(s.saldo || 0).toFixed(2)}`;
             
-            // Llenar Ficha Completa
-            document.getElementById('e-nombre').value = s.nombre || "";
-            document.getElementById('e-dui').value = s.dui || "";
-            document.getElementById('e-tel').value = s.tel || "";
-            document.getElementById('e-pass').value = s.pass || "";
             document.getElementById('e-dirCasa').value = s.dirCasa || s.dirVivienda || "";
             document.getElementById('e-negocio').value = s.negocio || "";
-            document.getElementById('e-dirNeg').value = s.dirNeg || s.dirNegocio || "";
-            document.getElementById('e-inversion').value = s.inversion || "";
-            document.getElementById('e-ingresos').value = s.ingresos || "";
+            document.getElementById('e-tel').value = s.tel || "";
             document.getElementById('e-refNom').value = s.refNom || s.refNombre || "";
-            document.getElementById('e-refTel').value = s.refTel || "";
-            document.getElementById('e-monto').value = s.monto || "";
 
-            // Render Cuotas con Selector de Fecha Nativo
             const tabla = document.getElementById('tabla-cuotas');
             tabla.innerHTML = "";
-            const cuotas = s.cuotas || [];
-            
-            cuotas.forEach((c, index) => {
-                const pagada = c.pagada;
+            (s.cuotas || []).forEach((c, index) => {
                 tabla.innerHTML += `
-                    <div class="${pagada ? 'bg-slate-50 opacity-60' : 'bg-white'} p-4 rounded-2xl flex items-center gap-2 border border-slate-100 shadow-sm">
-                        <span class="text-[10px] font-black text-slate-300 w-6">#${c.n}</span>
-                        <div class="flex-1 flex gap-2">
-                            <input type="number" id="val-${index}" value="${c.valorPagado}" class="w-1/2 bg-slate-100 border-none rounded-lg text-xs font-black p-2" ${pagada ? 'disabled' : ''}>
-                            <input type="date" id="fec-${index}" value="${c.fecha_ISO || ''}" class="w-1/2 bg-slate-100 border-none rounded-lg text-[10px] font-bold p-2" ${pagada ? 'disabled' : ''}>
-                        </div>
-                        ${!pagada ? 
-                            `<button onclick="confirmarCuota(${index})" class="bg-sky-500 text-white font-black text-[9px] px-4 py-3 rounded-xl uppercase">Cobrar</button>` : 
-                            `<span class="text-green-600 text-[9px] font-black uppercase px-2">✓ PAGADO</span>`
-                        }
+                    <div class="${c.pagada ? 'bg-slate-50 opacity-50' : 'bg-white'} p-3 rounded-xl flex items-center gap-2 border border-slate-100">
+                        <span class="text-[9px] font-black text-slate-300 w-5">#${c.n}</span>
+                        <input type="number" id="val-${index}" value="${c.valorPagado}" class="w-20 bg-slate-100 rounded-lg text-xs font-black p-2" ${c.pagada ? 'disabled' : ''}>
+                        <input type="date" id="fec-${index}" value="${c.fecha_ISO || ''}" class="flex-1 bg-slate-100 rounded-lg text-[10px] font-bold p-2" ${c.pagada ? 'disabled' : ''}>
+                        ${!c.pagada ? `<button onclick="confirmarCuota(${index})" class="bg-sky-500 text-white font-black text-[9px] px-3 py-2 rounded-lg uppercase">OK</button>` : `<span class="text-green-600 text-[9px] font-black px-2">PAGADO</span>`}
                     </div>`;
             });
-
             document.getElementById('modalGestion').style.display = "block";
-            document.body.style.overflow = "hidden"; // Evita scroll atrás
         }
 
         async function confirmarCuota(index) {
-            // ELIMINADA LA CLAVE POR SEGURIDAD SEGÚN TU SOLICITUD
             const monto = parseFloat(document.getElementById(`val-${index}`).value);
-            const fechaVal = document.getElementById(`fec-${index}`).value;
+            const fechaISO = document.getElementById(`fec-${index}`).value || new Date().toISOString().split('T')[0];
+            const fechaVisual = fechaISO.split('-').reverse().join('/');
 
             const snap = await db.ref('clientes/' + currentId).once('value');
             let s = snap.val();
-
             s.cuotas[index].pagada = true;
             s.cuotas[index].valorPagado = monto;
-            s.cuotas[index].fecha_ISO = fechaVal; // Guardamos en formato ISO para el selector
-            s.cuotas[index].fecha = fechaVal.split('-').reverse().join('/'); // Formato visual DD/MM/YYYY
-            
+            s.cuotas[index].fecha_ISO = fechaISO;
+            s.cuotas[index].fecha = fechaVisual;
             s.saldo = parseFloat(s.saldo) - monto;
 
             await db.ref('clientes/' + currentId).update(s);
@@ -209,50 +202,25 @@
         }
 
         async function actualizarTodo() {
-            const updates = {
-                nombre: document.getElementById('e-nombre').value.toUpperCase(),
-                dui: document.getElementById('e-dui').value,
-                tel: document.getElementById('e-tel').value,
-                pass: document.getElementById('e-pass').value,
+            await db.ref('clientes/' + currentId).update({
                 dirCasa: document.getElementById('e-dirCasa').value,
                 negocio: document.getElementById('e-negocio').value,
-                dirNeg: document.getElementById('e-dirNeg').value,
-                inversion: document.getElementById('e-inversion').value,
-                ingresos: document.getElementById('e-ingresos').value,
-                refNom: document.getElementById('e-refNom').value,
-                refTel: document.getElementById('e-refTel').value
-            };
-            await db.ref('clientes/' + currentId).update(updates);
-            alert("✅ FICHA ACTUALIZADA EN FIREBASE");
+                tel: document.getElementById('e-tel').value,
+                refNom: document.getElementById('e-refNom').value
+            });
+            alert("✅ Datos actualizados");
         }
 
         function filtrarClientes() {
             const b = document.getElementById('buscador').value.toLowerCase();
             document.querySelectorAll('.item-cliente').forEach(item => {
-                const t = item.getAttribute('data-nombre').toLowerCase() + item.getAttribute('data-dui');
-                item.style.display = t.includes(b) ? "flex" : "none";
+                item.style.display = (item.dataset.nombre.toLowerCase() + item.dataset.dui).includes(b) ? "flex" : "none";
             });
         }
 
-        function cerrarModal() { 
-            document.getElementById('modalGestion').style.display = "none"; 
-            document.body.style.overflow = "auto";
-        }
-
-        function eliminarCliente(id) {
-            if(confirm("¿Borrar definitivamente a este cliente activo?")) db.ref('clientes/' + id).remove();
-        }
-
-        async function cerrarCiclo() {
-            if(confirm("¿Finalizar este crédito? Se moverá al Historial.")){
-                const snap = await db.ref('clientes/' + currentId).once('value');
-                await db.ref('historial').push({ ...snap.val(), fechaCierre: new Date().toLocaleDateString() });
-                await db.ref('clientes/' + currentId).remove();
-                cerrarModal();
-            }
-        }
+        function cerrarModal() { document.getElementById('modalGestion').style.display = "none"; }
         
-        cargarClientes();
+        cargarDatos();
     </script>
 </body>
 </html>
