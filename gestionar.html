@@ -3,15 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Administración | CrediListo</title>
+    <title>Admin CrediListo | Reconstruido</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-database-compat.js"></script>
     <style>
         :root { --dark: #050b16; --cyan: #00d2ff; }
         body { background-color: var(--dark); color: white; font-family: sans-serif; }
-        .input-admin { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); width: 100%; padding: 0.8rem; border-radius: 1rem; color: white; outline: none; font-size: 0.9rem; }
-        .input-admin:focus { border-color: var(--cyan); }
+        .input-admin { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); width: 100%; padding: 0.8rem; border-radius: 1rem; color: white; outline: none; }
         .label-admin { font-size: 0.65rem; font-weight: 800; text-transform: uppercase; color: #64748b; margin-bottom: 0.2rem; display: block; }
         #admin-content { display: none; }
     </style>
@@ -20,69 +19,61 @@
 
     <div id="lock-screen" class="fixed inset-0 bg-[#050b16] z-[200] flex items-center justify-center p-6">
         <div class="w-full max-w-sm text-center">
-            <img src="logocredi.png" class="h-10 mx-auto mb-8 opacity-80" style="mix-blend-mode: lighten;">
-            <input type="password" id="admin-pass" placeholder="PIN DE SEGURIDAD" class="w-full py-4 bg-white/5 border border-white/10 rounded-2xl text-center text-xl tracking-[0.5em] outline-none mb-4">
-            <button onclick="verificarAcceso()" class="w-full py-4 bg-white text-black font-black uppercase rounded-2xl">Ingresar</button>
+            <h2 class="text-xs font-black uppercase tracking-[0.4em] text-slate-500 mb-6">PIN DE SEGURIDAD</h2>
+            <input type="password" id="admin-pass" class="w-full py-4 bg-white/5 border border-white/10 rounded-2xl text-center text-xl tracking-[0.5em] outline-none mb-4">
+            <button onclick="verificarAcceso()" class="w-full py-4 bg-white text-black font-black uppercase rounded-2xl">Entrar</button>
         </div>
     </div>
 
     <div id="admin-content">
         <nav class="p-6 border-b border-white/5 sticky top-0 bg-[#050b16]/90 backdrop-blur-md z-50">
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                <div><p class="text-[8px] uppercase font-black text-slate-500">Dinero en Calle</p><p id="total-calle" class="text-xl font-black italic">$0.00</p></div>
-                <div><p class="text-[8px] uppercase font-black text-slate-500">Ganancia</p><p id="total-ganancia" class="text-xl font-black italic text-green-400">$0.00</p></div>
-                <div><p class="text-[8px] uppercase font-black text-slate-500">Cobrado Hoy</p><p id="total-hoy" class="text-xl font-black italic text-cyan-400">$0.00</p></div>
-                <div><p class="text-[8px] uppercase font-black text-slate-500">En Deuda</p><p id="total-deuda" class="text-xl font-black italic text-red-400">$0.00</p></div>
-            </div>
+             <div class="flex justify-between items-center max-w-5xl mx-auto">
+                <p class="font-black italic text-cyan-400">ADMIN PANEL</p>
+                <div id="status-fb" class="text-[9px] uppercase font-black text-green-500">Conectado</div>
+             </div>
         </nav>
 
         <main class="max-w-5xl mx-auto px-6 mt-8">
-            
             <section class="mb-10">
-                <details id="form-manual" class="bg-white/5 rounded-[30px] border border-white/10 overflow-hidden">
-                    <summary class="p-6 cursor-pointer font-black uppercase italic text-cyan-400 list-none flex justify-between">
-                        <span>+ AGREGAR CLIENTE MANUAL</span><span>▼</span>
+                <details class="bg-white/5 rounded-[30px] border border-white/10 overflow-hidden">
+                    <summary class="p-6 cursor-pointer font-black text-cyan-400 list-none flex justify-between">
+                        <span>+ NUEVO REGISTRO MANUAL</span><span>▼</span>
                     </summary>
                     <div class="p-6 border-t border-white/5 space-y-4">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div><label class="label-admin">Nombre Completo</label><input type="text" id="m_nombre" class="input-admin"></div>
-                            <div><label class="label-admin">DUI</label><input type="text" id="m_dui" class="input-admin"></div>
+                            <input type="text" id="m_nombre" placeholder="Nombre" class="input-admin">
+                            <input type="text" id="m_dui" placeholder="DUI" class="input-admin">
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div><label class="label-admin">WhatsApp</label><input type="tel" id="m_tel" class="input-admin"></div>
-                            <div><label class="label-admin">Contraseña Cliente</label><input type="password" id="m_pass_cliente" class="input-admin"></div>
+                            <input type="tel" id="m_tel" placeholder="Teléfono" class="input-admin">
+                            <input type="password" id="m_pass" placeholder="Contraseña Cliente" class="input-admin">
                         </div>
-                        <div><label class="label-admin">Dirección de Casa</label><input type="text" id="m_casa" class="input-admin"></div>
+                        <input type="text" id="m_casa" placeholder="Dirección Casa" class="input-admin">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div><label class="label-admin">Rubro</label><input type="text" id="m_rubro" class="input-admin"></div>
-                            <div><label class="label-admin">Propósito</label><input type="text" id="m_proposito" class="input-admin"></div>
+                            <input type="text" id="m_negocio" placeholder="Nombre Negocio" class="input-admin">
+                            <input type="text" id="m_monto" placeholder="Monto Solicitado" class="input-admin">
                         </div>
-                        <div><label class="label-admin">Dirección Negocio</label><input type="text" id="m_dir_neg" class="input-admin"></div>
-                        <div class="grid grid-cols-2 gap-4 p-4 bg-white/5 rounded-2xl">
-                            <div><label class="label-admin">Ref. Nombre</label><input type="text" id="m_ref_nom" class="input-admin"></div>
-                            <div><label class="label-admin">Ref. Tel</label><input type="tel" id="m_ref_tel" class="input-admin"></div>
-                        </div>
-                        <button onclick="guardarClienteManual()" class="w-full py-4 bg-white text-black font-black uppercase rounded-2xl">Guardar Cliente</button>
+                        <button onclick="guardarNuevo()" class="w-full py-4 bg-white text-black font-black uppercase rounded-2xl">Guardar en Firebase</button>
                     </div>
                 </details>
             </section>
 
-            <section class="space-y-4">
-                <h2 class="text-xs font-black uppercase tracking-[0.4em] text-slate-500 px-4">Solicitudes Entrantes</h2>
-                <div id="lista-solicitudes" class="space-y-3"></div>
+            <section>
+                <h2 class="text-xs font-black uppercase tracking-[0.4em] text-slate-500 mb-4 px-4">Solicitudes (Pendientes)</h2>
+                <div id="lista-solicitudes" class="space-y-3">
+                    <p class="text-center text-slate-700 py-10">Buscando pendientes...</p>
+                </div>
             </section>
         </main>
     </div>
 
     <div id="modalS" class="fixed inset-0 bg-black/95 z-[300] hidden items-center justify-center p-4">
-        <div class="bg-[#0b1221] w-full max-w-xl rounded-[40px] p-8 border border-white/10 overflow-y-auto max-h-[90vh]">
-            <div id="modal-body"></div>
+        <div class="bg-[#0b1221] w-full max-w-xl rounded-[40px] p-8 border border-white/10">
+            <div id="modal-body" class="text-xs space-y-4"></div>
             <div class="grid grid-cols-2 gap-2 mt-8">
-                <button onclick="cerrarModal()" class="col-span-2 py-2 text-slate-500 font-black text-[10px] uppercase">Cerrar</button>
-                <button onclick="procesarSolicitud('aprobado')" class="bg-green-500 text-black font-black p-4 rounded-xl text-[10px] uppercase">Aprobar</button>
-                <button onclick="procesarSolicitud('observado')" class="bg-orange-500 text-black font-black p-4 rounded-xl text-[10px] uppercase">Observar</button>
-                <button onclick="procesarSolicitud('rechazado')" class="bg-red-600 text-white font-black p-4 rounded-xl text-[10px] uppercase">Rechazar</button>
-                <button onclick="eliminarSolicitud()" class="bg-slate-800 text-red-500 font-black p-4 rounded-xl text-[10px] uppercase text-center">Eliminar</button>
+                <button onclick="cerrarM()" class="col-span-2 py-2 text-slate-500 font-black">CERRAR</button>
+                <button class="bg-green-500 text-black font-black p-4 rounded-xl">APROBAR</button>
+                <button onclick="eliminarS()" class="bg-red-600 text-white font-black p-4 rounded-xl">ELIMINAR</button>
             </div>
         </div>
     </div>
@@ -91,73 +82,81 @@
         const firebaseConfig = { databaseURL: "https://credilistosv-default-rtdb.firebaseio.com", projectId: "credilistosv" };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
-        let solicitudSeleccionada = null;
+        let currentId = null;
 
         function verificarAcceso() {
             if(document.getElementById('admin-pass').value === "lazaroemanuel") {
                 document.getElementById('lock-screen').style.display = "none";
                 document.getElementById('admin-content').style.display = "block";
-            } else { alert("Error"); }
+                cargarDatos();
+            } else { alert("Clave Incorrecta"); }
         }
 
-        // GUARDAR CLIENTE MANUAL
-        async function guardarClienteManual() {
-            const data = {
-                nombre: document.getElementById('m_nombre').value,
-                dui: document.getElementById('m_dui').value,
-                telefono: document.getElementById('m_tel').value,
-                password: document.getElementById('m_pass_cliente').value,
-                direccion_casa: document.getElementById('m_casa').value,
-                rubro: document.getElementById('m_rubro').value,
-                proposito: document.getElementById('m_proposito').value,
-                direccion_negocio: document.getElementById('m_dir_neg').value,
-                referencia: { nombre: document.getElementById('m_ref_nom').value, tel: document.getElementById('m_ref_tel').value },
-                saldo: 0, fecha: Date.now()
-            };
-            if(!data.nombre || !data.dui) return alert("Faltan datos");
-            await db.ref('clientes').push(data);
-            alert("Cliente guardado");
-            document.getElementById('form-manual').open = false;
-        }
-
-        // LEER SOLICITUDES
-        db.ref('solicitudes').on('value', (snap) => {
-            const container = document.getElementById('lista-solicitudes');
-            container.innerHTML = "";
-            snap.forEach((child) => {
-                const s = child.val();
-                container.innerHTML += `
-                    <div onclick="abrirSolicitud('${child.key}')" class="bg-white/5 p-6 rounded-[25px] border border-white/5 flex justify-between items-center cursor-pointer">
-                        <div><h3 class="font-black italic uppercase text-lg">${s.nombre}</h3><p class="text-[10px] text-slate-500 uppercase">${s.rubro} | DUI: ${s.dui}</p></div>
-                        <span class="text-cyan-500">→</span>
-                    </div>`;
+        function cargarDatos() {
+            // Buscamos en 'clientes' porque ahí están todos según tu JSON
+            db.ref('clientes').on('value', (snap) => {
+                const container = document.getElementById('lista-solicitudes');
+                container.innerHTML = "";
+                
+                snap.forEach((child) => {
+                    const s = child.val();
+                    // SOLO MOSTRAR SI EL TIPO ES 'PENDIENTE'
+                    if (s.tipo === "PENDIENTE") {
+                        container.innerHTML += `
+                            <div onclick="abrirS('${child.key}')" class="bg-white/5 p-6 rounded-[25px] border border-white/5 flex justify-between items-center">
+                                <div>
+                                    <h3 class="font-black uppercase text-lg">${s.nombre}</h3>
+                                    <p class="text-[10px] text-slate-500 font-bold uppercase">Monto: $${s.monto} | Negocio: ${s.negocio || 'N/A'}</p>
+                                </div>
+                                <span class="text-cyan-500">VER →</span>
+                            </div>`;
+                    }
+                });
             });
-        });
+        }
 
-        async function abrirSolicitud(id) {
-            solicitudSeleccionada = id;
-            const snap = await db.ref('solicitudes/' + id).once('value');
+        async function abrirS(id) {
+            currentId = id;
+            const snap = await db.ref('clientes/' + id).once('value');
             const s = snap.val();
             document.getElementById('modal-body').innerHTML = `
-                <h2 class="text-2xl font-black italic text-cyan-400 text-center mb-6">${s.nombre}</h2>
-                <div class="grid grid-cols-2 gap-4 text-[10px] uppercase font-bold border-t border-white/5 pt-6">
-                    <div><p class="text-slate-500">DUI</p><p>${s.dui}</p></div>
-                    <div><p class="text-slate-500">Tel</p><p>${s.telefono}</p></div>
-                    <div class="col-span-2"><p class="text-slate-500">Casa</p><p>${s.direccion_casa}</p></div>
-                    <div class="col-span-2"><p class="text-slate-500">Dir. Negocio</p><p>${s.direccion_negocio}</p></div>
-                    <div class="col-span-2 bg-white/5 p-3 rounded-xl border border-white/10"><p class="text-cyan-400">Referencia</p><p>${s.referencia?.nombre} - ${s.referencia?.tel}</p></div>
+                <h2 class="text-xl font-black text-cyan-400 mb-4">${s.nombre}</h2>
+                <div class="grid grid-cols-2 gap-4">
+                    <div><p class="text-slate-500">DUI</p><p class="font-bold">${s.dui}</p></div>
+                    <div><p class="text-slate-500">TEL</p><p class="font-bold">${s.tel}</p></div>
+                    <div class="col-span-2"><p class="text-slate-500">CASA</p><p>${s.dirCasa || s.dirVivienda}</p></div>
+                    <div class="col-span-2"><p class="text-slate-500">NEGOCIO</p><p>${s.negocio} (${s.dirNeg || s.dirNegocio})</p></div>
+                    <div class="col-span-2"><p class="text-slate-500">MOTIVO</p><p class="italic text-cyan-100">"${s.inversion || 'Inversión'}"</p></div>
                 </div>`;
             document.getElementById('modalS').style.display = "flex";
         }
 
-        function cerrarModal() { document.getElementById('modalS').style.display = "none"; }
-
-        async function eliminarSolicitud() {
-            if(confirm("¿Eliminar solicitud?")) {
-                await db.ref('solicitudes/' + solicitudSeleccionada).remove();
-                cerrarModal();
+        async function eliminarS() {
+            if(confirm("¿Seguro que deseas eliminar esta solicitud?")) {
+                await db.ref('clientes/' + currentId).remove();
+                cerrarM();
             }
         }
+
+        async function guardarNuevo() {
+            const id = Date.now();
+            const data = {
+                id: id,
+                nombre: document.getElementById('m_nombre').value,
+                dui: document.getElementById('m_dui').value,
+                tel: document.getElementById('m_tel').value,
+                pass: document.getElementById('m_pass').value,
+                dirCasa: document.getElementById('m_casa').value,
+                negocio: document.getElementById('m_negocio').value,
+                monto: document.getElementById('m_monto').value,
+                tipo: "PENDIENTE",
+                fecha: new Date().toLocaleDateString()
+            };
+            await db.ref('clientes/' + id).set(data);
+            alert("Guardado en la carpeta 'clientes' como PENDIENTE");
+        }
+
+        function cerrarM() { document.getElementById('modalS').style.display = "none"; }
     </script>
 </body>
 </html>
