@@ -11,48 +11,45 @@
     <style>
         :root { --bg: #f8fafc; --sky: #0ea5e9; }
         body { background-color: var(--bg); font-family: 'Inter', sans-serif; color: #1e293b; }
-        .card { background: white; border-radius: 1.5rem; border: 1px solid #e2e8f0; transition: all 0.2s; }
+        .card { background: white; border-radius: 1.5rem; border: 1px solid #e2e8f0; }
         .input-field { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 0.6rem; border-radius: 0.8rem; width: 100%; color: #0f172a; font-size: 0.85rem; font-weight: 600; }
-        .label-style { font-size: 9px; font-weight: 900; text-transform: uppercase; color: #94a3b8; margin-left: 4px; margin-bottom: 2px; display: block; }
+        .label-style { font-size: 9px; font-weight: 900; text-transform: uppercase; color: #94a3b8; margin-left: 4px; display: block; }
         #bloqueo { background: #0f172a; display: flex; align-items: center; justify-content: center; z-index: 9999; position: fixed; inset: 0; }
-        .badge-calif { padding: 4px 10px; border-radius: 8px; font-weight: 900; font-size: 11px; }
     </style>
 </head>
 <body class="pb-20">
 
     <div id="bloqueo">
         <div class="text-center p-8 bg-white rounded-[2.5rem] shadow-2xl w-80">
-            <div class="text-4xl mb-4">🔐</div>
-            <h2 class="font-black text-slate-800 uppercase italic mb-2">Acceso Privado</h2>
-            <div class="relative mb-4 mt-4">
-                <input type="password" id="pin-acceso" inputmode="numeric" placeholder="****" maxlength="4"
-                    class="w-full p-4 bg-slate-100 border-none rounded-2xl text-center text-2xl font-black tracking-[0.5em] outline-none focus:ring-2 focus:ring-sky-500">
-            </div>
-            <button onclick="verificarAcceso()" class="w-full py-4 bg-sky-600 text-white font-black rounded-2xl uppercase shadow-lg">Entrar</button>
+            <h2 class="font-black text-slate-800 uppercase italic mb-4">Acceso Maestro</h2>
+            <input type="password" id="pin-acceso" inputmode="numeric" placeholder="****" class="w-full p-4 bg-slate-100 border-none rounded-2xl text-center text-2xl font-black mb-4 outline-none">
+            <button onclick="verificarAcceso()" class="w-full py-4 bg-sky-600 text-white font-black rounded-2xl uppercase">Entrar</button>
         </div>
     </div>
 
     <div id="contenido-protegido" class="hidden">
-        <nav class="p-4 bg-white border-b border-slate-200 sticky top-0 z-50">
+        <nav class="p-4 bg-white border-b sticky top-0 z-50">
             <div class="max-w-5xl mx-auto flex flex-col gap-3">
                 <div class="flex justify-between items-center">
-                    <button onclick="location.href='gestionar.html'" class="text-sky-600 font-bold text-xs uppercase tracking-widest">← VOLVER</button>
-                    <h1 class="font-black text-slate-800 tracking-tighter text-lg uppercase italic text-center">Santiago de María</h1>
+                    <button onclick="location.href='gestionar.html'" class="text-sky-600 font-bold text-xs">← VOLVER</button>
+                    <h1 class="font-black text-slate-800 italic uppercase">Santiago de María</h1>
                 </div>
-                <input type="text" id="buscador" onkeyup="filtrar()" placeholder="🔍 Buscar por nombre o DUI..." class="w-full p-4 bg-slate-100 border-none rounded-2xl outline-none text-sm font-bold shadow-inner">
+                <div class="flex gap-2">
+                    <input type="text" id="buscador" onkeyup="filtrar()" placeholder="🔍 Buscar cliente..." class="flex-1 p-4 bg-slate-100 border-none rounded-2xl text-sm font-bold shadow-inner">
+                    <button onclick="abrirCaja()" class="bg-slate-900 text-white px-4 rounded-2xl text-xl">⚙️</button>
+                </div>
             </div>
         </nav>
 
         <main class="max-w-5xl mx-auto px-4 mt-6">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <div class="bg-white p-6 rounded-[2rem] border-l-8 border-l-green-500 shadow-sm flex justify-between items-center">
-                    <div>
-                        <p class="text-[10px] font-black text-green-600 uppercase italic">Cobrado Hoy</p>
-                        <p id="stat-hoy" class="text-3xl font-black text-slate-800">$0.00</p>
-                    </div>
-                    <button onclick="abrirCaja()" class="bg-slate-900 text-white px-6 py-4 rounded-2xl font-black text-[10px] uppercase italic hover:bg-slate-800 transition-all">
-                        📦 Panel de Caja
-                    </button>
+            <div class="bg-white p-6 rounded-[2rem] border-l-8 border-l-green-500 shadow-sm flex justify-between items-center mb-6">
+                <div>
+                    <p class="text-[10px] font-black text-green-600 uppercase italic">Cobrado Hoy</p>
+                    <p id="stat-hoy" class="text-4xl font-black text-slate-800">$0.00</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-[8px] font-black text-slate-400 uppercase">Estado de Cartera</p>
+                    <span class="text-[10px] font-bold text-sky-500 italic">Actualizado en vivo</span>
                 </div>
             </div>
 
@@ -61,99 +58,75 @@
     </div>
 
     <div id="modalCaja" class="fixed inset-0 z-[110] hidden flex items-center justify-center p-4">
-        <div class="absolute inset-0 bg-slate-900/90 backdrop-blur-md" onclick="cerrarCaja()"></div>
-        <div class="relative bg-white w-full max-w-xl rounded-[2.5rem] p-8 shadow-2xl border border-slate-200">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-xl font-black text-slate-900 uppercase italic">Consolidado y Reportes</h2>
-                <button onclick="cerrarCaja()" class="bg-slate-100 p-2 rounded-full">✕</button>
+        <div class="absolute inset-0 bg-slate-900/80 backdrop-blur-md" onclick="cerrarCaja()"></div>
+        <div class="relative bg-white w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl">
+            <h2 class="text-xl font-black text-slate-900 uppercase italic mb-6">Panel de Inversión</h2>
+            
+            <div class="space-y-4">
+                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                    <div class="flex justify-between items-center">
+                        <p class="text-[10px] font-black text-slate-400 uppercase">Capital Total (Caja Grande)</p>
+                        <button onclick="editarCaja()" class="text-sky-500 text-[10px] font-black underline">EDITAR</button>
+                    </div>
+                    <p id="disp-caja-grande" class="text-2xl font-black text-slate-800">$2,000.00</p>
+                </div>
+
+                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                    <p class="text-[10px] font-black text-slate-400 uppercase">Inversión en Calle (Prestado)</p>
+                    <p id="disp-en-calle" class="text-2xl font-black text-red-600">$0.00</p>
+                </div>
+
+                <div class="bg-sky-600 p-5 rounded-3xl text-white shadow-xl">
+                    <p class="text-[10px] font-black uppercase opacity-80">Disponible para nuevos Créditos</p>
+                    <p id="disp-disponible" class="text-3xl font-black leading-tight">$0.00</p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div class="bg-green-50 p-4 rounded-2xl border border-green-100">
+                        <p class="text-[8px] font-black text-green-600 uppercase">Ganancia 20%</p>
+                        <p id="disp-ganancia" class="text-lg font-black text-green-700">$0.00</p>
+                    </div>
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                        <p class="text-[8px] font-black text-slate-400 uppercase">A recuperar</p>
+                        <p id="disp-recuperar" class="text-lg font-black text-slate-800">$0.00</p>
+                    </div>
+                </div>
             </div>
 
-            <div class="bg-sky-50 p-6 rounded-3xl border border-sky-100 mb-6">
-                <div class="flex justify-between items-center mb-2">
-                    <p class="text-[10px] font-black text-sky-600 uppercase italic">Caja Grande (Inversión)</p>
-                    <button onclick="editarCaja()" class="text-sky-500 text-[10px] font-bold underline">Editar Base</button>
-                </div>
-                <div class="flex items-end gap-2">
-                    <p id="stat-caja-grande" class="text-4xl font-black text-sky-700 leading-none">$2,000.00</p>
-                    <p id="caja-limite-msg" class="text-[9px] font-bold text-sky-400 uppercase pb-1"></p>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-3 mb-6">
-                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                    <p class="text-[8px] font-black text-slate-400 uppercase">Dinero en Calle</p>
-                    <p id="stat-inversion" class="text-lg font-black text-slate-800">$0.00</p>
-                </div>
-                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                    <p class="text-[8px] font-black text-sky-500 uppercase italic">Ganancia Proyectada</p>
-                    <p id="stat-ganancia" class="text-lg font-black text-sky-600">$0.00</p>
-                </div>
-                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                    <p class="text-[8px] font-black text-slate-400 uppercase">Total a Recuperar</p>
-                    <p id="stat-recuperar" class="text-lg font-black text-slate-800">$0.00</p>
-                </div>
-                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                    <p class="text-[8px] font-black text-slate-400 uppercase">Cobrado Histórico</p>
-                    <p id="stat-cobrado-total" class="text-lg font-black text-slate-800">$0.00</p>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-3">
-                <button onclick="exportarMes()" class="bg-green-600 py-4 rounded-2xl text-white font-black text-[10px] uppercase flex items-center justify-center gap-2 shadow-lg shadow-green-200">
-                    📊 Exportar Excel
-                </button>
-                <button onclick="confirmarCierre()" class="bg-red-600 py-4 rounded-2xl text-white font-black text-[10px] uppercase italic flex items-center justify-center gap-2 shadow-lg shadow-red-200">
-                    🏁 Cierre de Mes
-                </button>
+            <div class="grid grid-cols-1 gap-3 mt-8">
+                <button onclick="exportarMes()" class="w-full py-4 bg-green-600 text-white font-black rounded-2xl uppercase text-xs shadow-lg">📊 Generar Reporte Excel</button>
+                <button onclick="confirmarCierre()" class="w-full py-4 bg-red-600 text-white font-black rounded-2xl uppercase text-xs italic">🏁 Ejecutar Cierre de Mes</button>
             </div>
         </div>
     </div>
 
     <div id="modalM" class="fixed inset-0 z-[100] hidden overflow-y-auto bg-slate-100/95 backdrop-blur-md">
         <div class="min-h-screen p-4">
-            <div class="max-w-3xl mx-auto bg-white rounded-[2.5rem] shadow-2xl border border-slate-200 p-6 mb-10">
-                <div class="flex justify-between items-start mb-6">
-                    <div>
-                        <div class="flex items-center gap-2">
-                            <h2 id="m-nombre" class="text-2xl font-black text-slate-900 uppercase italic leading-none">NOMBRE</h2>
-                            <span id="m-calif-badge" class="badge-calif">CLASE -</span>
-                        </div>
-                        <p id="m-cuota-actual" class="text-[11px] font-black text-sky-600 uppercase mt-1"></p>
-                    </div>
-                    <button onclick="cerrarM()" class="bg-slate-100 p-3 rounded-full text-slate-400">✕</button>
+            <div class="max-w-2xl mx-auto bg-white rounded-[2.5rem] shadow-2xl p-6 mt-10">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 id="m-nombre" class="text-xl font-black text-slate-900 uppercase italic">CARGANDO...</h2>
+                    <button onclick="cerrarM()" class="bg-slate-100 p-2 rounded-full">✕</button>
                 </div>
-
+                
                 <div class="grid grid-cols-3 gap-2 mb-6 text-center">
-                    <div class="bg-slate-50 p-3 rounded-xl"><p class="text-[8px] font-black text-slate-400 uppercase">Total</p><p id="c-total" class="font-black text-slate-700 text-sm">$0.00</p></div>
-                    <div class="bg-green-50 p-3 rounded-xl"><p class="text-[8px] font-black text-green-600 uppercase">Abonado</p><p id="c-pagado" class="font-black text-green-700 text-sm">$0.00</p></div>
-                    <div class="bg-red-50 p-3 rounded-xl"><p class="text-[8px] font-black text-red-600 uppercase">Deuda</p><p id="c-debe" class="font-black text-red-700 text-sm">$0.00</p></div>
+                    <div class="bg-slate-50 p-3 rounded-xl"><p class="text-[8px] font-black text-slate-400 uppercase italic">Total</p><p id="c-total" class="font-black text-slate-700">$0.00</p></div>
+                    <div class="bg-green-50 p-3 rounded-xl"><p class="text-[8px] font-black text-green-600 uppercase italic">Pagado</p><p id="c-pagado" class="font-black text-green-700">$0.00</p></div>
+                    <div class="bg-red-50 p-3 rounded-xl"><p class="text-[8px] font-black text-red-600 uppercase italic">Deuda</p><p id="c-debe" class="font-black text-red-700">$0.00</p></div>
                 </div>
 
-                <div class="flex gap-2 mb-8">
-                    <button id="btn-ws" class="flex-1 py-4 bg-green-500 text-white rounded-2xl text-[10px] font-black uppercase">WhatsApp</button>
-                    <button onclick="exportarExpediente()" class="flex-1 py-4 bg-slate-800 text-white rounded-2xl text-[10px] font-black uppercase">Excel Exp.</button>
-                    <button onclick="eliminarCliente()" class="px-6 py-4 bg-red-50 text-red-500 rounded-2xl text-[10px] font-black uppercase border border-red-100">Borrar</button>
+                <div class="flex gap-2 mb-6">
+                    <button id="btn-ws" class="flex-1 py-4 bg-green-500 text-white rounded-2xl font-black text-[10px] uppercase">WhatsApp</button>
+                    <button onclick="exportarExpediente()" class="flex-1 py-4 bg-slate-800 text-white rounded-2xl font-black text-[10px] uppercase">Excel Exp.</button>
                 </div>
 
-                <div class="mb-10">
-                    <h3 class="text-[10px] font-black text-slate-400 uppercase mb-4 tracking-widest italic border-b pb-2">Plan de Pagos</h3>
-                    <div id="tabla-cuotas" class="space-y-2 max-h-[300px] overflow-y-auto pr-2"></div>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-100 pt-8">
-                    <h3 class="col-span-full text-[10px] font-black text-sky-500 uppercase italic">Ficha Técnica Completa</h3>
-                    <div><span class="label-style">Nombre Completo</span><input type="text" id="e-nombre" class="input-field uppercase"></div>
+                <div id="tabla-cuotas" class="space-y-2 mb-8 max-h-60 overflow-y-auto pr-2"></div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-6">
+                    <div><span class="label-style">Nombre</span><input type="text" id="e-nombre" class="input-field uppercase"></div>
                     <div><span class="label-style">DUI</span><input type="text" id="e-dui" class="input-field"></div>
                     <div><span class="label-style">WhatsApp</span><input type="tel" id="e-tel" class="input-field"></div>
-                    <div><span class="label-style">Dirección Casa</span><input type="text" id="e-dirCasa" class="input-field"></div>
-                    <div><span class="label-style">Dirección Negocio</span><input type="text" id="e-dirNeg" class="input-field"></div>
-                    <div><span class="label-style">Rubro</span><input type="text" id="e-negocio" class="input-field"></div>
-                    <div><span class="label-style">Motivo Crédito</span><input type="text" id="e-motivo" class="input-field"></div>
-                    <div><span class="label-style">Ingresos</span><input type="text" id="e-ingresos" class="input-field"></div>
-                    <div><span class="label-style">Ref. Nombre</span><input type="text" id="e-refNom" class="input-field"></div>
-                    <div><span class="label-style">Ref. Tel</span><input type="tel" id="e-refTel" class="input-field"></div>
-                    <div class="col-span-full"><span class="label-style">Calificación</span><select id="e-calif" class="input-field"><option value="A">Clase A</option><option value="B">Clase B</option><option value="C">Clase C</option><option value="D">Clase D</option><option value="F">Clase F</option></select></div>
-                    <div class="col-span-full mt-4"><button onclick="guardarFicha()" class="w-full py-4 bg-sky-600 text-white font-black rounded-2xl uppercase shadow-xl hover:bg-sky-700">Actualizar Ficha</button></div>
+                    <div class="col-span-full"><button onclick="guardarFicha()" class="w-full py-4 bg-sky-600 text-white font-black rounded-2xl uppercase">Actualizar Datos</button></div>
+                    <div class="col-span-full"><button onclick="eliminarCliente()" class="w-full py-2 text-red-400 font-bold text-[10px] uppercase">Eliminar Cliente</button></div>
                 </div>
             </div>
         </div>
@@ -166,11 +139,10 @@
         const db = firebase.database();
         let currentId = null;
         let snapGlobal = null;
-        let cajaInversionBase = 2000;
+        let cajaBase = parseFloat(localStorage.getItem('caja_base_v2')) || 2000;
 
         function verificarAcceso() {
-            const val = document.getElementById('pin-acceso').value.trim();
-            if(val === PIN_SISTEMA) {
+            if(document.getElementById('pin-acceso').value === PIN_SISTEMA) {
                 sessionStorage.setItem('acceso_ok', 'true');
                 document.getElementById('bloqueo').style.display = 'none';
                 document.getElementById('contenido-protegido').classList.remove('hidden');
@@ -184,15 +156,13 @@
                 document.getElementById('contenido-protegido').classList.remove('hidden');
                 cargar();
             }
-            // Recuperar valor de caja si existe en localStorage
-            if(localStorage.getItem('caja_base')) cajaInversionBase = parseFloat(localStorage.getItem('caja_base'));
         };
 
         function cargar() {
             db.ref('clientes').on('value', snap => {
                 snapGlobal = snap;
                 const hoy = new Date().toLocaleDateString('es-SV');
-                let tInvEnCalle = 0, tHoy = 0, tCobradoTotal = 0;
+                let tCalle = 0, tHoy = 0, tCobradoHistorico = 0;
                 const container = document.getElementById('lista-clientes');
                 container.innerHTML = "";
                 
@@ -200,11 +170,11 @@
                     const s = c.val();
                     if (s.tipo === "ACTIVO") {
                         const m = parseFloat(s.monto || 0);
-                        const totalCredito = parseFloat(s.total || m * 1.2);
-                        const saldoActual = parseFloat(s.saldo !== undefined ? s.saldo : totalCredito);
+                        const totalCr = parseFloat(s.total || m * 1.2);
+                        const saldoActual = parseFloat(s.saldo !== undefined ? s.saldo : totalCr);
                         
-                        tInvEnCalle += m;
-                        tCobradoTotal += (totalCredito - saldoActual);
+                        tCalle += m;
+                        tCobradoHistorico += (totalCr - saldoActual);
 
                         if(s.cuotas) {
                             s.cuotas.forEach(cuo => {
@@ -216,34 +186,28 @@
                         
                         container.innerHTML += `
                             <div class="card p-5 flex justify-between items-center item-c" data-n="${s.nombre}" data-d="${s.dui}">
-                                <div><h3 class="font-black uppercase text-slate-800 text-[13px] leading-tight">${s.nombre}</h3>
-                                <p class="text-[9px] font-bold text-slate-400">Saldo Pendiente: $${saldoActual.toFixed(2)}</p></div>
-                                <button onclick="ver('${c.key}')" class="bg-sky-500 text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase">Ver / Cobrar</button>
+                                <div><h3 class="font-black uppercase text-slate-800 text-[13px]">${s.nombre}</h3>
+                                <p class="text-[9px] font-bold text-slate-400">Deuda: $${saldoActual.toFixed(2)}</p></div>
+                                <button onclick="ver('${c.key}')" class="bg-sky-500 text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase italic">Ver</button>
                             </div>`;
                     }
                 });
 
-                // Actualizar Panel
+                // ACTUALIZAR PANELES
                 document.getElementById('stat-hoy').innerText = `$${tHoy.toFixed(2)}`;
-                document.getElementById('stat-inversion').innerText = `$${tInvEnCalle.toFixed(2)}`;
-                document.getElementById('stat-ganancia').innerText = `$${(tInvEnCalle*0.2).toFixed(2)}`;
-                document.getElementById('stat-recuperar').innerText = `$${(tInvEnCalle*1.2).toFixed(2)}`;
-                document.getElementById('stat-cobrado-total').innerText = `$${tCobradoTotal.toFixed(2)}`;
-                
-                // Lógica de Caja Grande
-                const disponible = cajaInversionBase - tInvEnCalle;
-                document.getElementById('stat-caja-grande').innerText = `$${disponible.toFixed(2)}`;
-                const msg = document.getElementById('caja-limite-msg');
-                if(disponible < 200) { msg.innerText = "⚠️ LÍMITE DE INVERSIÓN"; msg.className = "text-[9px] font-bold text-red-500 uppercase pb-1"; }
-                else { msg.innerText = "Capacidad OK"; msg.className = "text-[9px] font-bold text-sky-400 uppercase pb-1"; }
+                document.getElementById('disp-caja-grande').innerText = `$${cajaBase.toFixed(2)}`;
+                document.getElementById('disp-en-calle').innerText = `$${tCalle.toFixed(2)}`;
+                document.getElementById('disp-disponible').innerText = `$${(cajaBase - tCalle).toFixed(2)}`;
+                document.getElementById('disp-ganancia').innerText = `$${(tCalle * 0.2).toFixed(2)}`;
+                document.getElementById('disp-recuperar').innerText = `$${(tCalle * 1.2).toFixed(2)}`;
             });
         }
 
         function editarCaja() {
-            const nuevo = prompt("Introduce el nuevo monto de Caja Grande (Inversión total disponible):", cajaInversionBase);
-            if(nuevo && !isNaN(nuevo)) {
-                cajaInversionBase = parseFloat(nuevo);
-                localStorage.setItem('caja_base', cajaInversionBase);
+            const val = prompt("Establecer nuevo capital total de Caja Grande:", cajaBase);
+            if(val && !isNaN(val)) {
+                cajaBase = parseFloat(val);
+                localStorage.setItem('caja_base_v2', cajaBase);
                 cargar();
             }
         }
@@ -254,34 +218,18 @@
             const s = snap.val();
             const total = parseFloat(s.total || (s.monto * 1.20));
             const saldo = parseFloat(s.saldo !== undefined ? s.saldo : total);
-            const cal = s.calificacion || "A";
 
             document.getElementById('m-nombre').innerText = s.nombre;
             document.getElementById('c-total').innerText = `$${total.toFixed(2)}`;
             document.getElementById('c-pagado').innerText = `$${(total - saldo).toFixed(2)}`;
             document.getElementById('c-debe').innerText = `$${saldo.toFixed(2)}`;
             
-            const b = document.getElementById('m-calif-badge');
-            b.innerText = `CLASE ${cal}`;
-            b.className = `badge-calif ${cal === 'A' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`;
-
             document.getElementById('e-nombre').value = s.nombre || "";
             document.getElementById('e-dui').value = s.dui || "";
             document.getElementById('e-tel').value = s.tel || "";
-            document.getElementById('e-dirCasa').value = s.dirCasa || "";
-            document.getElementById('e-dirNeg').value = s.dirNeg || "";
-            document.getElementById('e-negocio').value = s.negocio || "";
-            document.getElementById('e-motivo').value = s.motivo || "";
-            document.getElementById('e-ingresos').value = s.ingresos || "";
-            document.getElementById('e-refNom').value = s.refNom || "";
-            document.getElementById('e-refTel').value = s.refTel || "";
-            document.getElementById('e-calif').value = cal;
 
-            const cuotaValor = (s.cuotas && s.cuotas.length > 0) ? s.cuotas[0].valorPagado : (total/30);
-            document.getElementById('m-cuota-actual').innerText = `Cuota: $${parseFloat(cuotaValor).toFixed(2)} (${s.frecuencia})`;
-            
             document.getElementById('btn-ws').onclick = () => {
-                const msg = `Hola ${s.nombre}, te saludamos de CrediListo. Recordatorio de cuota hoy de $${parseFloat(cuotaValor).toFixed(2)}. ¡Gracias!`;
+                const msg = `Hola ${s.nombre}, te saludamos de CrediListo.`;
                 window.open(`https://wa.me/503${s.tel}?text=${encodeURIComponent(msg)}`);
             };
 
@@ -291,7 +239,7 @@
                     <span class="text-[9px] font-black text-slate-300 w-4">#${c.n}</span>
                     <input type="number" id="v-${i}" value="${c.valorPagado}" class="w-16 bg-slate-50 rounded-lg text-xs font-black p-2 outline-none">
                     <input type="date" id="f-${i}" value="${c.fecha_ISO || ''}" class="flex-1 bg-slate-50 rounded-lg text-[9px] font-bold p-2 outline-none">
-                    ${!c.pagada ? `<button onclick="pagar(${i})" class="bg-sky-500 text-white font-black text-[9px] px-3 py-2 rounded-lg">OK</button>` : `<span class="text-green-600 text-[8px] font-black">PAGADO</span>`}
+                    ${!c.pagada ? `<button onclick="pagar(${i})" class="bg-sky-500 text-white font-black text-[9px] px-3 py-2 rounded-lg italic">OK</button>` : `<span class="text-green-600 text-[8px] font-black">PAGADO</span>`}
                 </div>`;
             });
             document.getElementById('modalM').classList.remove('hidden');
@@ -315,62 +263,50 @@
             ver(currentId);
         }
 
-        function confirmarCierre() {
-            if(confirm("¿Cerrar mes? Esto marcará un punto de control y generará el reporte final.")) {
-                exportarMes();
-                alert("Mes cerrado con éxito. Reporte generado.");
-            }
-        }
-
-        function exportarExpediente() {
-            db.ref('clientes/' + currentId).once('value', snap => {
-                const s = snap.val();
-                let data = [["EXPEDIENTE", s.nombre], ["DUI", s.dui], ["PLAN", s.frecuencia], ["ESTADO DE PAGOS"], ["N°", "FECHA", "MONTO", "ESTADO"]];
-                s.cuotas.forEach(c => data.push([c.n, c.fecha || "---", c.valorPagado, c.pagada ? "PAGADO" : "PENDIENTE"]));
-                const ws = XLSX.utils.aoa_to_sheet(data);
-                const wb = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(wb, ws, "Ficha");
-                XLSX.writeFile(wb, `Expediente_${s.nombre}.xlsx`);
-            });
-        }
-
         function exportarMes() {
-            let data = [["REPORTE GENERAL DE CARTERA"], ["CLIENTE", "DUI", "INVERSION", "SALDO ACTUAL", "CALIF"]];
+            let data = [["REPORTE CARTERA"], ["CLIENTE", "DUI", "INVERSION", "DEUDA ACTUAL"]];
             snapGlobal.forEach(c => {
                 const s = c.val();
-                if(s.tipo === "ACTIVO") data.push([s.nombre, s.dui, s.monto, s.saldo, s.calificacion]);
+                if(s.tipo === "ACTIVO") data.push([s.nombre, s.dui, s.monto, s.saldo]);
             });
             const ws = XLSX.utils.aoa_to_sheet(data);
             const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Reporte");
-            XLSX.writeFile(wb, `Cartera_${new Date().toLocaleDateString()}.xlsx`);
+            XLSX.utils.book_append_sheet(wb, ws, "Cartera");
+            XLSX.writeFile(wb, `Reporte_Mensual.xlsx`);
+        }
+
+        function confirmarCierre() {
+            if(confirm("¿Deseas cerrar el mes? Se descargará el reporte y se guardará el estado actual.")) {
+                exportarMes();
+                alert("Cierre ejecutado correctamente.");
+            }
         }
 
         async function guardarFicha() {
             await db.ref('clientes/' + currentId).update({
                 nombre: document.getElementById('e-nombre').value.toUpperCase(),
                 dui: document.getElementById('e-dui').value,
-                tel: document.getElementById('e-tel').value,
-                dirCasa: document.getElementById('e-dirCasa').value,
-                dirNeg: document.getElementById('e-dirNeg').value,
-                negocio: document.getElementById('e-negocio').value,
-                motivo: document.getElementById('e-motivo').value,
-                ingresos: document.getElementById('e-ingresos').value,
-                refNom: document.getElementById('e-refNom').value,
-                refTel: document.getElementById('e-refTel').value,
-                calificacion: document.getElementById('e-calif').value
+                tel: document.getElementById('e-tel').value
             });
-            alert("✅ ACTUALIZADO");
+            alert("DATOS ACTUALIZADOS");
         }
 
         async function eliminarCliente() {
-            if(confirm("¿ELIMINAR DEFINITIVAMENTE?")) { await db.ref('clientes/' + currentId).remove(); cerrarM(); }
+            if(confirm("¿BORRAR CLIENTE?")) { await db.ref('clientes/' + currentId).remove(); cerrarM(); }
         }
 
-        function togglePin() {
-            const p = document.getElementById('pin-acceso');
-            p.type = p.type === 'password' ? 'text' : 'password';
+        function exportarExpediente() {
+            db.ref('clientes/' + currentId).once('value', snap => {
+                const s = snap.val();
+                let data = [["CLIENTE", s.nombre], ["PAGOS"], ["N°", "FECHA", "MONTO", "ESTADO"]];
+                s.cuotas.forEach(c => data.push([c.n, c.fecha, c.valorPagado, c.pagada ? "PAGADO" : "PENDIENTE"]));
+                const ws = XLSX.utils.aoa_to_sheet(data);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Expediente");
+                XLSX.writeFile(wb, `Expediente_${s.nombre}.xlsx`);
+            });
         }
+
         function abrirCaja() { document.getElementById('modalCaja').classList.remove('hidden'); }
         function cerrarCaja() { document.getElementById('modalCaja').classList.add('hidden'); }
         function cerrarM() { document.getElementById('modalM').classList.add('hidden'); }
