@@ -56,10 +56,22 @@
 
             <div class="space-y-4 pt-4">
                 <h2 class="text-cyan-400 text-[10px] font-black uppercase tracking-[0.2em] border-b border-white/5 pb-2">Datos del Crédito</h2>
+             <div class="space-y-4 pt-4">
+                <h2 class="text-cyan-400 text-[10px] font-black uppercase tracking-[0.2em] border-b border-white/5 pb-2">Datos del Crédito</h2>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <span class="label-style">Monto Solicitado</span>
-                        <input type="number" id="monto" placeholder="Ej: 300" required class="input-field">
+                        <select id="monto" required class="input-field">
+                            <option value="" disabled selected>Selecciona</option>
+                            <option value="50">$50.00</option>
+                            <option value="100">$100.00</option>
+                            <option value="150">$150.00</option>
+                            <option value="200">$200.00</option>
+                            <option value="250">$250.00</option>
+                            <option value="300">$300.00</option>
+                            <option value="400">$400.00</option>
+                            <option value="500">$500.00</option>
+                        </select>
                     </div>
                     <div>
                         <span class="label-style">Frecuencia de Pago</span>
@@ -145,3 +157,4 @@
     </script>
 </body>
 </html>
+
