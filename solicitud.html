@@ -7,43 +7,131 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-firestore-compat.js"></script>
+    <style>
+        :root { --dark: #050b16; --cyan: #00d2ff; --green: #3aef9b; }
+        body { background-color: var(--dark); color: white; }
+        .input-field { 
+            width: 100%; padding: 1rem; background: rgba(255,255,255,0.05); 
+            border: 1px solid rgba(255,255,255,0.1); border-radius: 1rem;
+            outline: none; transition: all 0.3s; color: white;
+        }
+        .input-field:focus { border-color: var(--cyan); background: rgba(255,255,255,0.1); }
+        .label-style { font-size: 0.7rem; font-weight: 800; text-transform: uppercase; color: #64748b; margin-bottom: 0.3rem; display: block; letter-spacing: 0.05em; }
+    </style>
 </head>
-<body class="bg-[#050b16] text-white font-sans">
-    <main class="max-w-lg mx-auto px-6 py-12">
-        <img src="logocredi.png" class="h-10 mx-auto mb-10 opacity-80" style="mix-blend-mode: lighten;">
-        <h1 class="text-3xl font-black italic uppercase tracking-tighter text-center mb-8">Solicitud de <span class="text-cyan-400">Crédito</span></h1>
-        
-        <form id="formSolicitud" class="space-y-4">
-            <input type="text" id="nombre" placeholder="Nombre Completo" required class="w-full p-4 bg-white/5 border border-white/10 rounded-2xl focus:border-cyan-500 outline-none">
-            <input type="text" id="dui" placeholder="DUI (00000000-0)" required class="w-full p-4 bg-white/5 border border-white/10 rounded-2xl focus:border-cyan-500 outline-none">
-            <input type="tel" id="telefono" placeholder="WhatsApp" required class="w-full p-4 bg-white/5 border border-white/10 rounded-2xl focus:border-cyan-500 outline-none">
-            <select id="monto" class="w-full p-4 bg-[#1a1f2b] border border-white/10 rounded-2xl focus:border-cyan-500 outline-none">
-                <option value="50">$50.00</option>
-                <option value="100">$100.00</option>
-                <option value="200">$200.00</option>
-            </select>
-            <button type="submit" class="w-full py-5 bg-white text-black font-black uppercase tracking-widest rounded-2xl hover:scale-105 transition-all">Enviar Solicitud</button>
+<body class="pb-20">
+
+    <nav class="w-full py-6 flex justify-center sticky top-0 bg-[#050b16]/90 backdrop-blur-md z-50">
+        <img src="logocredi.png" alt="Logo" class="h-8 opacity-80" style="mix-blend-mode: lighten;">
+    </nav>
+
+    <main class="max-w-xl mx-auto px-6 mt-10">
+        <header class="text-center mb-10">
+            <h1 class="text-3xl font-black italic uppercase tracking-tighter">Nueva <span class="text-cyan-400">Solicitud</span></h1>
+            <p class="text-slate-500 text-[10px] font-black uppercase mt-2 tracking-widest">Completa tu información de perfil</p>
+        </header>
+
+        <form id="formCredito" class="space-y-6">
+            
+            <div class="space-y-4">
+                <h2 class="text-cyan-400 text-[10px] font-black uppercase tracking-[0.2em] border-b border-white/5 pb-2">Identidad y Contacto</h2>
+                <div>
+                    <span class="label-style">Nombre Completo</span>
+                    <input type="text" id="nombre" required class="input-field">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <span class="label-style">DUI</span>
+                        <input type="text" id="dui" placeholder="00000000-0" required class="input-field">
+                    </div>
+                    <div>
+                        <span class="label-style">WhatsApp</span>
+                        <input type="tel" id="telefono" placeholder="7777-7777" required class="input-field">
+                    </div>
+                </div>
+                <div>
+                    <span class="label-style">Dirección de Casa</span>
+                    <textarea id="direccion_casa" rows="2" placeholder="Barrio, Calle, # de casa..." required class="input-field"></textarea>
+                </div>
+            </div>
+
+            <div class="space-y-4 pt-4">
+                <h2 class="text-cyan-400 text-[10px] font-black uppercase tracking-[0.2em] border-b border-white/5 pb-2">Actividad Económica</h2>
+                <div>
+                    <span class="label-style">Negocio o Rubro</span>
+                    <input type="text" id="rubro" placeholder="Ej: Tienda, Pupusería, Taller" required class="input-field">
+                </div>
+                <div>
+                    <span class="label-style">Dirección del Negocio</span>
+                    <textarea id="direccion_negocio" rows="2" placeholder="Ubicación donde trabaja..." required class="input-field"></textarea>
+                </div>
+                <div>
+                    <span class="label-style">Propósito del Crédito</span>
+                    <input type="text" id="proposito" placeholder="Ej: Compra de materia prima" required class="input-field">
+                </div>
+            </div>
+
+            <div class="space-y-4 pt-4">
+                <h2 class="text-cyan-400 text-[10px] font-black uppercase tracking-[0.2em] border-b border-white/5 pb-2">Referencia Personal</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <span class="label-style">Nombre de Referencia</span>
+                        <input type="text" id="ref_nombre" required class="input-field">
+                    </div>
+                    <div>
+                        <span class="label-style">Teléfono Referencia</span>
+                        <input type="tel" id="ref_tel" required class="input-field">
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" class="w-full py-5 mt-6 rounded-2xl bg-white text-black font-black uppercase tracking-widest hover:scale-[1.02] transition-all shadow-xl">
+                Enviar Solicitud
+            </button>
         </form>
     </main>
 
     <script>
-        // Configuración de Firebase (Coloca tus credenciales aquí)
-        const firebaseConfig = { projectId: "credilisto-sm", /* ...resto de config */ };
+        // Configuración de Firebase (Asegúrate de que tus llaves estén en github secret o aquí)
+        const firebaseConfig = {
+            apiKey: "TU_API_KEY",
+            authDomain: "credilisto-sm.firebaseapp.com",
+            projectId: "credilisto-sm",
+            storageBucket: "credilisto-sm.appspot.com",
+            messagingSenderId: "XXXXXXXX",
+            appId: "XXXXXXXX"
+        };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        document.getElementById('formSolicitud').addEventListener('submit', async (e) => {
+        document.getElementById('formCredito').addEventListener('submit', async (e) => {
             e.preventDefault();
+            const btn = e.target.querySelector('button');
+            btn.disabled = true; btn.innerText = "ENVIANDO...";
+
             const datos = {
                 nombre: document.getElementById('nombre').value,
                 dui: document.getElementById('dui').value,
                 telefono: document.getElementById('telefono').value,
-                monto: document.getElementById('monto').value,
+                direccion_casa: document.getElementById('direccion_casa').value,
+                rubro: document.getElementById('rubro').value,
+                direccion_negocio: document.getElementById('direccion_negocio').value,
+                proposito: document.getElementById('proposito').value,
+                referencia: {
+                    nombre: document.getElementById('ref_nombre').value,
+                    tel: document.getElementById('ref_tel').value
+                },
                 estado: 'pendiente',
                 fecha: firebase.firestore.FieldValue.serverTimestamp()
             };
-            await db.collection('solicitudes').add(datos);
-            window.location.href = 'enviado.html';
+
+            try {
+                await db.collection('solicitudes').add(datos);
+                window.location.href = 'enviado.html';
+            } catch (error) {
+                alert("Error: " + error.message);
+                btn.disabled = false; btn.innerText = "ENVIAR SOLICITUD";
+            }
         });
     </script>
 </body>
