@@ -1,16 +1,154 @@
-<script>
-    async function consultarSaldo() {
-        const dui = document.getElementById('dui-consulta').value;
-        const q = await db.collection('clientes').where('dui', '==', dui).get();
-        if (!q.empty) {
-            const cliente = q.docs[0].data();
-            document.getElementById('resultado').innerHTML = `
-                <div class="mt-8 p-8 bg-white/5 rounded-[35px] border border-cyan-500/30">
-                    <p class="text-[10px] uppercase font-black text-slate-500">Saldo Pendiente</p>
-                    <p class="text-5xl font-black text-cyan-400">$${cliente.saldo.toFixed(2)}</p>
-                </div>`;
-        } else {
-            alert("DUI no encontrado o sin crédito activo.");
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consulta de Saldo | CrediListo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-database-compat.js"></script>
+    <style>
+        :root { --primary: #0ea5e9; --bg: #f8fafc; }
+        body { background-color: var(--bg); color: #1e293b; font-family: 'Inter', sans-serif; }
+        .card-shadow { background: white; border-radius: 2rem; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }
+        .input-login { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 1rem; border-radius: 1rem; width: 100%; outline: none; font-size: 1rem; text-align: center; color: #0f172a; }
+        .input-login:focus { border-color: var(--primary); background: white; }
+        .cuota-item { border-bottom: 1px solid #f1f5f9; padding: 0.8rem 0; }
+        .cuota-item:last-child { border: none; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <div id="login-section" class="flex-1 flex items-center justify-center p-6">
+        <div class="w-full max-w-sm text-center">
+            <div class="mb-8">
+                <div class="w-16 h-16 bg-sky-600 rounded-2xl mx-auto flex items-center justify-center shadow-lg shadow-sky-200 mb-4">
+                    <span class="text-white text-3xl font-black italic">C</span>
+                </div>
+                <h1 class="text-xl font-black text-slate-800 uppercase tracking-tighter">CrediListo Consulta</h1>
+                <p class="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1 italic">Santiago de María</p>
+            </div>
+
+            <div class="card-shadow p-8 space-y-4">
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase mb-2 block">Número de DUI</label>
+                    <input type="text" id="login-dui" placeholder="00000000-0" class="input-login">
+                </div>
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase mb-2 block">Tu Contraseña</label>
+                    <input type="password" id="login-pass" placeholder="••••" class="input-login">
+                </div>
+                <button onclick="consultarSaldo()" class="w-full py-4 bg-sky-600 text-white font-black uppercase rounded-2xl shadow-lg shadow-sky-200 active:scale-95 transition-all">Ver mi Saldo</button>
+            </div>
+            
+            <p class="mt-6 text-[10px] text-slate-400 font-medium px-10">Si no conoces tu contraseña de acceso, búscala en tu contrato o contacta al administrador.</p>
+        </div>
+    </div>
+
+    <div id="result-section" class="hidden flex-1 flex-col bg-slate-50">
+        <nav class="p-6 bg-white border-b border-slate-200 flex justify-between items-center sticky top-0 z-50">
+            <h2 id="cliente-nombre" class="font-black text-slate-800 uppercase italic text-sm">Nombre Cliente</h2>
+            <button onclick="location.reload()" class="text-sky-600 font-bold text-[10px] uppercase">Salir</button>
+        </nav>
+
+        <main class="p-6 max-w-xl mx-auto w-full space-y-6">
+            
+            <div class="bg-slate-900 rounded-[2.5rem] p-8 text-white shadow-2xl relative overflow-hidden">
+                <div class="relative z-10">
+                    <p class="text-sky-400 text-[9px] font-black uppercase tracking-[0.2em] mb-2">Tu Saldo Pendiente</p>
+                    <h3 id="cliente-saldo" class="text-4xl font-black mb-6">$0.00</h3>
+                    
+                    <div class="grid grid-cols-2 gap-4 border-t border-white/10 pt-4">
+                        <div>
+                            <p class="text-slate-500 text-[8px] uppercase font-black">Monto Total</p>
+                            <p id="cliente-total" class="font-bold text-sm">$0.00</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-slate-500 text-[8px] uppercase font-black">Plan Elegido</p>
+                            <p id="cliente-frecuencia" class="font-bold text-sm uppercase">Cargando...</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="absolute top-[-20px] right-[-20px] w-32 h-32 bg-sky-500/10 rounded-full"></div>
+            </div>
+
+            <div class="card-shadow p-6">
+                <h4 class="text-[10px] font-black text-slate-400 uppercase mb-4 tracking-widest border-b border-slate-100 pb-2">Abonos Realizados</h4>
+                <div id="historial-pagos" class="space-y-1">
+                    </div>
+            </div>
+
+            <div class="text-center pt-4 pb-10">
+                <p class="text-[9px] text-slate-300 font-black uppercase tracking-widest italic">CrediListo Santiago de María</p>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const firebaseConfig = { databaseURL: "https://credilistosv-default-rtdb.firebaseio.com", projectId: "credilistosv" };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        async function consultarSaldo() {
+            const duiBusqueda = document.getElementById('login-dui').value.trim();
+            const passBusqueda = document.getElementById('login-pass').value.trim();
+
+            if(!duiBusqueda || !passBusqueda) return alert("Ingresa tus datos completos.");
+
+            db.ref('clientes').once('value', (snap) => {
+                let encontrado = false;
+                snap.forEach((child) => {
+                    const s = child.val();
+                    // Solo clientes ACTIVOS que coincidan en DUI y Pass
+                    if (s.dui === duiBusqueda && s.pass === passBusqueda && s.tipo === "ACTIVO") {
+                        encontrado = true;
+                        mostrarDatos(s);
+                    }
+                });
+
+                if (!encontrado) {
+                    alert("Los datos no coinciden o el crédito no está activo.");
+                }
+            });
         }
-    }
-</script>
+
+        function mostrarDatos(s) {
+            document.getElementById('login-section').classList.add('hidden');
+            document.getElementById('result-section').classList.remove('hidden');
+
+            document.getElementById('cliente-nombre').innerText = s.nombre;
+            document.getElementById('cliente-saldo').innerText = `$${parseFloat(s.saldo || 0).toFixed(2)}`;
+            document.getElementById('cliente-total').innerText = `$${parseFloat(s.total || 0).toFixed(2)}`;
+            document.getElementById('cliente-frecuencia').innerText = s.frecuencia || "Diario";
+
+            const historial = document.getElementById('historial-pagos');
+            historial.innerHTML = "";
+            
+            let hayPagos = false;
+            if(s.cuotas) {
+                s.cuotas.forEach((c) => {
+                    if(c.pagada) {
+                        hayPagos = true;
+                        historial.innerHTML += `
+                            <div class="cuota-item flex justify-between items-center">
+                                <div>
+                                    <p class="text-xs font-black text-slate-700 uppercase italic">Pago de Cuota</p>
+                                    <p class="text-[9px] text-slate-400 font-bold">${c.fecha || 'Recibido'}</p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-sm font-black text-green-600">+$${parseFloat(c.valorPagado).toFixed(2)}</p>
+                                    <p class="text-[8px] text-slate-300 font-bold uppercase">Abonado</p>
+                                </div>
+                            </div>
+                        `;
+                    }
+                });
+            }
+
+            if(!hayPagos) {
+                historial.innerHTML = "<p class='text-center py-6 text-xs text-slate-400 italic font-medium'>Aún no has realizado abonos.</p>";
+            }
+        }
+    </script>
+</body>
+</html>
