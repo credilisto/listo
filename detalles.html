@@ -38,14 +38,14 @@
                 <p class="text-[8px] font-black text-sky-500 uppercase">Ganancia Esperada</p>
                 <p id="stat-ganancia" class="text-lg font-black text-sky-600">$0.00</p>
             </div>
+            <div class="bg-slate-900 p-4 rounded-2xl text-center shadow-sm">
+                <p class="text-[8px] font-black text-slate-400 uppercase italic">Total a Recuperar</p>
+                <p id="stat-recuperar" class="text-lg font-black text-white">$0.00</p>
+            </div>
             <div class="bg-white p-4 rounded-2xl border border-slate-200 border-l-4 border-l-green-500 text-center shadow-sm">
                 <p class="text-[8px] font-black text-green-600 uppercase">Cobrado Hoy</p>
                 <p id="stat-hoy" class="text-lg font-black text-green-600">$0.00</p>
             </div>
-            <button onclick="ejecutarCierre()" class="bg-slate-900 p-4 rounded-2xl text-center hover:bg-black transition-all">
-                <p class="text-[8px] font-black text-slate-500 uppercase">Cierre Mes</p>
-                <p class="text-[10px] font-black text-white uppercase italic">Archivar Todo</p>
-            </button>
         </div>
 
         <div id="lista-clientes" class="space-y-3"></div>
@@ -54,7 +54,6 @@
     <div id="modalM" class="fixed inset-0 z-[100] hidden overflow-y-auto bg-slate-100/95 backdrop-blur-md">
         <div class="min-h-screen p-4">
             <div class="max-w-3xl mx-auto bg-white rounded-[2.5rem] shadow-2xl border border-slate-200 p-6 mb-10">
-                
                 <div class="flex justify-between items-start mb-6">
                     <div>
                         <div class="flex items-center gap-2">
@@ -73,9 +72,7 @@
                 </div>
 
                 <div class="flex gap-2 mb-8">
-                    <button id="btn-ws" class="flex-1 py-4 bg-green-500 text-white rounded-2xl text-[10px] font-black uppercase flex items-center justify-center gap-2 shadow-lg shadow-green-100">
-                        WhatsApp Recordatorio (Cuota)
-                    </button>
+                    <button id="btn-ws" class="flex-1 py-4 bg-green-500 text-white rounded-2xl text-[10px] font-black uppercase flex items-center justify-center gap-2 shadow-lg shadow-green-100">WhatsApp Recordatorio (Cuota)</button>
                     <button onclick="eliminarCliente()" class="px-6 py-4 bg-red-50 text-red-500 rounded-2xl text-[10px] font-black uppercase border border-red-100">Eliminar</button>
                 </div>
 
@@ -93,14 +90,14 @@
                     <div><span class="label-style">Dirección Negocio</span><input type="text" id="e-dirNeg" class="input-field"></div>
                     <div><span class="label-style">Rubro / Negocio</span><input type="text" id="e-negocio" class="input-field"></div>
                     <div><span class="label-style">Motivo del Crédito</span><input type="text" id="e-motivo" class="input-field"></div>
-                    <div><span class="label-style">Ingresos Mensuales</span><input type="text" id="e-ingresos" class="input-field" placeholder="Opcional"></div>
+                    <div><span class="label-style">Ingresos Mensuales</span><input type="text" id="e-ingresos" class="input-field"></div>
                     <div><span class="label-style">Referencia Nombre</span><input type="text" id="e-refNom" class="input-field"></div>
                     <div><span class="label-style">Referencia Teléfono</span><input type="tel" id="e-refTel" class="input-field"></div>
-                    <div><span class="label-style">Calificación (A-F)</span><select id="e-calif" class="input-field"><option value="A">Clase A (Excelente)</option><option value="B">Clase B (Bueno)</option><option value="C">Clase C (Regular)</option><option value="D">Clase D (Moroso)</option><option value="F">Clase F (Peligroso)</option></select></div>
+                    <div><span class="label-style">Calificación (A-F)</span><select id="e-calif" class="input-field"><option value="A">Clase A</option><option value="B">Clase B</option><option value="C">Clase C</option><option value="D">Clase D</option><option value="F">Clase F</option></select></div>
                     
                     <div class="col-span-full grid grid-cols-2 gap-2 mt-4">
-                        <button onclick="enviarFotosCorreo('DUI')" class="py-3 bg-slate-900 text-white rounded-xl text-[9px] font-black uppercase">📧 Adjuntar Fotos CONTRATO</button>
-                        <button onclick="enviarFotosCorreo('NEGOCIO')" class="py-3 bg-slate-900 text-white rounded-xl text-[9px] font-black uppercase">📧 Adjuntar Foto LETRA DE CAMBIO</button>
+                        <button onclick="enviarFotosCorreo('CONTRATO')" class="py-3 bg-slate-900 text-white rounded-xl text-[9px] font-black uppercase tracking-tighter">📧 Adjuntar CONTRATO</button>
+                        <button onclick="enviarFotosCorreo('LETRA DE CAMBIO')" class="py-3 bg-slate-900 text-white rounded-xl text-[9px] font-black uppercase tracking-tighter">📧 Adjuntar LETRA DE CAMBIO</button>
                     </div>
 
                     <div class="col-span-full mt-4">
@@ -130,23 +127,20 @@
                         const m = parseFloat(s.monto || 0);
                         tInversion += m;
                         tGanancia += (m * 0.20);
-
                         if(s.cuotas) {
                             s.cuotas.forEach(c => { if(c.pagada && c.fecha === hoy) tHoy += parseFloat(c.valorPagado); });
                         }
-
                         container.innerHTML += `
                             <div class="card p-5 flex justify-between items-center item-c" data-n="${s.nombre}" data-d="${s.dui}">
-                                <div>
-                                    <h3 class="font-black uppercase text-slate-800 text-[13px] leading-none mb-1">${s.nombre}</h3>
-                                    <p class="text-[9px] font-bold text-slate-400 uppercase italic">Saldo: <span class="text-sky-600">$${parseFloat(s.saldo || 0).toFixed(2)}</span></p>
-                                </div>
-                                <button onclick="ver('${child.key}')" class="bg-sky-500 text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase shadow-md">Pagos / Ficha</button>
+                                <div><h3 class="font-black uppercase text-slate-800 text-[13px] leading-none mb-1">${s.nombre}</h3>
+                                <p class="text-[9px] font-bold text-slate-400 uppercase italic">Saldo: <span class="text-sky-600">$${parseFloat(s.saldo || 0).toFixed(2)}</span></p></div>
+                                <button onclick="ver('${child.key}')" class="bg-sky-500 text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase">Pagos / Ficha</button>
                             </div>`;
                     }
                 });
                 document.getElementById('stat-inversion').innerText = `$${tInversion.toFixed(2)}`;
                 document.getElementById('stat-ganancia').innerText = `$${tGanancia.toFixed(2)}`;
+                document.getElementById('stat-recuperar').innerText = `$${(tInversion + tGanancia).toFixed(2)}`;
                 document.getElementById('stat-hoy').innerText = `$${tHoy.toFixed(2)}`;
             });
         }
@@ -155,35 +149,31 @@
             currentId = id;
             const snap = await db.ref('clientes/' + id).once('value');
             const s = snap.val();
-
             const total = parseFloat(s.total || (s.monto * 1.20));
             const saldo = parseFloat(s.saldo !== undefined ? s.saldo : total);
             const cal = s.calificacion || "A";
 
-            // Datos Modal
             document.getElementById('m-nombre').innerText = s.nombre;
             document.getElementById('c-total').innerText = `$${total.toFixed(2)}`;
             document.getElementById('c-pagado').innerText = `$${(total - saldo).toFixed(2)}`;
             document.getElementById('c-debe').innerText = `$${saldo.toFixed(2)}`;
-
             const b = document.getElementById('m-calif-badge');
             b.innerText = `CLASE ${cal}`;
             b.className = `badge-calif ${cal === 'A' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`;
 
-            // Ficha Completa
+            // Llenar Ficha
             document.getElementById('e-nombre').value = s.nombre || "";
             document.getElementById('e-dui').value = s.dui || "";
             document.getElementById('e-tel').value = s.tel || s.telefono || "";
             document.getElementById('e-dirCasa').value = s.dirCasa || s.direccion_casa || "";
             document.getElementById('e-dirNeg').value = s.dirNeg || s.direccion_negocio || "";
             document.getElementById('e-negocio').value = s.negocio || s.rubro || "";
-            document.getElementById('e-motivo').value = s.inversion || s.proposito || s.motivo || "";
+            document.getElementById('e-motivo').value = s.motivo || s.proposito || s.inversion || "";
             document.getElementById('e-ingresos').value = s.ingresos || "";
             document.getElementById('e-refNom').value = s.refNom || (s.referencia ? s.referencia.nombre : "");
             document.getElementById('e-refTel').value = s.refTel || (s.referencia ? s.referencia.tel : "");
             document.getElementById('e-calif').value = cal;
 
-            // WhatsApp Lógica
             const cuotaValor = (s.cuotas && s.cuotas.length > 0) ? s.cuotas[0].valorPagado : (total/30);
             document.getElementById('m-cuota-actual').innerText = `Cuota: $${parseFloat(cuotaValor).toFixed(2)} (${s.frecuencia})`;
             
@@ -192,18 +182,15 @@
                 window.open(`https://wa.me/503${s.tel || s.telefono}?text=${encodeURIComponent(msg)}`);
             };
 
-            // Tabla Cuotas
             const t = document.getElementById('tabla-cuotas'); t.innerHTML = "";
             (s.cuotas || []).forEach((c, i) => {
-                t.innerHTML += `
-                    <div class="${c.pagada ? 'opacity-40 bg-slate-50' : 'bg-white shadow-sm border border-slate-100'} p-3 rounded-xl flex items-center gap-2">
-                        <span class="text-[9px] font-black text-slate-300 w-4">#${c.n}</span>
-                        <input type="number" id="v-${i}" value="${c.valorPagado}" class="w-16 bg-slate-50 rounded-lg text-xs font-black p-2" ${c.pagada?'disabled':''}>
-                        <input type="date" id="f-${i}" value="${c.fecha_ISO || ''}" class="flex-1 bg-slate-50 rounded-lg text-[9px] font-bold p-2" ${c.pagada?'disabled':''}>
-                        ${!c.pagada ? `<button onclick="pagar(${i})" class="bg-sky-500 text-white font-black text-[9px] px-3 py-2 rounded-lg uppercase">OK</button>` : `<span class="text-green-600 text-[8px] font-black italic">LISTO</span>`}
-                    </div>`;
+                t.innerHTML += `<div class="${c.pagada ? 'opacity-40' : 'bg-white shadow-sm border border-slate-100'} p-3 rounded-xl flex items-center gap-2">
+                    <span class="text-[9px] font-black text-slate-300 w-4">#${c.n}</span>
+                    <input type="number" id="v-${i}" value="${c.valorPagado}" class="w-16 bg-slate-50 rounded-lg text-xs font-black p-2">
+                    <input type="date" id="f-${i}" value="${c.fecha_ISO || ''}" class="flex-1 bg-slate-50 rounded-lg text-[9px] font-bold p-2">
+                    ${!c.pagada ? `<button onclick="pagar(${i})" class="bg-sky-500 text-white font-black text-[9px] px-3 py-2 rounded-lg">OK</button>` : `<span class="text-green-600 text-[8px] font-black italic">PAGADO</span>`}
+                </div>`;
             });
-
             document.getElementById('modalM').classList.remove('hidden');
         }
 
@@ -224,11 +211,15 @@
             alert("✅ FICHA ACTUALIZADA");
         }
 
-        function enviarFotosCorreo(tipo) {
+        function enviarFotosCorreo(tipoDoc) {
             const nombre = document.getElementById('e-nombre').value;
-            const subject = encodeURIComponent(`Fotos de ${tipo} - Cliente: ${nombre}`);
-            const body = encodeURIComponent(`Hola, adjunto las fotos de ${tipo} del cliente ${nombre} para el expediente de CrediListo.`);
-            window.location.href = `mailto:credilisto@protonmail.com?subject=${subject}&body=${body}`;
+            const email = "credilisto@protonmail.com";
+            const subject = `Documentación: ${tipoDoc} - ${nombre}`;
+            const body = `Hola, adjunto envío la foto de: ${tipoDoc}\nCliente: ${nombre}\n\n(Favor adjuntar la foto antes de enviar este correo).`;
+            
+            // Creamos un enlace temporal para asegurar que se dispare la acción
+            const mailtoUrl = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+            window.location.href = mailtoUrl;
         }
 
         async function pagar(i) {
@@ -260,4 +251,3 @@
     </script>
 </body>
 </html>
-
