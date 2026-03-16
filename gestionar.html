@@ -508,9 +508,7 @@
     <header class="header">
         <div class="header-brand">Credi<em>Listo</em> <span style="color:var(--muted);font-size:0.7rem;font-weight:500;letter-spacing:0.05em"> / Admin</span></div>
         <nav class="header-nav">
-            <button class="btn btn-ghost btn-sm" onclick="location.href='gestionar.html#nuevo'">+ Nuevo</button>
-            <button class="btn btn-ghost btn-sm" onclick="exportarCartera()">Excel</button>
-            <button class="btn btn-ghost btn-sm" onclick="location.href='reporte-solicitudes.html'">Reporte PDF</button>
+            <button class="btn btn-ghost btn-sm" onclick="exportarCartera()">↓ Excel</button>
             <button class="btn btn-ghost btn-sm" onclick="location.href='index.html'">Inicio</button>
         </nav>
     </header>
@@ -528,6 +526,21 @@
                 <div class="sidebar-stat" style="border-top:1px solid var(--border);padding-top:0.5rem">
                     <span class="stat-label">Cobrado hoy</span>
                     <span class="stat-val" id="cobrado-hoy">$0.00</span>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:0.4rem;padding-top:0.5rem;border-top:1px solid var(--border)">
+                    <button class="btn btn-ghost btn-sm" style="justify-content:space-between;width:100%"
+                            onclick="mostrarSolicitudes()">
+                        <span>📋 Solicitudes pendientes</span>
+                        <span class="client-badge badge-saldo" id="badge-pendientes" style="display:none">0</span>
+                    </button>
+                    <button class="btn btn-accent btn-sm" style="justify-content:center;width:100%"
+                            onclick="mostrarNuevoCliente()">
+                        + Nuevo cliente
+                    </button>
+                    <button class="btn btn-ghost btn-sm" style="justify-content:center;width:100%"
+                            onclick="location.href='reporte-solicitudes.html'">
+                        📊 Reporte PDF
+                    </button>
                 </div>
             </div>
             <div class="client-list" id="client-list">
@@ -603,7 +616,7 @@ function escucharClientes() {
     const hoy = new Date().toISOString().split('T')[0];
     db.ref('clientes').on('value', snap => {
         allClients = {};
-        let activos = 0, cobradoHoy = 0;
+        let activos = 0, cobradoHoy = 0, pendientes = 0;
 
         snap.forEach(c => {
             const v = c.val();
@@ -615,10 +628,18 @@ function escucharClientes() {
                         cobradoHoy += parseFloat(cuo.valorPagado || 0);
                 });
             }
+            if (v.tipo === 'PENDIENTE') pendientes++;
         });
 
         document.getElementById('total-activos').textContent = activos;
-        document.getElementById('cobrado-hoy').textContent  = '$' + cobradoHoy.toFixed(2);
+        document.getElementById('cobrado-hoy').textContent   = '$' + cobradoHoy.toFixed(2);
+        const badge = document.getElementById('badge-pendientes');
+        if (pendientes > 0) {
+            badge.textContent = pendientes;
+            badge.style.display = 'inline';
+        } else {
+            badge.style.display = 'none';
+        }
         renderSidebar();
         if (currentId && allClients[currentId]) renderPanel(currentId);
     });
@@ -886,26 +907,55 @@ async function eliminarCliente() {
 // ─── DOCUMENTOS / FIREBASE STORAGE ───────────────────────────────────────
 function docSlot(tipo, label, url) {
     const hasDoc = !!url;
-    const isImg  = hasDoc && (url.includes('contrato') || url.includes('letra') || url.match(/\.(jpg|jpeg|png|webp|gif)/i) || url.includes('firebasestorage'));
     return `
     <div class="doc-slot" id="slot-${tipo}">
         <div class="doc-slot-label">${label}</div>
-        <div class="doc-preview" onclick="document.getElementById('fi-${tipo}').click()">
+        <div class="doc-preview" onclick="document.getElementById('fi-${tipo}').click()" style="cursor:pointer">
             ${hasDoc
-                ? `<div class="doc-placeholder"><span>✅</span><span style="color:var(--accent)">Documento guardado</span></div>`
+                ? `<img src="${url}" alt="${label}"
+                       style="width:100%;max-height:160px;object-fit:cover;border-radius:0.5rem;display:block"
+                       onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"
+                   >
+                   <div class="doc-placeholder" style="display:none"><span>📄</span><span style="color:var(--accent)">Archivo guardado</span></div>`
                 : `<div class="doc-placeholder"><span>📎</span>Toca para subir</div>`}
         </div>
         <div class="upload-progress"><div class="upload-bar" id="bar-${tipo}"></div></div>
         <div class="doc-actions">
-            <button class="btn btn-ghost btn-sm btn-full" onclick="document.getElementById('fi-${tipo}').click()">
+            <button class="btn btn-ghost btn-sm" style="flex:1;justify-content:center"
+                    onclick="document.getElementById('fi-${tipo}').click()">
                 ${hasDoc ? '↑ Reemplazar' : '↑ Subir foto o PDF'}
             </button>
-            ${hasDoc ? `<button class="btn btn-blue btn-sm" onclick="window.open('${url}','_blank')">Ver</button>` : ''}
+            ${hasDoc ? `<button class="btn btn-blue btn-sm" onclick="verDocumento('${url}')">🔍 Ver</button>` : ''}
         </div>
-        <p style="font-size:0.58rem;color:var(--muted);padding:0 0.75rem 0.6rem;text-align:center">
+        <p style="font-size:0.58rem;color:var(--muted2);padding:0 0.75rem 0.6rem;text-align:center">
             Imágenes o PDF · Guardado en Firebase Storage
         </p>
     </div>`;
+}
+
+function verDocumento(url) {
+    const modal = document.createElement('div');
+    modal.style.cssText = `position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.92);
+        display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1rem;padding:1rem`;
+    modal.onclick = () => modal.remove();
+    modal.innerHTML = `
+        <img src="${url}" style="max-width:95vw;max-height:85vh;object-fit:contain;border-radius:0.5rem;box-shadow:0 8px 40px rgba(0,0,0,0.5)"
+             onerror="this.outerHTML='<p style=color:white;font-size:0.9rem>No se pudo cargar la imagen.<br>Abre el enlace directamente.</p>'">
+        <div style="display:flex;gap:0.75rem">
+            <a href="${url}" target="_blank"
+               style="background:#0ea5e9;color:white;padding:0.5rem 1.25rem;border-radius:0.5rem;
+                      font-weight:700;font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;text-decoration:none">
+                Abrir en nueva pestaña
+            </a>
+            <button onclick="event.stopPropagation();this.closest('div[style*=fixed]').remove()"
+                    style="background:rgba(255,255,255,0.1);color:white;border:1px solid rgba(255,255,255,0.2);
+                           padding:0.5rem 1.25rem;border-radius:0.5rem;font-weight:700;font-size:0.7rem;
+                           letter-spacing:0.1em;text-transform:uppercase;cursor:pointer">
+                Cerrar ✕
+            </button>
+        </div>
+        <p style="color:rgba(255,255,255,0.4);font-size:0.65rem">Toca fuera para cerrar</p>`;
+    document.body.appendChild(modal);
 }
 
 async function subirDoc(input, tipo) {
@@ -949,6 +999,275 @@ async function subirDoc(input, tipo) {
         toast('Error: ' + err.message, 'error');
         input.value = '';
     }
+}
+
+// ─── SOLICITUDES PENDIENTES ───────────────────────────────────────────────
+function mostrarSolicitudes() {
+    currentId = null;
+    document.querySelectorAll('.client-item').forEach(el => el.classList.remove('active'));
+    document.getElementById('welcome').style.display = 'none';
+    const panel = document.getElementById('panel');
+    panel.style.display = 'flex';
+
+    const pendientes = Object.values(allClients).filter(c => c.tipo === 'PENDIENTE');
+
+    panel.innerHTML = `
+    <div class="client-header">
+        <div>
+            <div class="ch-name">Solicitudes Pendientes</div>
+            <div class="ch-meta">${pendientes.length} solicitud${pendientes.length!==1?'es':''} esperando revisión</div>
+        </div>
+        <div class="ch-actions">
+            <button class="btn btn-ghost btn-sm" onclick="location.href='reporte-solicitudes.html'">📊 Ver reporte completo</button>
+        </div>
+    </div>
+
+    ${pendientes.length === 0 ? `
+    <div style="text-align:center;padding:3rem;color:var(--muted2)">
+        <div style="font-size:2.5rem;margin-bottom:0.75rem">✅</div>
+        <p style="font-size:0.85rem;font-weight:600">No hay solicitudes pendientes</p>
+    </div>` : pendientes.map(s => {
+        const cuotaD = s.monto ? ((parseFloat(s.monto)*1.2)/30).toFixed(2) : '—';
+        const cuotaS = s.monto ? ((parseFloat(s.monto)*1.2)/4).toFixed(2) : '—';
+        const cuota  = s.frecuencia === 'semanal' ? cuotaS : cuotaD;
+        return `
+    <div class="section-card">
+        <div class="section-head">
+            <div class="section-title">${s.nombre||'—'} &nbsp;·&nbsp; ${s.fecha||'—'}</div>
+            <div style="display:flex;gap:0.4rem">
+                <button class="btn btn-accent btn-sm" onclick="aprobarSolicitud('${s._key}')">✓ Aprobar</button>
+                <button class="btn btn-danger btn-sm" onclick="rechazarSolicitud('${s._key}')">✗ Rechazar</button>
+            </div>
+        </div>
+        <div class="section-body">
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:0.5rem">
+                ${[
+                    ['DUI', s.dui],
+                    ['WhatsApp', s.tel],
+                    ['Monto', '$'+(s.monto||'—')],
+                    ['Frecuencia', (s.frecuencia||'—').toUpperCase()],
+                    ['Cuota', '$'+cuota],
+                    ['Total (20%)', s.monto ? '$'+(parseFloat(s.monto)*1.2).toFixed(2) : '—'],
+                    ['Dirección', s.dirCasa||s.dirVivienda||'—'],
+                    ['Negocio', s.negocio||'—'],
+                    ['Motivo', s.inversion||'—'],
+                    ['Referencia', (s.refNom||s.refNombre||'—')+' / '+(s.refTel||'—')],
+                ].map(([lbl,val]) => `
+                <div style="background:var(--surface2);border:1px solid var(--border);border-radius:0.5rem;padding:0.5rem 0.75rem">
+                    <div style="font-size:0.55rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:0.2rem">${lbl}</div>
+                    <div style="font-size:0.8rem;font-weight:600;color:var(--text)">${val}</div>
+                </div>`).join('')}
+            </div>
+        </div>
+    </div>`; }).join('')}`;
+}
+
+async function aprobarSolicitud(id) {
+    const s = allClients[id];
+    if (!s) return;
+    const monto     = parseFloat(s.monto);
+    const total     = monto * 1.2;
+    const numCuotas = s.frecuencia === 'semanal' ? 4 : 30;
+    const cuota     = (total / numCuotas).toFixed(2);
+
+    const cuotas = Array.from({length: numCuotas}, (_, i) => ({
+        n: i + 1, valorPagado: parseFloat(cuota), pagada: false, fecha: ''
+    }));
+
+    await db.ref('clientes/' + id).update({
+        tipo: 'ACTIVO', total, saldo: total,
+        fechaInicio: new Date().toLocaleDateString('es-SV'),
+        cuotas,
+        pass: s.pass || '1234'
+    });
+    toast('✓ Crédito aprobado', 'success');
+    mostrarSolicitudes();
+}
+
+async function rechazarSolicitud(id) {
+    const s = allClients[id];
+    if (!confirm('¿Rechazar y eliminar la solicitud de ' + (s?.nombre||'este cliente') + '?')) return;
+    await db.ref('clientes/' + id).remove();
+    toast('Solicitud rechazada', 'error');
+    mostrarSolicitudes();
+}
+
+// ─── NUEVO CLIENTE MANUAL ─────────────────────────────────────────────────
+function mostrarNuevoCliente() {
+    currentId = null;
+    document.querySelectorAll('.client-item').forEach(el => el.classList.remove('active'));
+    document.getElementById('welcome').style.display = 'none';
+    const panel = document.getElementById('panel');
+    panel.style.display = 'flex';
+
+    panel.innerHTML = `
+    <div class="client-header">
+        <div>
+            <div class="ch-name">Nuevo Cliente Manual</div>
+            <div class="ch-meta">Registrar directamente como crédito activo</div>
+        </div>
+    </div>
+
+    <div class="section-card">
+        <div class="section-head"><div class="section-title">Datos Personales</div></div>
+        <div class="section-body">
+            <div class="ficha-grid">
+                <div class="ficha-field full">
+                    <span class="ff-label">Nombre completo</span>
+                    <input class="edit-input" id="n-nombre" type="text" placeholder="JUAN PÉREZ">
+                </div>
+                <div class="ficha-field">
+                    <span class="ff-label">DUI</span>
+                    <input class="edit-input" id="n-dui" type="text" placeholder="00000000-0">
+                </div>
+                <div class="ficha-field">
+                    <span class="ff-label">WhatsApp</span>
+                    <input class="edit-input" id="n-tel" type="tel" placeholder="7777-7777">
+                </div>
+                <div class="ficha-field full">
+                    <span class="ff-label">Dirección de vivienda</span>
+                    <input class="edit-input" id="n-dirCasa" type="text">
+                </div>
+                <div class="ficha-field">
+                    <span class="ff-label">Nombre del negocio</span>
+                    <input class="edit-input" id="n-negocio" type="text">
+                </div>
+                <div class="ficha-field">
+                    <span class="ff-label">Dirección del negocio</span>
+                    <input class="edit-input" id="n-dirNeg" type="text">
+                </div>
+                <div class="ficha-field">
+                    <span class="ff-label">Ingresos / Sueldo</span>
+                    <input class="edit-input" id="n-ingresos" type="text">
+                </div>
+                <div class="ficha-field">
+                    <span class="ff-label">Contraseña para portal cliente</span>
+                    <input class="edit-input" id="n-pass" type="text" value="1234">
+                </div>
+                <div class="ficha-field full">
+                    <span class="ff-label">Propósito del crédito</span>
+                    <input class="edit-input" id="n-inversion" type="text">
+                </div>
+                <div class="ficha-field">
+                    <span class="ff-label">Referencia (nombre)</span>
+                    <input class="edit-input" id="n-refNom" type="text">
+                </div>
+                <div class="ficha-field">
+                    <span class="ff-label">Referencia (teléfono)</span>
+                    <input class="edit-input" id="n-refTel" type="tel">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section-card">
+        <div class="section-head"><div class="section-title">Condiciones del Crédito</div></div>
+        <div class="section-body">
+            <div class="ficha-grid">
+                <div class="ficha-field">
+                    <span class="ff-label">Monto</span>
+                    <select class="edit-select" id="n-monto" onchange="calcularPreview()">
+                        <option value="50">$50</option>
+                        <option value="100">$100</option>
+                        <option value="150">$150</option>
+                        <option value="200" selected>$200</option>
+                        <option value="250">$250</option>
+                        <option value="300">$300</option>
+                        <option value="400">$400</option>
+                        <option value="500">$500</option>
+                    </select>
+                </div>
+                <div class="ficha-field">
+                    <span class="ff-label">Frecuencia de pago</span>
+                    <select class="edit-select" id="n-frecuencia" onchange="calcularPreview()">
+                        <option value="diario">Diario (30 pagos)</option>
+                        <option value="semanal">Semanal (4 pagos)</option>
+                    </select>
+                </div>
+                <div class="ficha-field">
+                    <span class="ff-label">Total a pagar (20%)</span>
+                    <div class="ff-val accent mono" id="n-preview-total">$240.00</div>
+                </div>
+                <div class="ficha-field">
+                    <span class="ff-label">Cuota por pago</span>
+                    <div class="ff-val accent mono" id="n-preview-cuota">$8.00 diario</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div style="display:flex;gap:0.75rem;padding-bottom:1rem">
+        <button class="btn btn-accent btn-lg" style="flex:1;justify-content:center" onclick="guardarNuevoManual()">
+            ✓ Registrar como ACTIVO
+        </button>
+        <button class="btn btn-ghost btn-lg" style="justify-content:center" onclick="guardarComoPendiente()">
+            Guardar como Pendiente
+        </button>
+    </div>`;
+
+    calcularPreview();
+}
+
+function calcularPreview() {
+    const m = parseFloat(document.getElementById('n-monto')?.value || 200);
+    const f = document.getElementById('n-frecuencia')?.value || 'diario';
+    const total = m * 1.2;
+    const n     = f === 'semanal' ? 4 : 30;
+    const cuota = (total / n).toFixed(2);
+    const el1 = document.getElementById('n-preview-total');
+    const el2 = document.getElementById('n-preview-cuota');
+    if (el1) el1.textContent = '$' + total.toFixed(2);
+    if (el2) el2.textContent = '$' + cuota + ' ' + f;
+}
+
+function recogerDatosNuevo() {
+    const g = id => (document.getElementById(id)||{}).value || '';
+    return {
+        nombre:    g('n-nombre').toUpperCase(),
+        dui:       g('n-dui'),
+        tel:       g('n-tel'),
+        pass:      g('n-pass') || '1234',
+        dirCasa:   g('n-dirCasa'),
+        negocio:   g('n-negocio'),
+        dirNeg:    g('n-dirNeg'),
+        ingresos:  g('n-ingresos'),
+        inversion: g('n-inversion'),
+        refNom:    g('n-refNom'),
+        refTel:    g('n-refTel'),
+        monto:     g('n-monto'),
+        frecuencia: g('n-frecuencia'),
+        fecha:     new Date().toLocaleDateString('es-SV'),
+    };
+}
+
+async function guardarNuevoManual() {
+    const data = recogerDatosNuevo();
+    if (!data.nombre || !data.dui) { toast('Nombre y DUI son obligatorios', 'error'); return; }
+
+    const monto     = parseFloat(data.monto);
+    const total     = monto * 1.2;
+    const numCuotas = data.frecuencia === 'semanal' ? 4 : 30;
+    const cuota     = (total / numCuotas).toFixed(2);
+    const cuotas    = Array.from({length: numCuotas}, (_, i) => ({
+        n: i+1, valorPagado: parseFloat(cuota), pagada: false, fecha: ''
+    }));
+
+    const id = Date.now();
+    await db.ref('clientes/' + id).set({
+        ...data, id, tipo: 'ACTIVO', total, saldo: total,
+        fechaInicio: new Date().toLocaleDateString('es-SV'), cuotas
+    });
+    toast('✓ Cliente registrado como ACTIVO', 'success');
+    mostrarNuevoCliente();
+}
+
+async function guardarComoPendiente() {
+    const data = recogerDatosNuevo();
+    if (!data.nombre || !data.dui) { toast('Nombre y DUI son obligatorios', 'error'); return; }
+    const id = Date.now();
+    await db.ref('clientes/' + id).set({ ...data, id, tipo: 'PENDIENTE' });
+    toast('Solicitud guardada como Pendiente', 'success');
+    mostrarSolicitudes();
 }
 
 // ─── EXPORT EXCEL ─────────────────────────────────────────────────────────
