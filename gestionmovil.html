@@ -33,14 +33,8 @@
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-        html, body { height: 100%; overflow: hidden; }
-
-        body {
-            background: var(--bg);
-            color: var(--text);
-            font-family: 'Instrument Sans', sans-serif;
-            font-size: 15px;
-        }
+        html { height: 100%; }
+        body { height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: 'Instrument Sans', sans-serif; font-size: 15px; }
 
         /* ── LOCK ─────────────────────────────────────── */
         #lock {
@@ -85,7 +79,7 @@
                     letter-spacing: 0.1em; text-transform: uppercase; text-align: center; display: none; }
 
         /* ── APP SHELL ────────────────────────────────── */
-        #app { display: none; height: 100%; position: relative; overflow: hidden; }
+        #app { display: none; position: fixed; inset: 0; overflow: hidden; }
 
         /* Dos "pantallas" que se deslizan */
         .screen {
@@ -93,15 +87,15 @@
             display: flex; flex-direction: column;
             transition: transform 0.32s cubic-bezier(0.4,0,0.2,1);
             background: var(--bg);
-            overflow: hidden;
+            will-change: transform;
         }
         #screen-list  { transform: translateX(0); }
         #screen-panel { transform: translateX(100%); }
-        #screen-extra { transform: translateX(100%); } /* solicitudes / nuevo */
+        #screen-extra { transform: translateX(100%); }
 
-        .app-showing-panel #screen-list  { transform: translateX(-30%); }
+        .app-showing-panel #screen-list  { transform: translateX(-25%); }
         .app-showing-panel #screen-panel { transform: translateX(0); }
-        .app-showing-extra #screen-list  { transform: translateX(-30%); }
+        .app-showing-extra #screen-list  { transform: translateX(-25%); }
         .app-showing-extra #screen-extra { transform: translateX(0); }
 
         /* ── TOP BAR ──────────────────────────────────── */
@@ -175,7 +169,12 @@
             color: var(--text); outline: none;
         }
 
-        .client-list-mob { overflow-y: auto; flex: 1; }
+        .client-list-mob {
+            overflow-y: scroll;
+            -webkit-overflow-scrolling: touch;
+            flex: 1;
+            min-height: 0;
+        }
         .client-list-mob::-webkit-scrollbar { display: none; }
 
         .cli-item {
@@ -206,7 +205,14 @@
         .empty-mob { text-align: center; padding: 4rem 1.5rem; color: var(--muted); font-size: 0.85rem; }
 
         /* ── SCREEN PANEL (ficha cliente) ─────────────── */
-        .panel-scroll { overflow-y: auto; flex: 1; padding: 1rem; display: flex; flex-direction: column; gap: 0.85rem; }
+        .panel-scroll {
+            overflow-y: scroll;
+            -webkit-overflow-scrolling: touch;
+            flex: 1;
+            min-height: 0;
+            padding: 1rem;
+            display: flex; flex-direction: column; gap: 0.85rem;
+        }
         .panel-scroll::-webkit-scrollbar { display: none; }
 
         /* Stats strip */
@@ -235,29 +241,44 @@
 
         /* Cuotas */
         .cuota-row-mob {
-            display: grid; grid-template-columns: 24px 1fr 88px 36px;
-            gap: 0.4rem; align-items: center;
-            padding: 0.45rem 0.5rem; border-radius: 0.4rem;
-            border: 1px solid var(--border); background: var(--surface2);
-            margin-bottom: 0.35rem; transition: opacity 0.2s;
+            padding: 0.65rem 0.75rem;
+            border-radius: 0.6rem;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            margin-bottom: 0.5rem;
+            transition: opacity 0.2s;
         }
-        .cuota-row-mob.pagada { opacity: 0.4; }
-        .cuota-n-mob { font-family: 'JetBrains Mono', monospace; font-size: 0.6rem; font-weight: 700; color: var(--muted); text-align: center; }
-        .cuota-estado-mob { font-size: 0.65rem; font-weight: 700; }
+        .cuota-row-mob.pagada { opacity: 0.4; background: var(--surface2); }
+        .cuota-row-top {
+            display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.5rem;
+        }
+        .cuota-n-mob {
+            font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; font-weight: 700;
+            color: var(--muted); min-width: 22px; text-align: center;
+            background: var(--surface2); border-radius: 0.3rem; padding: 0.15rem 0.3rem;
+        }
+        .cuota-estado-mob { font-size: 0.7rem; font-weight: 700; flex: 1; }
         .cuota-estado-mob.ok   { color: var(--green); }
         .cuota-estado-mob.pend { color: var(--warn); }
+        .cuota-row-bottom { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.4rem; }
         .cuota-inp-mob {
-            background: var(--bg); border: 1px solid var(--border2); border-radius: 0.35rem;
-            padding: 0.3rem 0.4rem; color: var(--text); font-family: 'JetBrains Mono', monospace;
-            font-size: 0.78rem; font-weight: 600; outline: none; width: 100%;
+            background: var(--bg); border: 1.5px solid var(--border2); border-radius: 0.5rem;
+            padding: 0.55rem 0.5rem; color: var(--text); font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem; font-weight: 700; outline: none; width: 100%; text-align: center;
+        }
+        .cuota-inp-mob:focus { border-color: var(--accent); }
+        .cuota-date-mob {
+            background: var(--bg); border: 1.5px solid var(--border2); border-radius: 0.5rem;
+            padding: 0.55rem 0.4rem; color: var(--text); font-family: 'JetBrains Mono', monospace;
+            font-size: 0.72rem; font-weight: 600; outline: none; width: 100%;
         }
         .cuota-btn-mob {
-            font-size: 0.58rem; font-weight: 800; text-transform: uppercase;
-            padding: 0.3rem 0; border-radius: 0.35rem; border: none;
-            cursor: pointer; width: 100%; text-align: center;
+            font-size: 0.7rem; font-weight: 800; text-transform: uppercase;
+            padding: 0.55rem 0; border-radius: 0.5rem; border: none;
+            cursor: pointer; width: 100%; text-align: center; letter-spacing: 0.05em;
         }
-        .cuota-btn-mob.pagar { background: var(--accent); color: #fff; }
-        .cuota-btn-mob.pagado { background: var(--accent-dim); color: var(--accent); cursor: default; }
+        .cuota-btn-mob.pagar  { background: var(--accent); color: #fff; }
+        .cuota-btn-mob.pagado { background: var(--accent-dim); color: var(--accent); cursor: default; font-size: 0.75rem; }
 
         /* Ficha fields */
         .ficha-mob { display: flex; flex-direction: column; gap: 0.5rem; }
@@ -314,7 +335,14 @@
         .mob-btn-full:active  { opacity: 0.8; }
 
         /* ── SCREEN EXTRA (solicitudes / nuevo) ─────── */
-        .extra-scroll { overflow-y: auto; flex: 1; padding: 1rem; display: flex; flex-direction: column; gap: 0.85rem; }
+        .extra-scroll {
+            overflow-y: scroll;
+            -webkit-overflow-scrolling: touch;
+            flex: 1;
+            min-height: 0;
+            padding: 1rem;
+            display: flex; flex-direction: column; gap: 0.85rem;
+        }
         .extra-scroll::-webkit-scrollbar { display: none; }
 
         .sol-card {
@@ -443,7 +471,7 @@
                 <span class="la-badge" id="badge-pend">0</span>
             </button>
             <button class="la-btn primary" onclick="irExtra('nuevo')">+ Nuevo</button>
-            <button class="la-btn" onclick="location.href='reporte-activos.html'">📊 Reporte</button>
+            <button class="la-btn" onclick="location.href='reporte-activos.html?from=movil'">📊 Reporte</button>
         </div>
 
         <div class="list-search">
@@ -674,30 +702,39 @@ function renderCuotasMob(s) {
     const wrap  = document.getElementById('mob-cuotas');
     if (!wrap) return;
     const cuotas = s.cuotas||[];
-    if (!cuotas.length) { wrap.innerHTML = '<p style="font-size:0.75rem;color:var(--muted)">Sin cuotas.</p>'; return; }
+    if (!cuotas.length) { wrap.innerHTML = '<p style="font-size:0.8rem;color:var(--muted)">Sin cuotas.</p>'; return; }
     wrap.innerHTML = cuotas.map((c,i) => {
-        const pag = !!c.pagada;
+        const pag     = !!c.pagada;
+        const fechaProg = c.fecha_prog || '';
+        const fechaPagada = c.fecha_ISO || '';
         return `<div class="cuota-row-mob ${pag?'pagada':''}">
-            <span class="cuota-n-mob">${c.n||i+1}</span>
-            <span class="cuota-estado-mob ${pag?'ok':'pend'}">${pag?'✓ Ok':'Pend.'}</span>
-            <input type="number" class="cuota-inp-mob" id="mv-${i}" value="${c.valorPagado||0}" step="0.01" ${pag?'disabled':''}>
-            ${pag
-                ? `<span class="cuota-btn-mob pagado">✓</span>`
-                : `<button class="cuota-btn-mob pagar" onclick="pagarMob(${i})">OK</button>`}
+            <div class="cuota-row-top">
+                <span class="cuota-n-mob">#${c.n||i+1}</span>
+                <span class="cuota-estado-mob ${pag?'ok':'pend'}">
+                    ${pag ? '✓ Pagado · '+( c.fecha||c.fecha_ISO||'') : fechaProg ? '📅 '+new Date(fechaProg+'T12:00:00').toLocaleDateString('es-SV',{day:'2-digit',month:'short'}) : 'Pendiente'}
+                </span>
+            </div>
+            ${pag ? '' : `<div class="cuota-row-bottom">
+                <input type="number" class="cuota-inp-mob" id="mv-${i}"
+                       value="${c.valorPagado||0}" step="0.01" placeholder="$0.00">
+                <input type="date"   class="cuota-date-mob" id="mf-${i}"
+                       value="${new Date().toISOString().split('T')[0]}">
+                <button class="cuota-btn-mob pagar" onclick="pagarMob(${i})">✓ Pagar</button>
+            </div>`}
         </div>`;
     }).join('');
 }
 
 async function pagarMob(i) {
     const monto = parseFloat(document.getElementById('mv-'+i).value);
+    const fecha = document.getElementById('mf-'+i).value || new Date().toISOString().split('T')[0];
     if (isNaN(monto)||monto<=0) return toast('Monto inválido','error');
     const snap = await db.ref('clientes/'+currentId).once('value');
     let s = snap.val();
-    const hoy = new Date();
-    s.cuotas[i].pagada     = true;
+    s.cuotas[i].pagada      = true;
     s.cuotas[i].valorPagado = monto;
-    s.cuotas[i].fecha_ISO  = hoy.toISOString().split('T')[0];
-    s.cuotas[i].fecha      = hoy.toLocaleDateString('es-SV');
+    s.cuotas[i].fecha_ISO   = fecha;
+    s.cuotas[i].fecha       = fecha.split('-').reverse().join('/');
     let tot = 0;
     s.cuotas.forEach(c => { if(c.pagada) tot += parseFloat(c.valorPagado||0); });
     s.saldo = (parseFloat(s.total)-tot).toFixed(2);
@@ -814,34 +851,50 @@ async function subirDoc(input, tipo) {
 }
 const labels_doc = {contrato:'Contrato',letra:'Letra de cambio',dui_frontal:'DUI frontal',dui_reverso:'DUI reverso'};
 
-// ── SOLICITUDES ───────────────────────────────────
 function renderSolicitudes() {
     document.getElementById('extra-title').textContent = 'Solicitudes pendientes';
     const wrap = document.getElementById('extra-scroll');
     const pend = Object.values(allClients).filter(c=>c.tipo==='PENDIENTE');
 
     if (!pend.length) {
-        wrap.innerHTML = '<div class="empty-mob">✅ Sin solicitudes pendientes</div>';
+        wrap.innerHTML = '<div class="empty-mob" style="padding-top:3rem">✅<br><br>Sin solicitudes pendientes</div>';
         return;
     }
+
     wrap.innerHTML = pend.map(s => {
-        const cuota = s.monto ? ((parseFloat(s.monto)*1.2)/(s.frecuencia==='semanal'?4:30)).toFixed(2) : '—';
-        return `<div class="sol-card">
+        const m    = parseFloat(s.monto)||0;
+        const tot  = (m*1.2).toFixed(2);
+        const nC   = (s.frecuencia||'diario')==='semanal' ? 4 : 30;
+        const cuot = m ? (m*1.2/nC).toFixed(2) : '—';
+        const campos = [
+            ['DUI',          s.dui||'—'],
+            ['WhatsApp',     s.tel||'—'],
+            ['Monto',        m ? '$'+m : '—'],
+            ['Frecuencia',   (s.frecuencia||'diario').toUpperCase()],
+            ['Cuota',        '$'+cuot],
+            ['Total (20%)',  '$'+tot],
+            ['Dirección',    s.dirCasa||s.dirVivienda||'—'],
+            ['Negocio',      s.negocio||'—'],
+            ['Propósito',    s.inversion||'—'],
+            ['Referencia',   (s.refNom||s.refNombre||'—')],
+            ['Tel. Ref.',    s.refTel||'—'],
+        ];
+        return `
+        <div class="sol-card">
             <div class="sol-head">
-                <div class="sol-nombre">${s.nombre||'—'}</div>
-                <div class="sol-meta">${s.fecha||'—'} · ${(s.frecuencia||'diario').toUpperCase()}</div>
+                <div class="sol-nombre">${s.nombre||'Sin nombre'}</div>
+                <div class="sol-meta">Registrado: ${s.fecha||'—'}</div>
             </div>
             <div class="sol-body">
-                ${[['DUI',s.dui],['Tel',s.tel],['Monto','$'+(s.monto||'—')],['Cuota','$'+cuota],
-                   ['Total','$'+(s.monto?(parseFloat(s.monto)*1.2).toFixed(2):'—')],
-                   ['Dirección',s.dirCasa||s.dirVivienda||'—'],
-                   ['Negocio',s.negocio||'—'],['Motivo',s.inversion||'—'],
-                   ['Referencia',(s.refNom||s.refNombre||'—')],['Tel. Ref.',s.refTel||'—']
-                ].map(([l,v])=>`<div class="sol-dato"><div class="sol-lbl">${l}</div><div class="sol-val">${v}</div></div>`).join('')}
+                ${campos.map(([l,v])=>`
+                <div class="sol-dato">
+                    <div class="sol-lbl">${l}</div>
+                    <div class="sol-val">${v}</div>
+                </div>`).join('')}
             </div>
             <div class="sol-actions">
-                <button class="sol-btn ok" onclick="abrirModalAprob('${s._key}')">✓ Aprobar</button>
-                <button class="sol-btn no" onclick="rechazar('${s._key}')">✗ Rechazar</button>
+                <button class="sol-btn ok"  onclick="abrirModalAprob('${s._key}')">✓ Aprobar</button>
+                <button class="sol-btn no"  onclick="rechazar('${s._key}')">✗ Rechazar</button>
             </div>
         </div>`;
     }).join('');
