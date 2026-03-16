@@ -1,11 +1,10 @@
-// app.js - Gestión de Firebase y Ficha de Cliente
+// app.js - VERSIÓN DE DIAGNÓSTICO PROFUNDO
 
-// 1. Importar las funciones necesarias del SDK (Versión Modular v9+)
 import { initializeApp } from "firebase/app";
-// Importamos Firestore (Base de datos)
-import { getFirestore, doc, getDoc } from "firebase/firestore"; 
+// Importamos getDatabase y ref/get para Realtime Database
+import { getDatabase, ref, get, child } from "firebase/database"; 
 
-// 2. Tu configuración de Firebase (LA QUE PEGASTE ANTES)
+// 1. Tu configuración de Firebase (LA QUE PEGASTE ANTES)
 const firebaseConfig = {
   apiKey: "AIzaSyC1GiJitT0QegrVe9o6CHCsvf7sEZELwRk",
   authDomain: "credilistosv.firebaseapp.com",
@@ -17,62 +16,57 @@ const firebaseConfig = {
   measurementId: "G-2V85PVCFTZ"
 };
 
-// 3. Inicializar Firebase
+console.log("1. Iniciando Firebase...");
 const app = initializeApp(firebaseConfig);
-// Inicializar Firestore
-const db = getFirestore(app);
+const db = getDatabase(app);
+console.log("2. Conexión a Realtime Database establecida (en teoría).");
 
 // =========================================
-// LÓGICA PARA CARGAR LA FICHA
+// LÓGICA DE CARGADO (REPARADA)
 // =========================================
 
-// Función para rellenar el HTML con los datos de Firebase
 function mapearDatosAFicha(datos) {
-    document.getElementById('data-nombre').innerText = datos.nombreCompleto || 'N/D';
+    console.log("5. Mapeando datos al HTML:", datos);
+    // Usamos los nombres exactos que suelen usarse en Realtime DB
+    document.getElementById('data-nombre').innerText = datos.nombre_completo || datos.nombre || 'N/D';
     document.getElementById('data-dui').innerText = datos.dui || 'N/D';
     document.getElementById('data-nit').innerText = datos.nit || 'N/D';
-    document.getElementById('data-nacimiento').innerText = datos.fechaNacimiento || 'N/D';
+    document.getElementById('data-nacimiento').innerText = datos.fecha_nacimiento || 'N/D';
     document.getElementById('data-telefono').innerText = datos.telefono || 'N/D';
     document.getElementById('data-email').innerText = datos.email || 'N/D';
     document.getElementById('data-direccion').innerText = datos.direccion || 'N/D';
-    document.getElementById('data-trabajo').innerText = datos.lugarTrabajo || 'N/D';
+    document.getElementById('data-trabajo').innerText = datos.lugar_trabajo || 'N/D';
     
-    // Formatear dinero (suponiendo que viene como número)
-    const ingresos = datos.ingresosMensuales ? `$${parseFloat(datos.ingresosMensuales).toFixed(2)}` : 'N/D';
+    const ingresos = datos.ingresos_mensuales ? `$${parseFloat(datos.ingresos_mensuales).toFixed(2)}` : 'N/D';
     document.getElementById('data-ingresos').innerText = ingresos;
 }
 
-// Función principal para obtener un cliente de la colección 'clientes'
 async function cargarFichaCliente(idCliente) {
     const loadingEl = document.getElementById('datosClienteCargando');
     const contenidoEl = document.getElementById('contenidoFicha');
-    const idDisplayEl = document.getElementById('clienteIdDisplay');
     
-    idDisplayEl.innerText = idCliente;
+    console.log(`3. Intentando buscar cliente con ID: ${idCliente}...`);
 
     try {
-        // Referencia al documento específico: db -> colección 'clientes' -> id del documento
-        const docRef = doc(db, "clientes", idCliente);
-        const docSnap = await getDoc(docRef);
+        // En Realtime Database, la estructura es diferente.
+        // Asumimos que tienes un nodo 'clientes' y dentro los IDs.
+        const dbRef = ref(getDatabase());
+        const snapshot = await get(child(dbRef, `clientes/${idCliente}`));
 
-        if (docSnap.exists()) {
-            // Si el cliente existe en Firebase
-            console.log("Datos del cliente:", docSnap.data());
-            
-            // Pasar los datos raw a la función que llena el HTML
-            mapearDatosAFicha(docSnap.data());
+        if (snapshot.exists()) {
+            console.log("4. ¡Datos encontrados en Firebase!");
+            const datos = snapshot.val();
+            mapearDatosAFicha(datos);
 
-            // Mostrar la ficha y ocultar el 'Cargando...'
             loadingEl.style.display = 'none';
             contenidoEl.style.display = 'block';
         } else {
-            // doc.exists() will be false if the document does not exist
-            loadingEl.innerText = "Error: El cliente con ese ID no existe en la base de datos.";
-            console.log("No such document!");
+            console.log("4. El nodo no existe en esa ruta.");
+            loadingEl.innerText = `Error: El cliente con ID "${idCliente}" no existe en Realtime Database. Revisa la ruta 'clientes/${idCliente}'.`;
         }
     } catch (error) {
-        console.error("Error obteniendo documento:", error);
-        loadingEl.innerText = "Error crítico al conectar con Firebase.";
+        console.error("❌ ERROR CRÍTICO DE FIREBASE:", error);
+        loadingEl.innerText = `Error técnico: ${error.message}. Revisa la consola (F12) para más detalles.`;
     }
 }
 
@@ -80,16 +74,14 @@ async function cargarFichaCliente(idCliente) {
 // INICIAR PROCESO
 // =========================================
 
-// EJEMPLO: Vamos a cargar un cliente fijo para probar.
-// En producción, este ID vendría de la URL (ej: ficha.html?id=123)
-const ID_CLIENTE_PRUEBA = "REEMPLAZA_CON_UN_ID_REAL_DE_TU_COLECCION_CLIENTES"; 
+// ⚠️ IMPORTANTE: ESTE ID DEBE EXISTIR EN TU BASE DE DATOS
+// Entra a tu consola de Firebase -> Realtime Database y copia un ID real.
+const ID_CLIENTE_REAL = "REEMPLAZA_CON_UN_ID_EXISTENTE_EN_TU_BASE_DE_DATOS"; 
 
-// Si no tienes Firestore configurado con datos, esto fallará.
-// Comenta la línea de abajo si solo quieres ver el diseño HTML sin Firebase.
-cargarFichaCliente(ID_CLIENTE_PRUEBA);
+if (ID_CLIENTE_REAL === "REEMPLAZA_CON_UN_ID_EXISTENTE_EN_TU_BASE_DE_DATOS") {
+    document.getElementById('datosClienteCargando').innerText = "ERROR: Debes editar 'app.js' y poner un ID de cliente real en la variable ID_CLIENTE_REAL.";
+} else {
+    cargarFichaCliente(ID_CLIENTE_REAL);
+}
 
-
-// Configurar el botón de imprimir
-document.getElementById('btnImprimir').addEventListener('click', () => {
-    window.print(); // Esto abre el diálogo de impresión del navegador
-});
+document.getElementById('btnImprimir').addEventListener('click', () => { window.print(); });
