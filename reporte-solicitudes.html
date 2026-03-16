@@ -457,7 +457,7 @@
             <div class="tagline">Solicitudes registradas en el sistema</div>
         </div>
         <div class="header-actions">
-            <button class="btn btn-secondary" onclick="location.href='gestionar.html'">← Panel Admin</button>
+            <button class="btn btn-secondary" id="btn-back">← Panel Admin</button>
             <button class="btn btn-primary" onclick="imprimirTodo()">🖨 Imprimir Todo</button>
         </div>
     </header>
@@ -548,6 +548,9 @@
 <script>
     const PIN = "2025";
     const DB_URL = "https://credilistosv-default-rtdb.firebaseio.com";
+    // Smart back button
+    const fromMob = new URLSearchParams(location.search).get('from') === 'movil';
+    document.getElementById('btn-back').onclick = () => location.href = fromMob ? 'gestionmovil.html' : 'gestionar.html';
 
     let todosLosClientes = [];
     let visibles = [];

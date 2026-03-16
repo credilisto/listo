@@ -156,7 +156,7 @@
             <div class="tagline">Cartera vigente · Santiago de María</div>
         </div>
         <div class="header-actions">
-            <button class="btn btn-secondary" onclick="location.href='gestionar.html'">← Admin</button>
+            <button class="btn btn-secondary" id="btn-back">← Admin</button>
             <button class="btn btn-secondary" onclick="location.href='reporte-solicitudes.html'">Solicitudes</button>
             <button class="btn btn-primary"   onclick="window.print()">🖨 Imprimir</button>
         </div>
@@ -232,6 +232,9 @@
     function initFirebase() {
         firebase.initializeApp({ databaseURL: DB_URL });
         const db = firebase.database();
+        // Smart back button
+        const fromMob = new URLSearchParams(location.search).get('from') === 'movil';
+        document.getElementById('btn-back').onclick = () => location.href = fromMob ? 'gestionmovil.html' : 'gestionar.html';
         db.ref('clientes').on('value', snap => {
             todos = [];
             snap.forEach(c => {
