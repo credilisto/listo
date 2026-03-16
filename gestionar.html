@@ -539,7 +539,11 @@
                     </button>
                     <button class="btn btn-ghost btn-sm" style="justify-content:center;width:100%"
                             onclick="location.href='reporte-solicitudes.html'">
-                        📊 Reporte PDF
+                        📋 Reporte solicitudes
+                    </button>
+                    <button class="btn btn-ghost btn-sm" style="justify-content:center;width:100%"
+                            onclick="location.href='reporte-activos.html'">
+                        📊 Reporte clientes activos
                     </button>
                 </div>
             </div>
@@ -1018,7 +1022,8 @@ function mostrarSolicitudes() {
             <div class="ch-meta">${pendientes.length} solicitud${pendientes.length!==1?'es':''} esperando revisión</div>
         </div>
         <div class="ch-actions">
-            <button class="btn btn-ghost btn-sm" onclick="location.href='reporte-solicitudes.html'">📊 Ver reporte completo</button>
+            <button class="btn btn-ghost btn-sm" onclick="location.href='reporte-solicitudes.html'">📊 Reporte solicitudes</button>
+            <button class="btn btn-ghost btn-sm" onclick="location.href='reporte-activos.html'">📊 Reporte activos</button>
         </div>
     </div>
 
@@ -1062,26 +1067,299 @@ function mostrarSolicitudes() {
     </div>`; }).join('')}`;
 }
 
-async function aprobarSolicitud(id) {
-    const s = allClients[id];
+// ─── MODAL DE APROBACIÓN ──────────────────────────────────────────────────
+let aprobandoId   = null;
+let docAprobFiles = { contrato: null, letra: null };
+
+function aprobarSolicitud(id) {
+    aprobandoId = id;
+    docAprobFiles = { contrato: null, letra: null };
+    const s   = allClients[id];
     if (!s) return;
-    const monto     = parseFloat(s.monto);
-    const total     = monto * 1.2;
-    const numCuotas = s.frecuencia === 'semanal' ? 4 : 30;
-    const cuota     = (total / numCuotas).toFixed(2);
 
-    const cuotas = Array.from({length: numCuotas}, (_, i) => ({
-        n: i + 1, valorPagado: parseFloat(cuota), pagada: false, fecha: ''
-    }));
+    const hoy      = new Date().toISOString().split('T')[0];
+    const monto    = parseFloat(s.monto) || 0;
+    const total    = monto * 1.2;
+    const esSemanl = (s.frecuencia || 'diario') === 'semanal';
+    const nCuotas  = esSemanl ? 4 : 30;
+    const cuota    = (total / nCuotas).toFixed(2);
 
-    await db.ref('clientes/' + id).update({
-        tipo: 'ACTIVO', total, saldo: total,
-        fechaInicio: new Date().toLocaleDateString('es-SV'),
-        cuotas,
-        pass: s.pass || '1234'
+    // Calcular fechas de pago preview
+    function fechasPago(inicio, n, semanal) {
+        const base = new Date(inicio + 'T12:00:00');
+        return Array.from({length: n}, (_, i) => {
+            const d = new Date(base);
+            d.setDate(d.getDate() + (semanal ? (i+1)*7 : (i+1)));
+            return d.toLocaleDateString('es-SV');
+        });
+    }
+
+    const modal = document.createElement('div');
+    modal.id = 'modal-aprobacion';
+    modal.style.cssText = `position:fixed;inset:0;z-index:8000;background:rgba(15,23,42,0.7);
+        backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:1rem;overflow-y:auto`;
+
+    modal.innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:1.25rem;
+                width:min(96vw,580px);max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.15)">
+
+        <!-- cabecera -->
+        <div style="padding:1.25rem 1.5rem;border-bottom:1px solid var(--border);
+                    display:flex;justify-content:space-between;align-items:center;
+                    position:sticky;top:0;background:var(--surface);z-index:1">
+            <div>
+                <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.1rem;color:var(--text)">
+                    Aprobar Crédito
+                </div>
+                <div style="font-size:0.65rem;color:var(--muted2);margin-top:0.1rem">${s.nombre||'—'} · $${s.monto}</div>
+            </div>
+            <button onclick="document.getElementById('modal-aprobacion').remove()"
+                    style="background:var(--surface2);border:1px solid var(--border2);border-radius:0.5rem;
+                           padding:0.35rem 0.6rem;cursor:pointer;color:var(--muted2);font-size:0.75rem">✕</button>
+        </div>
+
+        <div style="padding:1.25rem;display:flex;flex-direction:column;gap:1rem">
+
+            <!-- resumen crédito -->
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.5rem">
+                <div style="background:var(--surface2);border:1px solid var(--border);border-radius:0.6rem;padding:0.75rem">
+                    <div style="font-size:0.55rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:0.25rem">Monto</div>
+                    <div style="font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--accent)">$${monto.toFixed(2)}</div>
+                </div>
+                <div style="background:var(--surface2);border:1px solid var(--border);border-radius:0.6rem;padding:0.75rem">
+                    <div style="font-size:0.55rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:0.25rem">Total (20%)</div>
+                    <div style="font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--text)">$${total.toFixed(2)}</div>
+                </div>
+                <div style="background:var(--surface2);border:1px solid var(--border);border-radius:0.6rem;padding:0.75rem">
+                    <div style="font-size:0.55rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:0.25rem">Cuota ${s.frecuencia||'diario'}</div>
+                    <div style="font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--text)">$${cuota}</div>
+                </div>
+            </div>
+
+            <!-- fecha desembolso -->
+            <div>
+                <div style="font-size:0.6rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;
+                            color:var(--muted2);margin-bottom:0.5rem">Fecha de Desembolso</div>
+                <input type="date" id="ap-fecha" value="${hoy}"
+                       onchange="actualizarFechasPago()"
+                       style="background:var(--surface2);border:1px solid var(--border2);border-radius:0.5rem;
+                              padding:0.6rem 0.75rem;color:var(--text);font-family:'JetBrains Mono',monospace;
+                              font-size:0.85rem;font-weight:600;outline:none;width:100%">
+            </div>
+
+            <!-- preview fechas de pago -->
+            <div>
+                <div style="font-size:0.6rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;
+                            color:var(--muted2);margin-bottom:0.5rem">
+                    Fechas de pago programadas (${nCuotas} ${esSemanl ? 'semanales' : 'diarias'})
+                </div>
+                <div id="ap-fechas-wrap"
+                     style="background:var(--surface2);border:1px solid var(--border);border-radius:0.6rem;
+                            padding:0.75rem;display:flex;flex-wrap:wrap;gap:0.3rem;max-height:100px;overflow-y:auto">
+                </div>
+            </div>
+
+            <!-- contraseña -->
+            <div>
+                <div style="font-size:0.6rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;
+                            color:var(--muted2);margin-bottom:0.5rem">Contraseña para portal del cliente</div>
+                <input type="text" id="ap-pass" value="${s.pass||'1234'}"
+                       style="background:var(--surface2);border:1px solid var(--border2);border-radius:0.5rem;
+                              padding:0.6rem 0.75rem;color:var(--text);font-family:'JetBrains Mono',monospace;
+                              font-size:0.9rem;font-weight:700;outline:none;width:100%;letter-spacing:0.2em">
+            </div>
+
+            <!-- documentos -->
+            <div>
+                <div style="font-size:0.6rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;
+                            color:var(--muted2);margin-bottom:0.5rem">Documentos (opcional)</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+
+                    <label style="border:1px dashed var(--border2);border-radius:0.75rem;padding:1rem;
+                                  cursor:pointer;text-align:center;transition:border-color 0.2s;display:block"
+                           onmouseover="this.style.borderColor='var(--accent)'"
+                           onmouseout="this.style.borderColor='var(--border2)'"
+                           for="ap-fi-contrato">
+                        <div id="ap-prev-contrato" style="margin-bottom:0.4rem">
+                            <span style="font-size:1.5rem;opacity:0.4;display:block">📄</span>
+                        </div>
+                        <div style="font-size:0.6rem;font-weight:800;letter-spacing:0.12em;
+                                    text-transform:uppercase;color:var(--muted)">Contrato firmado</div>
+                        <div style="font-size:0.6rem;color:var(--muted2);margin-top:0.25rem" id="ap-lbl-contrato">Toca para adjuntar</div>
+                        <input type="file" id="ap-fi-contrato" accept="image/*,application/pdf" style="display:none"
+                               onchange="previewDocAprob(this,'contrato')">
+                    </label>
+
+                    <label style="border:1px dashed var(--border2);border-radius:0.75rem;padding:1rem;
+                                  cursor:pointer;text-align:center;transition:border-color 0.2s;display:block"
+                           onmouseover="this.style.borderColor='var(--accent)'"
+                           onmouseout="this.style.borderColor='var(--border2)'"
+                           for="ap-fi-letra">
+                        <div id="ap-prev-letra" style="margin-bottom:0.4rem">
+                            <span style="font-size:1.5rem;opacity:0.4;display:block">📋</span>
+                        </div>
+                        <div style="font-size:0.6rem;font-weight:800;letter-spacing:0.12em;
+                                    text-transform:uppercase;color:var(--muted)">Letra de Cambio</div>
+                        <div style="font-size:0.6rem;color:var(--muted2);margin-top:0.25rem" id="ap-lbl-letra">Toca para adjuntar</div>
+                        <input type="file" id="ap-fi-letra" accept="image/*,application/pdf" style="display:none"
+                               onchange="previewDocAprob(this,'letra')">
+                    </label>
+                </div>
+                <!-- barra de progreso subida -->
+                <div style="height:3px;background:var(--border);border-radius:2px;margin-top:0.75rem">
+                    <div id="ap-upload-bar" style="height:100%;background:var(--accent);border-radius:2px;width:0;transition:width 0.3s"></div>
+                </div>
+                <div id="ap-upload-msg" style="font-size:0.6rem;color:var(--muted2);text-align:center;margin-top:0.3rem"></div>
+            </div>
+
+            <!-- botón confirmar -->
+            <button id="ap-btn-confirmar" onclick="confirmarAprobacion()"
+                    style="width:100%;padding:0.9rem;background:var(--accent);color:#fff;border:none;
+                           border-radius:0.75rem;font-family:'Syne',sans-serif;font-weight:800;
+                           font-size:0.75rem;letter-spacing:0.12em;text-transform:uppercase;cursor:pointer;
+                           transition:opacity 0.2s">
+                ✓ Confirmar Aprobación
+            </button>
+        </div>
+    </div>`;
+
+    document.body.appendChild(modal);
+    actualizarFechasPago();
+}
+
+function actualizarFechasPago() {
+    const s        = allClients[aprobandoId];
+    if (!s) return;
+    const fecha    = document.getElementById('ap-fecha')?.value;
+    if (!fecha) return;
+    const esSemanl = (s.frecuencia || 'diario') === 'semanal';
+    const nCuotas  = esSemanl ? 4 : 30;
+    const wrap     = document.getElementById('ap-fechas-wrap');
+    if (!wrap) return;
+
+    const base = new Date(fecha + 'T12:00:00');
+    wrap.innerHTML = Array.from({length: nCuotas}, (_, i) => {
+        const d = new Date(base);
+        d.setDate(d.getDate() + (esSemanl ? (i+1)*7 : (i+1)));
+        const lbl = d.toLocaleDateString('es-SV', {day:'2-digit', month:'short'});
+        return `<span style="background:var(--surface);border:1px solid var(--border2);border-radius:0.3rem;
+                             padding:0.15rem 0.4rem;font-size:0.6rem;font-family:'JetBrains Mono',monospace;
+                             font-weight:600;color:var(--text)">#${i+1} ${lbl}</span>`;
+    }).join('');
+}
+
+function previewDocAprob(input, tipo) {
+    if (!input.files || !input.files[0]) return;
+    const file = input.files[0];
+    docAprobFiles[tipo] = file;
+    const isImg = file.type.startsWith('image/');
+    const prev  = document.getElementById('ap-prev-' + tipo);
+    const lbl   = document.getElementById('ap-lbl-' + tipo);
+    if (isImg) {
+        const url = URL.createObjectURL(file);
+        prev.innerHTML = `<img src="${url}" style="width:100%;max-height:70px;object-fit:cover;border-radius:0.4rem">`;
+    } else {
+        prev.innerHTML = `<span style="font-size:1.5rem;display:block">📄</span>`;
+    }
+    lbl.textContent = file.name.length > 22 ? file.name.substring(0,20)+'…' : file.name;
+    lbl.style.color = 'var(--accent)';
+}
+
+async function confirmarAprobacion() {
+    const s = allClients[aprobandoId];
+    if (!s) return;
+
+    const btn      = document.getElementById('ap-btn-confirmar');
+    const bar      = document.getElementById('ap-upload-bar');
+    const msg      = document.getElementById('ap-upload-msg');
+    const fechaISO = document.getElementById('ap-fecha').value;
+    const pass     = document.getElementById('ap-pass').value || '1234';
+
+    if (!fechaISO) { toast('Selecciona la fecha de desembolso', 'error'); return; }
+
+    btn.disabled   = true;
+    btn.textContent = 'Procesando…';
+
+    const esSemanl = (s.frecuencia || 'diario') === 'semanal';
+    const nCuotas  = esSemanl ? 4 : 30;
+    const monto    = parseFloat(s.monto) || 0;
+    const total    = monto * 1.2;
+    const cuota    = parseFloat((total / nCuotas).toFixed(2));
+    const base     = new Date(fechaISO + 'T12:00:00');
+
+    // Generar cuotas con fechas programadas
+    const cuotas = Array.from({length: nCuotas}, (_, i) => {
+        const d = new Date(base);
+        d.setDate(d.getDate() + (esSemanl ? (i+1)*7 : (i+1)));
+        const iso = d.toISOString().split('T')[0];
+        return {
+            n:           i + 1,
+            valorPagado: cuota,
+            pagada:      false,
+            fecha:       '',
+            fecha_ISO:   '',
+            fecha_prog:  iso,   // fecha programada de pago
+            fecha_prog_sv: d.toLocaleDateString('es-SV')
+        };
     });
-    toast('✓ Crédito aprobado', 'success');
-    mostrarSolicitudes();
+
+    // Subir documentos a Storage si los hay
+    let urlContrato = s.doc_contrato || '';
+    let urlLetra    = s.doc_letra    || '';
+
+    const subir = async (file, tipo) => {
+        if (!file) return tipo === 'contrato' ? urlContrato : urlLetra;
+        msg.textContent = `Subiendo ${tipo}…`;
+        const ext  = file.name.split('.').pop();
+        const path = `clientes/${aprobandoId}/${tipo}_${Date.now()}.${ext}`;
+        const ref  = storage.ref(path);
+        return new Promise((resolve, reject) => {
+            const task = ref.put(file);
+            task.on('state_changed',
+                snap => { bar.style.width = (snap.bytesTransferred/snap.totalBytes*50) + '%'; },
+                reject,
+                async () => { resolve(await task.snapshot.ref.getDownloadURL()); }
+            );
+        });
+    };
+
+    try {
+        if (docAprobFiles.contrato) {
+            urlContrato = await subir(docAprobFiles.contrato, 'contrato');
+            bar.style.width = '50%';
+        }
+        if (docAprobFiles.letra) {
+            urlLetra = await subir(docAprobFiles.letra, 'letra');
+            bar.style.width = '100%';
+        }
+
+        const fechaSV = new Date(fechaISO + 'T12:00:00').toLocaleDateString('es-SV');
+
+        await db.ref('clientes/' + aprobandoId).update({
+            tipo:        'ACTIVO',
+            total,
+            saldo:       total,
+            fechaInicio: fechaSV,
+            cuotas,
+            pass,
+            doc_contrato: urlContrato,
+            doc_letra:    urlLetra,
+        });
+
+        bar.style.width = '100%';
+        msg.textContent = '¡Listo!';
+
+        document.getElementById('modal-aprobacion').remove();
+        toast('✓ Crédito aprobado — ' + s.nombre, 'success');
+
+        // Abrir directamente la ficha del cliente recién aprobado
+        setTimeout(() => renderPanel(aprobandoId), 300);
+
+    } catch (err) {
+        toast('Error: ' + err.message, 'error');
+        btn.disabled    = false;
+        btn.textContent = '✓ Confirmar Aprobación';
+    }
 }
 
 async function rechazarSolicitud(id) {
