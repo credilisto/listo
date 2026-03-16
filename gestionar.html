@@ -568,8 +568,10 @@
 <div class="toast" id="toast"></div>
 
 <!-- FILE INPUTS ocultos -->
-<input type="file" id="fi-contrato" accept="image/*,application/pdf" style="display:none" onchange="subirDoc(this,'contrato')">
-<input type="file" id="fi-letra"    accept="image/*,application/pdf" style="display:none" onchange="subirDoc(this,'letra')">
+<input type="file" id="fi-contrato"    accept="image/*,application/pdf" style="display:none" onchange="subirDoc(this,'contrato')">
+<input type="file" id="fi-letra"       accept="image/*,application/pdf" style="display:none" onchange="subirDoc(this,'letra')">
+<input type="file" id="fi-dui_frontal" accept="image/*"                 style="display:none" onchange="subirDoc(this,'dui_frontal')">
+<input type="file" id="fi-dui_reverso" accept="image/*"                 style="display:none" onchange="subirDoc(this,'dui_reverso')">
 
 <script>
 // ─── CONFIG ──────────────────────────────────────────────────────────────
@@ -780,8 +782,10 @@ function renderPanel(id) {
                 Sube una foto o PDF. Se almacena en Firebase Storage y queda vinculado a este cliente.
             </p>
             <div class="docs-grid">
-                ${docSlot('contrato', 'Contrato firmado', s.doc_contrato)}
-                ${docSlot('letra', 'Letra de Cambio', s.doc_letra)}
+                ${docSlot('contrato',    'Contrato firmado',  s.doc_contrato)}
+                ${docSlot('letra',       'Letra de Cambio',   s.doc_letra)}
+                ${docSlot('dui_frontal', 'DUI Frontal',       s.doc_dui_frontal)}
+                ${docSlot('dui_reverso', 'DUI Reverso',       s.doc_dui_reverso)}
             </div>
         </div>
     </div>`;
@@ -993,9 +997,10 @@ async function subirDoc(input, tipo) {
             },
             async () => {
                 const url = await task.snapshot.ref.getDownloadURL();
-                await db.ref('clientes/' + currentId).update({ ['doc_' + tipo]: url });
+                const campo = 'doc_' + tipo;   // doc_contrato, doc_letra, doc_dui_frontal, doc_dui_reverso
+                await db.ref('clientes/' + currentId).update({ [campo]: url });
                 setTimeout(() => { if (bar) bar.style.width = '0'; }, 800);
-                toast('✓ Documento guardado en Storage', 'success');
+                toast('✓ ' + tipo.replace('_',' ') + ' guardado', 'success');
                 input.value = '';
             }
         );
@@ -1073,7 +1078,7 @@ let docAprobFiles = { contrato: null, letra: null };
 
 function aprobarSolicitud(id) {
     aprobandoId = id;
-    docAprobFiles = { contrato: null, letra: null };
+    docAprobFiles = { contrato: null, letra: null, dui_frontal: null, dui_reverso: null };
     const s   = allClients[id];
     if (!s) return;
 
@@ -1175,35 +1180,25 @@ function aprobarSolicitud(id) {
                             color:var(--muted2);margin-bottom:0.5rem">Documentos (opcional)</div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
 
-                    <label style="border:1px dashed var(--border2);border-radius:0.75rem;padding:1rem;
-                                  cursor:pointer;text-align:center;transition:border-color 0.2s;display:block"
-                           onmouseover="this.style.borderColor='var(--accent)'"
-                           onmouseout="this.style.borderColor='var(--border2)'"
-                           for="ap-fi-contrato">
-                        <div id="ap-prev-contrato" style="margin-bottom:0.4rem">
-                            <span style="font-size:1.5rem;opacity:0.4;display:block">📄</span>
-                        </div>
-                        <div style="font-size:0.6rem;font-weight:800;letter-spacing:0.12em;
-                                    text-transform:uppercase;color:var(--muted)">Contrato firmado</div>
-                        <div style="font-size:0.6rem;color:var(--muted2);margin-top:0.25rem" id="ap-lbl-contrato">Toca para adjuntar</div>
-                        <input type="file" id="ap-fi-contrato" accept="image/*,application/pdf" style="display:none"
-                               onchange="previewDocAprob(this,'contrato')">
-                    </label>
+                    ${['contrato','letra','dui_frontal','dui_reverso'].map(tipo => {
+                        const iconos = {contrato:'📄',letra:'📋',dui_frontal:'🪪',dui_reverso:'🔄'};
+                        const labels = {contrato:'Contrato firmado',letra:'Letra de Cambio',dui_frontal:'DUI Frontal',dui_reverso:'DUI Reverso'};
+                        return `<label style="border:1px dashed var(--border2);border-radius:0.75rem;padding:1rem;
+                                      cursor:pointer;text-align:center;transition:border-color 0.2s;display:block"
+                               onmouseover="this.style.borderColor='var(--accent)'"
+                               onmouseout="this.style.borderColor='var(--border2)'"
+                               for="ap-fi-${tipo}">
+                            <div id="ap-prev-${tipo}" style="margin-bottom:0.4rem">
+                                <span style="font-size:1.5rem;opacity:0.4;display:block">${iconos[tipo]}</span>
+                            </div>
+                            <div style="font-size:0.6rem;font-weight:800;letter-spacing:0.12em;
+                                        text-transform:uppercase;color:var(--muted)">${labels[tipo]}</div>
+                            <div style="font-size:0.6rem;color:var(--muted2);margin-top:0.25rem" id="ap-lbl-${tipo}">Toca para adjuntar</div>
+                            <input type="file" id="ap-fi-${tipo}" accept="image/*,application/pdf" style="display:none"
+                                   onchange="previewDocAprob(this,'${tipo}')">
+                        </label>`;
+                    }).join('')}
 
-                    <label style="border:1px dashed var(--border2);border-radius:0.75rem;padding:1rem;
-                                  cursor:pointer;text-align:center;transition:border-color 0.2s;display:block"
-                           onmouseover="this.style.borderColor='var(--accent)'"
-                           onmouseout="this.style.borderColor='var(--border2)'"
-                           for="ap-fi-letra">
-                        <div id="ap-prev-letra" style="margin-bottom:0.4rem">
-                            <span style="font-size:1.5rem;opacity:0.4;display:block">📋</span>
-                        </div>
-                        <div style="font-size:0.6rem;font-weight:800;letter-spacing:0.12em;
-                                    text-transform:uppercase;color:var(--muted)">Letra de Cambio</div>
-                        <div style="font-size:0.6rem;color:var(--muted2);margin-top:0.25rem" id="ap-lbl-letra">Toca para adjuntar</div>
-                        <input type="file" id="ap-fi-letra" accept="image/*,application/pdf" style="display:none"
-                               onchange="previewDocAprob(this,'letra')">
-                    </label>
                 </div>
                 <!-- barra de progreso subida -->
                 <div style="height:3px;background:var(--border);border-radius:2px;margin-top:0.75rem">
@@ -1305,41 +1300,73 @@ async function confirmarAprobacion() {
     });
 
     // Subir documentos si los hay
-    let urlContrato = s.doc_contrato || '';
-    let urlLetra    = s.doc_letra    || '';
+    let urlContrato   = s.doc_contrato   || '';
+    let urlLetra      = s.doc_letra      || '';
+    let urlDuiFrontal = s.doc_dui_frontal || '';
+    let urlDuiReverso = s.doc_dui_reverso || '';
 
     try {
         // --- subida contrato ---
         if (docAprobFiles.contrato) {
             msg.textContent = 'Subiendo contrato…';
-            bar.style.width = '10%';
+            bar.style.width = '5%';
             const file = docAprobFiles.contrato;
             const ext  = file.name.split('.').pop();
             const path = `clientes/${aprobandoId}/contrato_${Date.now()}.${ext}`;
             urlContrato = await new Promise((res, rej) => {
                 const task = storage.ref(path).put(file);
                 task.on('state_changed',
-                    snap => { bar.style.width = (10 + snap.bytesTransferred/snap.totalBytes*35) + '%'; },
-                    rej,
-                    async () => res(await task.snapshot.ref.getDownloadURL())
+                    snap => { bar.style.width = (5 + snap.bytesTransferred/snap.totalBytes*20) + '%'; },
+                    rej, async () => res(await task.snapshot.ref.getDownloadURL())
                 );
             });
-            bar.style.width = '45%';
+            bar.style.width = '25%';
         }
 
         // --- subida letra ---
         if (docAprobFiles.letra) {
             msg.textContent = 'Subiendo letra de cambio…';
-            bar.style.width = '50%';
+            bar.style.width = '25%';
             const file = docAprobFiles.letra;
             const ext  = file.name.split('.').pop();
             const path = `clientes/${aprobandoId}/letra_${Date.now()}.${ext}`;
             urlLetra = await new Promise((res, rej) => {
                 const task = storage.ref(path).put(file);
                 task.on('state_changed',
-                    snap => { bar.style.width = (50 + snap.bytesTransferred/snap.totalBytes*35) + '%'; },
-                    rej,
-                    async () => res(await task.snapshot.ref.getDownloadURL())
+                    snap => { bar.style.width = (25 + snap.bytesTransferred/snap.totalBytes*20) + '%'; },
+                    rej, async () => res(await task.snapshot.ref.getDownloadURL())
+                );
+            });
+            bar.style.width = '50%';
+        }
+
+        // --- subida DUI frontal ---
+        if (docAprobFiles.dui_frontal) {
+            msg.textContent = 'Subiendo DUI frontal…';
+            const file = docAprobFiles.dui_frontal;
+            const ext  = file.name.split('.').pop();
+            const path = `clientes/${aprobandoId}/dui_frontal_${Date.now()}.${ext}`;
+            urlDuiFrontal = await new Promise((res, rej) => {
+                const task = storage.ref(path).put(file);
+                task.on('state_changed',
+                    snap => { bar.style.width = (50 + snap.bytesTransferred/snap.totalBytes*20) + '%'; },
+                    rej, async () => res(await task.snapshot.ref.getDownloadURL())
+                );
+            });
+            bar.style.width = '70%';
+        }
+
+        // --- subida DUI reverso ---
+        if (docAprobFiles.dui_reverso) {
+            msg.textContent = 'Subiendo DUI reverso…';
+            const file = docAprobFiles.dui_reverso;
+            const ext  = file.name.split('.').pop();
+            const path = `clientes/${aprobandoId}/dui_reverso_${Date.now()}.${ext}`;
+            urlDuiReverso = await new Promise((res, rej) => {
+                const task = storage.ref(path).put(file);
+                task.on('state_changed',
+                    snap => { bar.style.width = (70 + snap.bytesTransferred/snap.totalBytes*15) + '%'; },
+                    rej, async () => res(await task.snapshot.ref.getDownloadURL())
                 );
             });
             bar.style.width = '85%';
@@ -1375,8 +1402,10 @@ async function confirmarAprobacion() {
             saldo:        total,
             fechaInicio:  fechaSV,
             cuotas:       cuotas,
-            doc_contrato: urlContrato,
-            doc_letra:    urlLetra,
+            doc_contrato:    urlContrato,
+            doc_letra:       urlLetra,
+            doc_dui_frontal: urlDuiFrontal,
+            doc_dui_reverso: urlDuiReverso,
         };
 
         // Usar set() en lugar de update() para escritura completa y limpia
@@ -1525,7 +1554,10 @@ function mostrarNuevoCliente() {
         <button class="btn btn-ghost btn-lg" style="justify-content:center" onclick="guardarComoPendiente()">
             Guardar como Pendiente
         </button>
-    </div>`;
+    </div>
+    <p style="font-size:0.65rem;color:var(--muted2);text-align:center;padding-bottom:1rem">
+        💡 Las fotos de DUI, contrato y letra de cambio se agregan desde la ficha del cliente una vez registrado.
+    </p>`;
 
     calcularPreview();
 }
