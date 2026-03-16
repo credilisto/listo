@@ -1277,13 +1277,14 @@ async function confirmarAprobacion() {
 
     if (!fechaISO) { toast('Selecciona la fecha de desembolso', 'error'); return; }
 
-    btn.disabled   = true;
+    btn.disabled    = true;
     btn.textContent = 'Procesando…';
+    msg.textContent = '';
 
     const esSemanl = (s.frecuencia || 'diario') === 'semanal';
     const nCuotas  = esSemanl ? 4 : 30;
     const monto    = parseFloat(s.monto) || 0;
-    const total    = monto * 1.2;
+    const total    = parseFloat((monto * 1.2).toFixed(2));
     const cuota    = parseFloat((total / nCuotas).toFixed(2));
     const base     = new Date(fechaISO + 'T12:00:00');
 
@@ -1293,72 +1294,115 @@ async function confirmarAprobacion() {
         d.setDate(d.getDate() + (esSemanl ? (i+1)*7 : (i+1)));
         const iso = d.toISOString().split('T')[0];
         return {
-            n:           i + 1,
-            valorPagado: cuota,
-            pagada:      false,
-            fecha:       '',
-            fecha_ISO:   '',
-            fecha_prog:  iso,   // fecha programada de pago
+            n:             i + 1,
+            valorPagado:   cuota,
+            pagada:        false,
+            fecha:         '',
+            fecha_ISO:     '',
+            fecha_prog:    iso,
             fecha_prog_sv: d.toLocaleDateString('es-SV')
         };
     });
 
-    // Subir documentos a Storage si los hay
+    // Subir documentos si los hay
     let urlContrato = s.doc_contrato || '';
     let urlLetra    = s.doc_letra    || '';
 
-    const subir = async (file, tipo) => {
-        if (!file) return tipo === 'contrato' ? urlContrato : urlLetra;
-        msg.textContent = `Subiendo ${tipo}…`;
-        const ext  = file.name.split('.').pop();
-        const path = `clientes/${aprobandoId}/${tipo}_${Date.now()}.${ext}`;
-        const ref  = storage.ref(path);
-        return new Promise((resolve, reject) => {
-            const task = ref.put(file);
-            task.on('state_changed',
-                snap => { bar.style.width = (snap.bytesTransferred/snap.totalBytes*50) + '%'; },
-                reject,
-                async () => { resolve(await task.snapshot.ref.getDownloadURL()); }
-            );
-        });
-    };
-
     try {
+        // --- subida contrato ---
         if (docAprobFiles.contrato) {
-            urlContrato = await subir(docAprobFiles.contrato, 'contrato');
-            bar.style.width = '50%';
+            msg.textContent = 'Subiendo contrato…';
+            bar.style.width = '10%';
+            const file = docAprobFiles.contrato;
+            const ext  = file.name.split('.').pop();
+            const path = `clientes/${aprobandoId}/contrato_${Date.now()}.${ext}`;
+            urlContrato = await new Promise((res, rej) => {
+                const task = storage.ref(path).put(file);
+                task.on('state_changed',
+                    snap => { bar.style.width = (10 + snap.bytesTransferred/snap.totalBytes*35) + '%'; },
+                    rej,
+                    async () => res(await task.snapshot.ref.getDownloadURL())
+                );
+            });
+            bar.style.width = '45%';
         }
+
+        // --- subida letra ---
         if (docAprobFiles.letra) {
-            urlLetra = await subir(docAprobFiles.letra, 'letra');
-            bar.style.width = '100%';
+            msg.textContent = 'Subiendo letra de cambio…';
+            bar.style.width = '50%';
+            const file = docAprobFiles.letra;
+            const ext  = file.name.split('.').pop();
+            const path = `clientes/${aprobandoId}/letra_${Date.now()}.${ext}`;
+            urlLetra = await new Promise((res, rej) => {
+                const task = storage.ref(path).put(file);
+                task.on('state_changed',
+                    snap => { bar.style.width = (50 + snap.bytesTransferred/snap.totalBytes*35) + '%'; },
+                    rej,
+                    async () => res(await task.snapshot.ref.getDownloadURL())
+                );
+            });
+            bar.style.width = '85%';
         }
 
-        const fechaSV = new Date(fechaISO + 'T12:00:00').toLocaleDateString('es-SV');
+        // --- construir objeto completo y guardar con set() ---
+        msg.textContent = 'Guardando en base de datos…';
 
-        await db.ref('clientes/' + aprobandoId).update({
-            tipo:        'ACTIVO',
-            total,
-            saldo:       total,
-            fechaInicio: fechaSV,
-            cuotas,
-            pass,
+        const fechaSV   = new Date(fechaISO + 'T12:00:00').toLocaleDateString('es-SV');
+
+        // Partir el objeto en dos operaciones separadas para evitar
+        // problemas con el array cuotas en update()
+        const datosBase = {
+            // conservar todo lo del cliente original
+            id:           s.id || aprobandoId,
+            nombre:       s.nombre       || '',
+            dui:          s.dui          || '',
+            tel:          s.tel          || '',
+            dirCasa:      s.dirCasa      || s.dirVivienda || '',
+            negocio:      s.negocio      || '',
+            dirNeg:       s.dirNeg       || s.dirNegocio || '',
+            ingresos:     s.ingresos     || '',
+            inversion:    s.inversion    || '',
+            refNom:       s.refNom       || s.refNombre || '',
+            refTel:       s.refTel       || '',
+            monto:        s.monto        || '',
+            frecuencia:   s.frecuencia   || 'diario',
+            fecha:        s.fecha        || fechaSV,
+            // nuevos campos de aprobación
+            tipo:         'ACTIVO',
+            pass:         pass,
+            total:        total,
+            saldo:        total,
+            fechaInicio:  fechaSV,
+            cuotas:       cuotas,
             doc_contrato: urlContrato,
             doc_letra:    urlLetra,
-        });
+        };
+
+        // Usar set() en lugar de update() para escritura completa y limpia
+        await db.ref('clientes/' + aprobandoId).set(datosBase);
 
         bar.style.width = '100%';
-        msg.textContent = '¡Listo!';
+        msg.textContent = '¡Aprobado!';
+        msg.style.color = 'var(--accent)';
 
-        document.getElementById('modal-aprobacion').remove();
-        toast('✓ Crédito aprobado — ' + s.nombre, 'success');
+        // Cerrar modal
+        const modalEl = document.getElementById('modal-aprobacion');
+        if (modalEl) modalEl.remove();
 
-        // Abrir directamente la ficha del cliente recién aprobado
-        setTimeout(() => renderPanel(aprobandoId), 300);
+        toast('✓ Crédito aprobado — ' + (s.nombre||''), 'success');
+
+        // Abrir la ficha del cliente recién aprobado
+        setTimeout(() => renderPanel(aprobandoId), 400);
 
     } catch (err) {
+        console.error('Error en confirmarAprobacion:', err);
+        msg.textContent = 'Error: ' + err.message;
+        msg.style.color = 'var(--danger)';
         toast('Error: ' + err.message, 'error');
         btn.disabled    = false;
         btn.textContent = '✓ Confirmar Aprobación';
+        bar.style.width = '0';
     }
 }
 
