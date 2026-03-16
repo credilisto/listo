@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporte Clientes Activos | CrediListo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-database-compat.js"></script>
+
+    <style>
+        :root {
+            --ink: #0d1117; --paper: #f5f0e8; --cream: #ede8dc;
+            --rule: #c8bfaa; --accent: #1a472a; --sky: #0ea5e9;
+            --gold: #c4922a; --muted: #6b6355; --danger: #b91c1c;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: var(--paper); color: var(--ink); font-family: 'Plus Jakarta Sans', sans-serif; min-height: 100vh; }
+
+        /* LOCK */
+        #lock-screen {
+            position: fixed; inset: 0; z-index: 9999; background: var(--sky);
+            display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 2rem;
+        }
+        .logo { font-family: 'DM Serif Display', serif; font-style: italic; color: #fff; font-size: 2.5rem; }
+        .logo span { color: #0f172a; }
+        .pin-box { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3);
+                   border-radius: 1.5rem; padding: 2rem; width: min(90vw,320px); text-align: center; }
+        .pin-box label { display: block; font-size: 0.6rem; font-weight: 700; letter-spacing: 0.2em;
+                         text-transform: uppercase; color: rgba(255,255,255,0.7); margin-bottom: 0.75rem; }
+        .pin-box input { width: 100%; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4);
+                         border-radius: 0.75rem; padding: 1rem; text-align: center; font-size: 1.5rem;
+                         font-family: 'DM Mono', monospace; font-weight: 600; letter-spacing: 0.5em;
+                         color: white; outline: none; margin-bottom: 1rem; }
+        .pin-box input::placeholder { color: rgba(255,255,255,0.5); }
+        .pin-box button { width: 100%; background: white; color: var(--sky); border: none;
+                          border-radius: 0.75rem; padding: 0.85rem; font-weight: 800; font-size: 0.7rem;
+                          letter-spacing: 0.15em; text-transform: uppercase; cursor: pointer; }
+
+        /* APP */
+        #app { display: none; }
+
+        .app-header {
+            background: white; border-bottom: 3px solid var(--sky); padding: 0.85rem 2rem;
+            display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; z-index: 100; box-shadow: 0 1px 8px rgba(14,165,233,0.08);
+        }
+        .brand { font-family: 'DM Serif Display', serif; font-style: italic; font-size: 1.3rem; }
+        .brand span { color: var(--sky); }
+        .tagline { font-size: 0.55rem; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); }
+        .header-actions { display: flex; gap: 0.5rem; }
+        .btn { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.45rem 0.9rem;
+               border-radius: 0.5rem; font-weight: 700; font-size: 0.65rem; letter-spacing: 0.08em;
+               text-transform: uppercase; cursor: pointer; border: none; transition: all 0.15s; }
+        .btn-primary { background: var(--sky); color: white; }
+        .btn-primary:hover { opacity: 0.85; }
+        .btn-secondary { background: transparent; color: var(--muted); border: 1px solid var(--rule); }
+        .btn-secondary:hover { background: var(--cream); }
+
+        /* CONSOLIDADO */
+        .consolidado {
+            background: white; border-bottom: 1px solid var(--rule); padding: 0.85rem 2rem;
+            display: none; grid-template-columns: repeat(auto-fit, minmax(130px,1fr)); gap: 0;
+        }
+        .cons-item { padding: 0.4rem 1rem; border-right: 1px solid var(--cream); }
+        .cons-item:last-child { border-right: none; }
+        .cons-label { font-size: 0.55rem; font-weight: 800; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); }
+        .cons-val { font-family: 'DM Mono', monospace; font-size: 1.2rem; font-weight: 600; color: var(--ink); line-height: 1.1; }
+        .cons-val.sky { color: var(--sky); }
+        .cons-val.gold { color: var(--gold); }
+        .cons-val.green { color: var(--accent); }
+        .cons-val.red { color: var(--danger); }
+        .cons-sub { font-size: 0.58rem; font-weight: 600; color: var(--muted); }
+
+        /* TOOLBAR */
+        .toolbar { background: var(--cream); border-bottom: 1px solid var(--rule); padding: 0.65rem 2rem;
+                   display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
+        .toolbar input, .toolbar select { background: white; border: 1px solid var(--rule); border-radius: 0.4rem;
+                          padding: 0.45rem 0.75rem; font-family: 'Plus Jakarta Sans', sans-serif;
+                          font-size: 0.78rem; font-weight: 500; color: var(--ink); outline: none; }
+        .toolbar input { flex: 1; min-width: 200px; }
+        .count-badge { font-size: 0.6rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;
+                       color: var(--muted); padding: 0.25rem 0.75rem; background: white;
+                       border: 1px solid var(--rule); border-radius: 2rem; white-space: nowrap; }
+
+        /* CONTENT */
+        .main-content { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+        .state-msg { text-align: center; padding: 5rem 2rem; color: var(--muted); }
+        .state-msg .icon { font-size: 3rem; margin-bottom: 1rem; opacity: 0.4; }
+        .state-msg p { font-size: 0.85rem; font-weight: 600; }
+
+        /* CARDS */
+        .clientes-grid { display: flex; flex-direction: column; gap: 1rem; }
+        .cliente-card { background: white; border: 1px solid var(--rule); border-radius: 1rem; overflow: hidden; }
+        .card-top { display: flex; justify-content: space-between; align-items: center;
+                    padding: 0.85rem 1.25rem; border-bottom: 1px solid var(--cream); }
+        .card-nombre { font-family: 'DM Serif Display', serif; font-size: 1.1rem; }
+        .card-meta { font-size: 0.6rem; font-weight: 600; color: var(--muted); margin-top: 0.1rem; }
+        .card-badges { display: flex; gap: 0.4rem; align-items: center; }
+        .badge { font-size: 0.55rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;
+                 padding: 0.25rem 0.6rem; border-radius: 2rem; }
+        .badge-sky  { background: rgba(14,165,233,0.1); color: var(--sky); }
+        .badge-gold { background: rgba(196,146,42,0.1); color: var(--gold); }
+        .badge-red  { background: rgba(185,28,28,0.08); color: var(--danger); }
+        .badge-green { background: rgba(26,71,42,0.08); color: var(--accent); }
+
+        .card-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px,1fr));
+                      border-bottom: 1px solid var(--cream); }
+        .cstat { padding: 0.6rem 1rem; border-right: 1px solid var(--cream); }
+        .cstat:last-child { border-right: none; }
+        .cstat-lbl { font-size: 0.55rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.15rem; }
+        .cstat-val { font-family: 'DM Mono', monospace; font-size: 0.9rem; font-weight: 600; color: var(--ink); }
+        .cstat-val.sky { color: var(--sky); }
+        .cstat-val.red { color: var(--danger); }
+        .cstat-val.green { color: var(--accent); }
+
+        .card-cuotas { padding: 0.75rem 1.25rem; overflow-x: auto; }
+        .cuotas-mini { display: flex; gap: 0.25rem; flex-wrap: wrap; }
+        .cuo { width: 28px; height: 28px; border-radius: 4px; display: flex; align-items: center;
+               justify-content: center; font-size: 0.55rem; font-weight: 800; border: 1px solid var(--rule); }
+        .cuo.ok  { background: rgba(26,71,42,0.1); color: var(--accent); border-color: rgba(26,71,42,0.2); }
+        .cuo.pend { background: var(--cream); color: var(--muted); }
+        .cuo.atras { background: rgba(185,28,28,0.08); color: var(--danger); border-color: rgba(185,28,28,0.2); }
+
+        .card-footer { padding: 0.6rem 1.25rem; background: var(--cream);
+                       display: flex; justify-content: flex-end; gap: 0.5rem; }
+
+        /* PRINT */
+        @media print {
+            #lock-screen, .toolbar, .header-actions, .app-header, .consolidado, .card-footer { display: none !important; }
+            body { background: white; }
+            .main-content { padding: 0; max-width: 100%; }
+            .cliente-card { page-break-inside: avoid; margin-bottom: 1rem; border: 1px solid #ccc; }
+            .card-cuotas { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="lock-screen">
+    <div class="logo">Credi<span>Listo</span></div>
+    <div class="pin-box">
+        <label>PIN de acceso</label>
+        <input type="password" id="pin-input" inputmode="numeric" placeholder="••••" maxlength="6"
+               onkeydown="if(event.key==='Enter')verificar()">
+        <button onclick="verificar()">Ver reporte</button>
+        <p id="pin-err" style="color:#fef08a;font-size:0.65rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;margin-top:0.5rem;display:none">PIN incorrecto</p>
+    </div>
+</div>
+
+<div id="app">
+    <header class="app-header">
+        <div>
+            <div class="brand">Credi<span>Listo</span> — Clientes Activos</div>
+            <div class="tagline">Cartera vigente · Santiago de María</div>
+        </div>
+        <div class="header-actions">
+            <button class="btn btn-secondary" id="btn-back">← Admin</button>
+            <button class="btn btn-secondary" onclick="location.href='reporte-solicitudes.html'">Solicitudes</button>
+            <button class="btn btn-primary"   onclick="window.print()">🖨 Imprimir</button>
+        </div>
+    </header>
+
+    <!-- CONSOLIDADO -->
+    <div class="consolidado" id="consolidado">
+        <div class="cons-item">
+            <div class="cons-label">Clientes activos</div>
+            <div class="cons-val sky" id="c-total">0</div>
+        </div>
+        <div class="cons-item">
+            <div class="cons-label">Capital prestado</div>
+            <div class="cons-val gold" id="c-capital">$0</div>
+        </div>
+        <div class="cons-item">
+            <div class="cons-label">Total a cobrar</div>
+            <div class="cons-val" id="c-cobrar">$0</div>
+            <div class="cons-sub">con 20% interés</div>
+        </div>
+        <div class="cons-item">
+            <div class="cons-label">Deuda pendiente</div>
+            <div class="cons-val red" id="c-saldo">$0</div>
+        </div>
+        <div class="cons-item">
+            <div class="cons-label">Ya cobrado</div>
+            <div class="cons-val green" id="c-cobrado">$0</div>
+        </div>
+        <div class="cons-item">
+            <div class="cons-label">Diarios</div>
+            <div class="cons-val" id="c-diarios">0</div>
+        </div>
+        <div class="cons-item">
+            <div class="cons-label">Semanales</div>
+            <div class="cons-val" id="c-semanales">0</div>
+        </div>
+    </div>
+
+    <!-- TOOLBAR -->
+    <div class="toolbar">
+        <input type="text" id="buscador" placeholder="🔍  Buscar cliente…" oninput="filtrar()">
+        <select id="filtro-frec" onchange="filtrar()">
+            <option value="">Todas las frecuencias</option>
+            <option value="diario">Diario</option>
+            <option value="semanal">Semanal</option>
+        </select>
+        <div class="count-badge" id="count-badge">Cargando…</div>
+    </div>
+
+    <div class="main-content">
+        <div class="state-msg" id="msg-cargando"><div class="icon">⏳</div><p>Conectando…</p></div>
+        <div class="state-msg" id="msg-vacio" style="display:none"><div class="icon">📭</div><p>Sin resultados</p></div>
+        <div class="clientes-grid" id="lista"></div>
+    </div>
+</div>
+
+<script>
+    const PIN    = "2025";
+    const DB_URL = "https://credilistosv-default-rtdb.firebaseio.com";
+    let todos = [], visibles = [];
+
+    function verificar() {
+        if (document.getElementById('pin-input').value === PIN) {
+            document.getElementById('lock-screen').style.display = 'none';
+            document.getElementById('app').style.display = 'block';
+            initFirebase();
+        } else {
+            document.getElementById('pin-err').style.display = 'block';
+            document.getElementById('pin-input').value = '';
+        }
+    }
+
+    function initFirebase() {
+        firebase.initializeApp({ databaseURL: DB_URL });
+        const db = firebase.database();
+        // Smart back button
+        const fromMob = new URLSearchParams(location.search).get('from') === 'movil';
+        document.getElementById('btn-back').onclick = () => location.href = fromMob ? 'gestionmovil.html' : 'gestionar.html';
+        db.ref('clientes').on('value', snap => {
+            todos = [];
+            snap.forEach(c => {
+                const v = c.val();
+                if (v.tipo === 'ACTIVO') todos.push({ key: c.key, ...v });
+            });
+            todos.sort((a,b) => (a.nombre||'').localeCompare(b.nombre||''));
+            filtrar();
+        });
+    }
+
+    function filtrar() {
+        const q    = (document.getElementById('buscador').value || '').toLowerCase();
+        const frec = document.getElementById('filtro-frec').value;
+        visibles = todos.filter(s => {
+            const mQ = !q || (s.nombre||'').toLowerCase().includes(q) || (s.dui||'').includes(q);
+            const mF = !frec || (s.frecuencia||'diario') === frec;
+            return mQ && mF;
+        });
+        renderConsolidado();
+        renderLista();
+    }
+
+    function fmt(v) { return '$' + parseFloat(v||0).toLocaleString('es-SV',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+    function renderConsolidado() {
+        let capital=0, cobrar=0, saldo=0, cobrado=0, diarios=0, semanales=0;
+        visibles.forEach(s => {
+            const m = parseFloat(s.monto||0);
+            const t = parseFloat(s.total||(m*1.2));
+            const sd = parseFloat(s.saldo!==undefined ? s.saldo : t);
+            capital += m; cobrar += t; saldo += sd; cobrado += (t - sd);
+            (s.frecuencia||'diario') === 'semanal' ? semanales++ : diarios++;
+        });
+        document.getElementById('c-total').textContent    = visibles.length;
+        document.getElementById('c-capital').textContent  = fmt(capital);
+        document.getElementById('c-cobrar').textContent   = fmt(cobrar);
+        document.getElementById('c-saldo').textContent    = fmt(saldo);
+        document.getElementById('c-cobrado').textContent  = fmt(cobrado);
+        document.getElementById('c-diarios').textContent  = diarios;
+        document.getElementById('c-semanales').textContent= semanales;
+        document.getElementById('consolidado').style.display = visibles.length ? 'grid' : 'none';
+    }
+
+    function renderLista() {
+        const lista = document.getElementById('lista');
+        document.getElementById('msg-cargando').style.display = 'none';
+        if (!visibles.length) {
+            lista.innerHTML = '';
+            document.getElementById('msg-vacio').style.display = 'block';
+            document.getElementById('count-badge').textContent = '0 clientes';
+            return;
+        }
+        document.getElementById('msg-vacio').style.display = 'none';
+        document.getElementById('count-badge').textContent = visibles.length + ' cliente' + (visibles.length!==1?'s':'');
+
+        const hoy = new Date().toISOString().split('T')[0];
+
+        lista.innerHTML = visibles.map(s => {
+            const monto  = parseFloat(s.monto||0);
+            const total  = parseFloat(s.total||(monto*1.2));
+            const saldo  = parseFloat(s.saldo!==undefined ? s.saldo : total);
+            const pagado = total - saldo;
+            const pct    = total > 0 ? Math.round((pagado/total)*100) : 0;
+            const cuotas = s.cuotas || [];
+            const nPag   = cuotas.filter(c=>c.pagada).length;
+            const nTot   = cuotas.length;
+            const frec   = (s.frecuencia||'diario').toUpperCase();
+
+            // cuotas atrasadas: programadas antes de hoy y no pagadas
+            const atrasadas = cuotas.filter(c => !c.pagada && c.fecha_prog && c.fecha_prog < hoy).length;
+
+            // mini cuotas visualización
+            const miniCuotas = cuotas.map((c,i) => {
+                let cls = 'pend';
+                if (c.pagada) cls = 'ok';
+                else if (c.fecha_prog && c.fecha_prog < hoy) cls = 'atras';
+                return `<div class="cuo ${cls}" title="${cls==='ok'?'Pagado':cls==='atras'?'Atrasado':'Pendiente'} #${i+1}">${i+1}</div>`;
+            }).join('');
+
+            return `
+            <div class="cliente-card">
+                <div class="card-top">
+                    <div>
+                        <div class="card-nombre">${s.nombre||'—'}</div>
+                        <div class="card-meta">DUI: ${s.dui||'—'} · Tel: ${s.tel||'—'} · Inicio: ${s.fechaInicio||s.fecha||'—'}</div>
+                    </div>
+                    <div class="card-badges">
+                        <span class="badge badge-sky">${frec}</span>
+                        ${atrasadas > 0 ? `<span class="badge badge-red">⚠ ${atrasadas} atrasada${atrasadas>1?'s':''}</span>` : ''}
+                        ${saldo <= 0 ? `<span class="badge badge-green">✓ Saldado</span>` : ''}
+                        <span class="badge badge-gold">${pct}%</span>
+                    </div>
+                </div>
+                <div class="card-stats">
+                    <div class="cstat"><div class="cstat-lbl">Monto</div><div class="cstat-val sky">${fmt(monto)}</div></div>
+                    <div class="cstat"><div class="cstat-lbl">Total (20%)</div><div class="cstat-val">${fmt(total)}</div></div>
+                    <div class="cstat"><div class="cstat-lbl">Pagado</div><div class="cstat-val green">${fmt(pagado)}</div></div>
+                    <div class="cstat"><div class="cstat-lbl">Deuda</div><div class="cstat-val red">${fmt(saldo)}</div></div>
+                    <div class="cstat"><div class="cstat-lbl">Cuotas</div><div class="cstat-val">${nPag}/${nTot}</div></div>
+                    <div class="cstat"><div class="cstat-lbl">Negocio</div><div class="cstat-val" style="font-family:inherit;font-size:0.75rem">${s.negocio||'—'}</div></div>
+                </div>
+                <div class="card-cuotas">
+                    <div style="font-size:0.55rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:0.4rem">
+                        Progreso de cuotas
+                    </div>
+                    <div class="cuotas-mini">${miniCuotas||'<span style="font-size:0.7rem;color:var(--muted)">Sin cuotas</span>'}</div>
+                </div>
+                <div class="card-footer">
+                    <button class="btn btn-secondary" onclick="location.href='gestionar.html'">Gestionar</button>
+                </div>
+            </div>`;
+        }).join('');
+    }
+</script>
+</body>
+</html>
