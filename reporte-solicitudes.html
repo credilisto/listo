@@ -399,6 +399,40 @@
             }
             .print-table tr:nth-child(even) td { background: #f5f0e8; }
         }
+        /* ===== CONSOLIDADO ===== */
+        .consolidado {
+            background: white;
+            border-top: 3px solid var(--gold);
+            border-bottom: 1px solid var(--rule);
+            padding: 1rem 2rem;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 0;
+        }
+        .cons-item {
+            padding: 0.5rem 1rem;
+            border-right: 1px solid var(--cream);
+            display: flex; flex-direction: column; gap: 0.2rem;
+        }
+        .cons-item:last-child { border-right: none; }
+        .cons-label {
+            font-size: 0.55rem; font-weight: 800; letter-spacing: 0.18em;
+            text-transform: uppercase; color: var(--muted);
+        }
+        .cons-val {
+            font-family: 'DM Mono', monospace;
+            font-size: 1.3rem; font-weight: 600; color: var(--ink);
+            line-height: 1;
+        }
+        .cons-val.gold { color: var(--gold); }
+        .cons-val.green { color: var(--accent); }
+        .cons-sub {
+            font-size: 0.6rem; font-weight: 600; color: var(--muted);
+        }
+
+        @media print {
+            .consolidado { display: none; }
+        }
     </style>
 </head>
 <body>
@@ -449,6 +483,50 @@
         <div class="count-badge" id="count-badge">Cargando…</div>
         <button class="btn btn-ghost" onclick="seleccionarTodo()" id="btn-sel-todo">Seleccionar todo</button>
         <button class="btn btn-primary" onclick="imprimirSeleccion()" id="btn-print-sel" style="display:none">🖨 Imprimir seleccionados (<span id="n-sel">0</span>)</button>
+    </div>
+
+    <!-- CONSOLIDADO -->
+    <div class="consolidado" id="consolidado" style="display:none">
+        <div class="cons-item">
+            <div class="cons-label">Total solicitado</div>
+            <div class="cons-val gold" id="c-total-monto">$0</div>
+            <div class="cons-sub" id="c-total-sub">0 clientes</div>
+        </div>
+        <div class="cons-item">
+            <div class="cons-label">Total a cobrar (20%)</div>
+            <div class="cons-val green" id="c-total-cobrar">$0</div>
+            <div class="cons-sub">Capital + intereses</div>
+        </div>
+        <div class="cons-item">
+            <div class="cons-label">Comisión 17%</div>
+            <div class="cons-val" style="color:var(--accent2)" id="c-com17">$0</div>
+            <div class="cons-sub" id="c-com17-sub">del total a cobrar</div>
+        </div>
+        <div class="cons-item">
+            <div class="cons-label">Comisión 3%</div>
+            <div class="cons-val" style="color:var(--muted)" id="c-com3">$0</div>
+            <div class="cons-sub" id="c-com3-sub">del total a cobrar</div>
+        </div>
+        <div class="cons-item">
+            <div class="cons-label">Créditos diarios</div>
+            <div class="cons-val" id="c-diarios">0</div>
+            <div class="cons-sub" id="c-diarios-monto">$0 solicitados</div>
+        </div>
+        <div class="cons-item">
+            <div class="cons-label">Créditos semanales</div>
+            <div class="cons-val" id="c-semanales">0</div>
+            <div class="cons-sub" id="c-semanales-monto">$0 solicitados</div>
+        </div>
+        <div class="cons-item">
+            <div class="cons-label">Pendientes</div>
+            <div class="cons-val" id="c-pendientes">0</div>
+            <div class="cons-sub" id="c-pendientes-monto">$0</div>
+        </div>
+        <div class="cons-item">
+            <div class="cons-label">Activos</div>
+            <div class="cons-val" id="c-activos">0</div>
+            <div class="cons-sub" id="c-activos-monto">$0</div>
+        </div>
     </div>
 
     <div class="main-content">
@@ -529,11 +607,53 @@
             lista.innerHTML = '';
             msgV.style.display = 'block';
             document.getElementById('count-badge').textContent = '0 solicitudes';
+            document.getElementById('consolidado').style.display = 'none';
             return;
         }
         msgV.style.display = 'none';
         document.getElementById('count-badge').textContent = `${visibles.length} solicitud${visibles.length!==1?'es':''}`;
 
+        // ── CONSOLIDADO ──────────────────────────────────────
+        let totalMonto = 0, nDiarios = 0, montoDiarios = 0,
+            nSemanales = 0, montoSemanales = 0,
+            nPendientes = 0, montoPendientes = 0,
+            nActivos = 0, montoActivos = 0;
+
+        visibles.forEach(s => {
+            const m = parseFloat(s.monto) || 0;
+            totalMonto += m;
+            if ((s.frecuencia || '').toLowerCase() === 'semanal') {
+                nSemanales++; montoSemanales += m;
+            } else {
+                nDiarios++; montoDiarios += m;
+            }
+            if (s.tipo === 'PENDIENTE') { nPendientes++; montoPendientes += m; }
+            if (s.tipo === 'ACTIVO')    { nActivos++;    montoActivos    += m; }
+        });
+
+        const fmt = v => '$' + v.toLocaleString('es-SV', {minimumFractionDigits:2, maximumFractionDigits:2});
+
+        const totalCobrar = totalMonto * 1.2;
+        const com17 = totalCobrar * 0.17;
+        const com3  = totalCobrar * 0.03;
+
+        document.getElementById('c-total-monto').textContent   = fmt(totalMonto);
+        document.getElementById('c-total-sub').textContent     = visibles.length + ' cliente' + (visibles.length!==1?'s':'');
+        document.getElementById('c-total-cobrar').textContent  = fmt(totalCobrar);
+        document.getElementById('c-com17').textContent         = fmt(com17);
+        document.getElementById('c-com17-sub').textContent     = '17% de ' + fmt(totalCobrar);
+        document.getElementById('c-com3').textContent          = fmt(com3);
+        document.getElementById('c-com3-sub').textContent      = '3% de ' + fmt(totalCobrar);
+        document.getElementById('c-diarios').textContent       = nDiarios;
+        document.getElementById('c-diarios-monto').textContent = fmt(montoDiarios) + ' solicitados';
+        document.getElementById('c-semanales').textContent     = nSemanales;
+        document.getElementById('c-semanales-monto').textContent = fmt(montoSemanales) + ' solicitados';
+        document.getElementById('c-pendientes').textContent    = nPendientes;
+        document.getElementById('c-pendientes-monto').textContent = fmt(montoPendientes);
+        document.getElementById('c-activos').textContent       = nActivos;
+        document.getElementById('c-activos-monto').textContent = fmt(montoActivos);
+        document.getElementById('consolidado').style.display   = 'grid';
+        // ─────────────────────────────────────────────────────
         lista.innerHTML = visibles.map(s => {
             const statusClass = s.tipo === 'PENDIENTE' ? 'status-PENDIENTE' : s.tipo === 'ACTIVO' ? 'status-ACTIVO' : 'status-OTHER';
             const isSelected = seleccionados.has(s.key);
