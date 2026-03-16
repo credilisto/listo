@@ -3,252 +3,968 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel de Control | CrediListo</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Panel Admin | CrediListo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&display=swap" rel="stylesheet">
+
+    <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-storage-compat.js"></script>
+    <!-- SheetJS -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.19.3/package/dist/xlsx.full.min.js"></script>
+
     <style>
-        :root { --primary: #0ea5e9; --bg: #f8fafc; }
-        body { background-color: var(--bg); color: #1e293b; font-family: 'Inter', sans-serif; }
-        .card { background: white; border: 1px solid #e2e8f0; border-radius: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
-        .input-field { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 0.7rem; border-radius: 0.8rem; width: 100%; color: #0f172a; font-size: 0.9rem; outline: none; }
-        .input-field:focus { border-color: var(--primary); background: white; }
-        .label-field { font-size: 0.7rem; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 0.3rem; display: block; }
-        #admin-content { display: none; }
+        :root {
+            --bg: #0a0c10;
+            --surface: #111318;
+            --surface2: #181c24;
+            --border: #1f2433;
+            --border2: #2a3040;
+            --text: #e8eaf0;
+            --muted: #4a5168;
+            --muted2: #6b7490;
+            --accent: #4fffb0;
+            --accent-dim: rgba(79,255,176,0.08);
+            --accent-border: rgba(79,255,176,0.2);
+            --danger: #ff4f6b;
+            --danger-dim: rgba(255,79,107,0.08);
+            --warn: #ffb84f;
+            --warn-dim: rgba(255,184,79,0.1);
+            --blue: #4f8fff;
+            --blue-dim: rgba(79,143,255,0.08);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Instrument Sans', sans-serif;
+            min-height: 100vh;
+            line-height: 1.5;
+        }
+
+        /* ─── LOCK SCREEN ──────────────────────────────── */
+        #lock {
+            position: fixed; inset: 0; z-index: 9999;
+            background: var(--bg);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .lock-card {
+            width: min(90vw, 340px);
+            text-align: center;
+        }
+        .lock-logo {
+            font-family: 'Syne', sans-serif;
+            font-weight: 800;
+            font-size: 2rem;
+            letter-spacing: -0.04em;
+            color: var(--text);
+            margin-bottom: 0.25rem;
+        }
+        .lock-logo em { color: var(--accent); font-style: normal; }
+        .lock-sub {
+            font-size: 0.6rem; font-weight: 600; letter-spacing: 0.2em;
+            text-transform: uppercase; color: var(--muted);
+            margin-bottom: 2.5rem;
+        }
+        .lock-input {
+            width: 100%;
+            background: var(--surface);
+            border: 1px solid var(--border2);
+            border-radius: 0.75rem;
+            padding: 1rem;
+            color: var(--text);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.4rem;
+            font-weight: 700;
+            text-align: center;
+            letter-spacing: 0.4em;
+            outline: none;
+            transition: border-color 0.2s;
+            margin-bottom: 0.75rem;
+        }
+        .lock-input:focus { border-color: var(--accent); }
+        .lock-btn {
+            width: 100%;
+            background: var(--accent);
+            color: var(--bg);
+            border: none;
+            border-radius: 0.75rem;
+            padding: 0.85rem;
+            font-family: 'Syne', sans-serif;
+            font-weight: 700;
+            font-size: 0.7rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .lock-btn:hover { opacity: 0.85; }
+        #lock-err {
+            color: var(--danger); font-size: 0.65rem; font-weight: 600;
+            letter-spacing: 0.1em; text-transform: uppercase;
+            margin-top: 0.5rem; display: none;
+        }
+
+        /* ─── MAIN LAYOUT ──────────────────────────────── */
+        #app { display: none; }
+
+        /* HEADER */
+        .header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 0.85rem 1.5rem;
+            display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; z-index: 200;
+        }
+        .header-brand {
+            font-family: 'Syne', sans-serif;
+            font-weight: 800;
+            font-size: 1.1rem;
+            letter-spacing: -0.03em;
+        }
+        .header-brand em { color: var(--accent); font-style: normal; }
+        .header-nav { display: flex; gap: 0.5rem; align-items: center; }
+
+        /* BUTTONS */
+        .btn {
+            display: inline-flex; align-items: center; gap: 0.35rem;
+            padding: 0.45rem 0.9rem;
+            border-radius: 0.5rem;
+            font-family: 'Instrument Sans', sans-serif;
+            font-weight: 700; font-size: 0.65rem;
+            letter-spacing: 0.08em; text-transform: uppercase;
+            cursor: pointer; border: none; transition: all 0.15s;
+            white-space: nowrap;
+        }
+        .btn-accent { background: var(--accent); color: var(--bg); }
+        .btn-accent:hover { opacity: 0.85; }
+        .btn-ghost { background: transparent; color: var(--muted2); border: 1px solid var(--border2); }
+        .btn-ghost:hover { background: var(--surface2); color: var(--text); }
+        .btn-danger { background: var(--danger-dim); color: var(--danger); border: 1px solid rgba(255,79,107,0.2); }
+        .btn-danger:hover { background: rgba(255,79,107,0.15); }
+        .btn-blue { background: var(--blue-dim); color: var(--blue); border: 1px solid rgba(79,143,255,0.2); }
+        .btn-blue:hover { background: rgba(79,143,255,0.15); }
+        .btn-sm { padding: 0.3rem 0.6rem; font-size: 0.6rem; }
+        .btn-lg { padding: 0.7rem 1.4rem; font-size: 0.7rem; }
+        .btn-full { width: 100%; justify-content: center; }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        /* BODY LAYOUT */
+        .body-wrap {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            height: calc(100vh - 48px);
+        }
+
+        /* ─── SIDEBAR ──────────────────────────────────── */
+        .sidebar {
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .sidebar-top {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+            display: flex; flex-direction: column; gap: 0.5rem;
+        }
+        .sidebar-search {
+            background: var(--surface2);
+            border: 1px solid var(--border2);
+            border-radius: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            color: var(--text);
+            font-family: 'Instrument Sans', sans-serif;
+            font-size: 0.8rem;
+            outline: none; width: 100%;
+            transition: border-color 0.2s;
+        }
+        .sidebar-search:focus { border-color: var(--accent); }
+        .sidebar-stat {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0.5rem 0;
+        }
+        .stat-label { font-size: 0.6rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+        .stat-val { font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; font-weight: 700; color: var(--accent); }
+
+        .client-list { overflow-y: auto; flex: 1; padding: 0.5rem; }
+        .client-list::-webkit-scrollbar { width: 4px; }
+        .client-list::-webkit-scrollbar-track { background: transparent; }
+        .client-list::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+        .client-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0.65rem 0.75rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: background 0.15s;
+            border: 1px solid transparent;
+            margin-bottom: 0.2rem;
+        }
+        .client-item:hover { background: var(--surface2); }
+        .client-item.active { background: var(--accent-dim); border-color: var(--accent-border); }
+        .client-item-name {
+            font-weight: 700; font-size: 0.78rem; color: var(--text);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            max-width: 160px;
+        }
+        .client-item-sub {
+            font-size: 0.6rem; font-weight: 500; color: var(--muted2); margin-top: 0.1rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .client-badge {
+            font-size: 0.55rem; font-weight: 800; letter-spacing: 0.08em;
+            text-transform: uppercase; padding: 0.2rem 0.5rem;
+            border-radius: 2rem; white-space: nowrap;
+        }
+        .badge-saldo { background: var(--danger-dim); color: var(--danger); }
+        .badge-ok { background: var(--accent-dim); color: var(--accent); }
+
+        .empty-list {
+            text-align: center; padding: 3rem 1rem; color: var(--muted);
+            font-size: 0.75rem;
+        }
+
+        /* ─── MAIN PANEL ───────────────────────────────── */
+        .main-panel {
+            overflow-y: auto; background: var(--bg);
+        }
+        .main-panel::-webkit-scrollbar { width: 4px; }
+        .main-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+        .welcome-state {
+            height: 100%; display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            color: var(--muted); text-align: center; padding: 2rem;
+        }
+        .welcome-icon { font-size: 3rem; margin-bottom: 1rem; opacity: 0.3; }
+        .welcome-state p { font-size: 0.8rem; }
+
+        /* PANEL SECTIONS */
+        .panel-content { padding: 1.5rem; max-width: 860px; display: flex; flex-direction: column; gap: 1.25rem; }
+
+        /* Client header strip */
+        .client-header {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 1rem;
+            padding: 1.25rem 1.5rem;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .ch-name {
+            font-family: 'Syne', sans-serif;
+            font-weight: 800; font-size: 1.4rem;
+            letter-spacing: -0.03em;
+        }
+        .ch-meta { font-size: 0.65rem; font-weight: 500; color: var(--muted2); margin-top: 0.25rem; }
+        .ch-meta span { color: var(--muted2); }
+        .ch-actions { display: flex; gap: 0.5rem; }
+
+        /* Stats row */
+        .stats-row {
+            display: grid; grid-template-columns: 1fr 1fr 1fr;
+            gap: 0.75rem;
+        }
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 0.75rem;
+            padding: 1rem;
+        }
+        .sc-label { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.35rem; }
+        .sc-val { font-family: 'JetBrains Mono', monospace; font-size: 1.4rem; font-weight: 700; }
+        .sc-val.green { color: var(--accent); }
+        .sc-val.red { color: var(--danger); }
+        .sc-val.blue { color: var(--blue); }
+
+        /* Section card */
+        .section-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 0.75rem;
+            overflow: hidden;
+        }
+        .section-head {
+            padding: 0.75rem 1.25rem;
+            border-bottom: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .section-title {
+            font-size: 0.6rem; font-weight: 800; letter-spacing: 0.2em;
+            text-transform: uppercase; color: var(--muted2);
+        }
+        .section-body { padding: 1.25rem; }
+
+        /* CUOTAS TABLE */
+        .cuotas-wrap { display: flex; flex-direction: column; gap: 0.4rem; max-height: 400px; overflow-y: auto; padding-right: 4px; }
+        .cuotas-wrap::-webkit-scrollbar { width: 3px; }
+        .cuotas-wrap::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+        .cuota-row {
+            display: grid;
+            grid-template-columns: 28px 1fr 120px 130px 80px;
+            gap: 0.5rem; align-items: center;
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.5rem;
+            border: 1px solid var(--border);
+            background: var(--surface2);
+            transition: opacity 0.2s;
+        }
+        .cuota-row.pagada { opacity: 0.4; }
+        .cuota-n {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.65rem; font-weight: 700; color: var(--muted);
+            text-align: center;
+        }
+        .cuota-estado {
+            font-size: 0.65rem; font-weight: 700;
+        }
+        .cuota-estado.ok { color: var(--accent); }
+        .cuota-estado.pending { color: var(--warn); }
+        .cuota-input {
+            background: var(--bg);
+            border: 1px solid var(--border2);
+            border-radius: 0.4rem;
+            padding: 0.35rem 0.5rem;
+            color: var(--text);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem; font-weight: 600;
+            outline: none; width: 100%;
+            transition: border-color 0.2s;
+        }
+        .cuota-input:focus { border-color: var(--accent); }
+        .cuota-input:disabled { opacity: 0.4; cursor: not-allowed; }
+        .cuota-date {
+            background: var(--bg);
+            border: 1px solid var(--border2);
+            border-radius: 0.4rem;
+            padding: 0.35rem 0.5rem;
+            color: var(--text);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem; font-weight: 500;
+            outline: none; width: 100%;
+            transition: border-color 0.2s;
+        }
+        .cuota-date:focus { border-color: var(--accent); }
+        .cuota-date:disabled { opacity: 0.4; cursor: not-allowed; }
+        .cuota-btn {
+            font-size: 0.6rem; font-weight: 800; letter-spacing: 0.05em;
+            text-transform: uppercase; padding: 0.35rem 0.6rem;
+            border-radius: 0.4rem; border: none; cursor: pointer;
+            transition: all 0.15s; width: 100%; text-align: center;
+        }
+        .cuota-btn.pagar { background: var(--accent); color: var(--bg); }
+        .cuota-btn.pagar:hover { opacity: 0.85; }
+        .cuota-btn.pagado { background: var(--accent-dim); color: var(--accent); cursor: default; }
+
+        /* FICHA DATOS */
+        .ficha-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.6rem;
+        }
+        .ficha-field { display: flex; flex-direction: column; gap: 0.25rem; }
+        .ficha-field.full { grid-column: 1 / -1; }
+        .ff-label {
+            font-size: 0.55rem; font-weight: 800; letter-spacing: 0.18em;
+            text-transform: uppercase; color: var(--muted);
+        }
+        .ff-val {
+            font-size: 0.82rem; font-weight: 600; color: var(--text);
+        }
+        .ff-val.mono { font-family: 'JetBrains Mono', monospace; }
+        .ff-val.accent { color: var(--accent); font-size: 0.9rem; }
+        .ff-val.warn { color: var(--warn); }
+
+        /* EDITABLE INPUT */
+        .edit-input {
+            background: var(--surface2);
+            border: 1px solid var(--border2);
+            border-radius: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            color: var(--text);
+            font-family: 'Instrument Sans', sans-serif;
+            font-size: 0.82rem; font-weight: 600;
+            outline: none; width: 100%;
+            transition: border-color 0.2s;
+        }
+        .edit-input:focus { border-color: var(--accent); }
+        .edit-select {
+            background: var(--surface2);
+            border: 1px solid var(--border2);
+            border-radius: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            color: var(--text);
+            font-family: 'Instrument Sans', sans-serif;
+            font-size: 0.82rem; font-weight: 600;
+            outline: none; width: 100%; cursor: pointer;
+        }
+        .edit-select:focus { border-color: var(--accent); }
+
+        /* DOCS / FOTOS */
+        .docs-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;
+        }
+        .doc-slot {
+            border: 1px dashed var(--border2);
+            border-radius: 0.75rem;
+            overflow: hidden;
+            transition: border-color 0.2s;
+        }
+        .doc-slot:hover { border-color: var(--accent); }
+        .doc-slot-label {
+            font-size: 0.6rem; font-weight: 800; letter-spacing: 0.15em;
+            text-transform: uppercase; color: var(--muted);
+            padding: 0.6rem 0.75rem 0;
+        }
+        .doc-preview {
+            min-height: 120px;
+            display: flex; align-items: center; justify-content: center;
+            flex-direction: column; gap: 0.5rem; padding: 1rem;
+            cursor: pointer;
+        }
+        .doc-preview img {
+            width: 100%; max-height: 160px; object-fit: cover;
+            border-radius: 0.5rem;
+        }
+        .doc-placeholder {
+            color: var(--muted); font-size: 0.7rem; font-weight: 600;
+            text-align: center;
+        }
+        .doc-placeholder span { display: block; font-size: 1.5rem; margin-bottom: 0.25rem; opacity: 0.4; }
+        .doc-actions {
+            padding: 0.5rem 0.75rem;
+            display: flex; gap: 0.4rem; border-top: 1px solid var(--border);
+        }
+        .upload-progress {
+            height: 2px; background: var(--border); border-radius: 1px; margin: 0 0.75rem 0.5rem;
+        }
+        .upload-bar {
+            height: 100%; background: var(--accent); border-radius: 1px;
+            transition: width 0.3s; width: 0;
+        }
+
+        /* DIVIDER */
+        .divider {
+            height: 1px; background: var(--border); margin: 0.25rem 0;
+        }
+
+        /* RESPONSIVE */
+        @media (max-width: 768px) {
+            .body-wrap { grid-template-columns: 1fr; }
+            .sidebar { display: none; }
+            .stats-row { grid-template-columns: 1fr 1fr; }
+            .ficha-grid { grid-template-columns: 1fr; }
+            .docs-grid { grid-template-columns: 1fr; }
+            .cuota-row { grid-template-columns: 24px 1fr 90px 100px 70px; }
+        }
+
+        /* TOAST */
+        .toast {
+            position: fixed; bottom: 1.5rem; right: 1.5rem;
+            background: var(--surface2); border: 1px solid var(--border2);
+            border-radius: 0.75rem; padding: 0.75rem 1.25rem;
+            font-size: 0.75rem; font-weight: 600; z-index: 9000;
+            transform: translateY(80px); opacity: 0;
+            transition: all 0.3s; pointer-events: none;
+        }
+        .toast.show { transform: translateY(0); opacity: 1; }
+        .toast.success { border-color: var(--accent-border); color: var(--accent); }
+        .toast.error { border-color: rgba(255,79,107,0.3); color: var(--danger); }
+
+        /* SPINNING LOADER */
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spin { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border2); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.6s linear infinite; }
+
     </style>
 </head>
-<body class="pb-10">
+<body>
 
-    <div id="lock-screen" class="fixed inset-0 bg-white z-[200] flex items-center justify-center p-6">
-        <div class="w-full max-w-sm text-center">
-            <h2 class="text-xs font-black uppercase tracking-[0.4em] text-slate-400 mb-6">Acceso Administrativo</h2>
-            <input type="password" id="admin-pass" placeholder="PIN" class="w-full py-4 bg-slate-100 border border-slate-200 rounded-2xl text-center text-xl tracking-[0.5em] outline-none mb-4">
-            <button onclick="verificarAcceso()" class="w-full py-4 bg-sky-600 text-white font-black uppercase rounded-2xl shadow-lg shadow-sky-200">Entrar al Sistema</button>
-        </div>
+<!-- ─── LOCK ──────────────────────────── -->
+<div id="lock">
+    <div class="lock-card">
+        <div class="lock-logo">Credi<em>Listo</em></div>
+        <div class="lock-sub">Panel Administrativo</div>
+        <input type="password" class="lock-input" id="pin" placeholder="••••" maxlength="6"
+               onkeydown="if(event.key==='Enter')auth()">
+        <button class="lock-btn" onclick="auth()">Entrar</button>
+        <div id="lock-err">PIN incorrecto</div>
     </div>
+</div>
 
-    <div id="admin-content">
-        <nav class="p-4 bg-white border-b border-slate-200 sticky top-0 z-50">
-            <div class="max-w-5xl mx-auto flex justify-between items-center">
-                <h1 class="font-black italic text-sky-600 uppercase tracking-tighter text-xl">CrediListo Admin</h1>
-                <button onclick="location.href='detalles.html'" class="bg-slate-900 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase">Gestión de Pagos →</button>
-            </div>
+<!-- ─── APP ───────────────────────────── -->
+<div id="app">
+
+    <header class="header">
+        <div class="header-brand">Credi<em>Listo</em> <span style="color:var(--muted);font-size:0.7rem;font-weight:500;letter-spacing:0.05em"> / Admin</span></div>
+        <nav class="header-nav">
+            <button class="btn btn-ghost btn-sm" onclick="location.href='gestionar.html#nuevo'">+ Nuevo</button>
+            <button class="btn btn-ghost btn-sm" onclick="exportarCartera()">Excel</button>
+            <button class="btn btn-ghost btn-sm" onclick="location.href='reporte-solicitudes.html'">Reporte PDF</button>
+            <button class="btn btn-ghost btn-sm" onclick="location.href='index.html'">Inicio</button>
         </nav>
+    </header>
 
-        <main class="max-w-5xl mx-auto px-4 mt-6">
-            
-            <section class="mb-10">
-                <details id="form-manual" class="card overflow-hidden">
-                    <summary class="p-6 cursor-pointer font-black uppercase text-sky-600 list-none flex justify-between items-center">
-                        <span>+ NUEVO REGISTRO MANUAL</span>
-                        <span class="text-xs bg-sky-50 px-3 py-1 rounded-full italic">Abrir Formulario</span>
-                    </summary>
-                    <div class="p-6 border-t border-slate-100 space-y-4 bg-slate-50/50">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div><label class="label-field">Nombre</label><input type="text" id="m_nombre" class="input-field"></div>
-                            <div><label class="label-field">DUI</label><input type="text" id="m_dui" class="input-field"></div>
-                        </div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div><label class="label-field">WhatsApp</label><input type="tel" id="m_tel" class="input-field"></div>
-                            <div><label class="label-field">Clave para el Cliente</label><input type="text" id="m_pass" value="1234" class="input-field"></div>
-                        </div>
+    <div class="body-wrap">
 
-                        <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
-                            <label class="label-field text-sky-600">Configuración del Crédito</label>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                                <div>
-                                    <label class="label-field">Monto</label>
-                                    <select id="m_monto" onchange="calcularCuotaRapida()" class="input-field">
-                                        <option value="50">50 USD</option>
-                                        <option value="100">100 USD</option>
-                                        <option value="150">150 USD</option>
-                                        <option value="200">200 USD</option>
-                                        <option value="250">250 USD</option>
-                                        <option value="300">300 USD</option>
-                                        <option value="400">400 USD</option>
-                                        <option value="500">500 USD</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="label-field">Frecuencia</label>
-                                    <select id="m_frecuencia" onchange="calcularCuotaRapida()" class="input-field">
-                                        <option value="diario">Diario (30 pagos)</option>
-                                        <option value="semanal">Semanal (4 pagos)</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div id="resultado-calculo" class="mt-4 p-3 bg-sky-50 rounded-xl text-center">
-                                <p class="text-[10px] font-bold text-sky-700 uppercase">La cuota será de:</p>
-                                <p id="texto-cuota" class="text-xl font-black text-sky-600">$0.00</p>
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div><label class="label-field">Dirección Casa</label><input type="text" id="m_dirCasa" class="input-field"></div>
-                            <div><label class="label-field">Nombre Negocio</label><input type="text" id="m_negocio" class="input-field"></div>
-                        </div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div><label class="label-field">Dirección Negocio</label><input type="text" id="m_dirNeg" class="input-field"></div>
-                            <div><label class="label-field">Sueldo / Ingresos</label><input type="text" id="m_ingresos" class="input-field"></div>
-                        </div>
-                        <div><label class="label-field">Inversión (Para qué es el dinero)</label><input type="text" id="m_inversion" class="input-field"></div>
-                        
-                        <div class="grid grid-cols-2 gap-4 bg-sky-100/30 p-4 rounded-2xl">
-                            <div><label class="label-field">Referencia (Nombre)</label><input type="text" id="m_refNom" class="input-field"></div>
-                            <div><label class="label-field">Referencia (Tel)</label><input type="tel" id="m_refTel" class="input-field"></div>
-                        </div>
-
-                        <button onclick="guardarNuevoManual()" class="w-full py-5 bg-sky-600 text-white font-black uppercase rounded-2xl shadow-lg shadow-sky-100">Registrar Solicitud</button>
-                    </div>
-                </details>
-            </section>
-
-            <section class="space-y-4">
-                <h2 class="text-xs font-black uppercase tracking-[0.4em] text-slate-400 px-4">Solicitudes Pendientes</h2>
-                <div id="lista-solicitudes" class="space-y-3"></div>
-            </section>
-        </main>
-    </div>
-
-    <div id="modalS" class="fixed inset-0 z-[300] hidden bg-white overflow-y-auto">
-        <div class="max-w-3xl mx-auto p-6">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl font-black text-slate-800 italic uppercase">Revisión de Solicitud</h2>
-                <button onclick="cerrarM()" class="bg-slate-100 p-3 rounded-full text-slate-500">✕</button>
-            </div>
-            
-            <div id="modal-body" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+        <!-- SIDEBAR -->
+        <aside class="sidebar">
+            <div class="sidebar-top">
+                <input type="text" class="sidebar-search" id="search" placeholder="Buscar cliente…" oninput="filtrarLista()">
+                <div class="sidebar-stat">
+                    <span class="stat-label">Clientes activos</span>
+                    <span class="stat-val" id="total-activos">0</span>
                 </div>
-
-            <div class="grid grid-cols-2 gap-4 pb-10">
-                <button onclick="aprobarCredito()" class="bg-green-500 text-white font-black py-5 rounded-2xl uppercase">Aprobar Crédito</button>
-                <button onclick="eliminarS()" class="bg-red-50 text-red-500 font-black py-5 rounded-2xl uppercase">Rechazar</button>
+                <div class="sidebar-stat" style="border-top:1px solid var(--border);padding-top:0.5rem">
+                    <span class="stat-label">Cobrado hoy</span>
+                    <span class="stat-val" id="cobrado-hoy">$0.00</span>
+                </div>
             </div>
+            <div class="client-list" id="client-list">
+                <div class="empty-list">Cargando clientes…</div>
+            </div>
+        </aside>
+
+        <!-- MAIN PANEL -->
+        <main class="main-panel" id="main-panel">
+            <div class="welcome-state" id="welcome">
+                <div class="welcome-icon">📋</div>
+                <p>Selecciona un cliente para gestionar su crédito</p>
+            </div>
+            <div id="panel" style="display:none" class="panel-content"></div>
+        </main>
+
+    </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- FILE INPUTS ocultos -->
+<input type="file" id="fi-contrato" accept="image/*,application/pdf" style="display:none" onchange="subirDoc(this,'contrato')">
+<input type="file" id="fi-letra"    accept="image/*,application/pdf" style="display:none" onchange="subirDoc(this,'letra')">
+
+<script>
+// ─── CONFIG ──────────────────────────────────────────────────────────────
+const PIN     = "2025";
+const DB_URL  = "https://credilistosv-default-rtdb.firebaseio.com";
+const FB_CFG  = {
+    apiKey: "AIzaSyC1GiJitT0QegrVe9o6CHCsvf7sEZELwRk",
+    authDomain: "credilistosv.firebaseapp.com",
+    databaseURL: DB_URL,
+    projectId: "credilistosv",
+    storageBucket: "credilistosv.firebasestorage.app"
+};
+
+let db, storage;
+let allClients = {};
+let currentId  = null;
+
+// ─── AUTH ─────────────────────────────────────────────────────────────────
+function auth() {
+    if (document.getElementById('pin').value === PIN) {
+        document.getElementById('lock').style.display = 'none';
+        document.getElementById('app').style.display  = 'block';
+        initFirebase();
+    } else {
+        document.getElementById('lock-err').style.display = 'block';
+        document.getElementById('pin').value = '';
+    }
+}
+document.addEventListener('DOMContentLoaded', () => {
+    if (sessionStorage.getItem('cl_auth')) {
+        document.getElementById('lock').style.display = 'none';
+        document.getElementById('app').style.display  = 'block';
+        initFirebase();
+    }
+    document.getElementById('pin').addEventListener('keydown', e => { if(e.key==='Enter') auth(); });
+});
+
+// ─── FIREBASE ─────────────────────────────────────────────────────────────
+function initFirebase() {
+    firebase.initializeApp(FB_CFG);
+    db      = firebase.database();
+    storage = firebase.storage();
+    sessionStorage.setItem('cl_auth', '1');
+    escucharClientes();
+}
+
+function escucharClientes() {
+    const hoy = new Date().toISOString().split('T')[0];
+    db.ref('clientes').on('value', snap => {
+        allClients = {};
+        let activos = 0, cobradoHoy = 0;
+
+        snap.forEach(c => {
+            const v = c.val();
+            allClients[c.key] = { ...v, _key: c.key };
+            if (v.tipo === 'ACTIVO') {
+                activos++;
+                (v.cuotas || []).forEach(cuo => {
+                    if (cuo.pagada && cuo.fecha_ISO === hoy)
+                        cobradoHoy += parseFloat(cuo.valorPagado || 0);
+                });
+            }
+        });
+
+        document.getElementById('total-activos').textContent = activos;
+        document.getElementById('cobrado-hoy').textContent  = '$' + cobradoHoy.toFixed(2);
+        renderSidebar();
+        if (currentId && allClients[currentId]) renderPanel(currentId);
+    });
+}
+
+// ─── SIDEBAR ──────────────────────────────────────────────────────────────
+function filtrarLista() {
+    const q = document.getElementById('search').value.toLowerCase();
+    document.querySelectorAll('.client-item').forEach(el => {
+        el.style.display = el.dataset.search.includes(q) ? '' : 'none';
+    });
+}
+
+function renderSidebar() {
+    const q    = document.getElementById('search').value.toLowerCase();
+    const list = document.getElementById('client-list');
+    const items = Object.values(allClients)
+        .filter(c => c.tipo === 'ACTIVO')
+        .sort((a,b) => (a.nombre||'').localeCompare(b.nombre||''));
+
+    if (!items.length) {
+        list.innerHTML = '<div class="empty-list">No hay clientes activos</div>';
+        return;
+    }
+
+    list.innerHTML = items.map(c => {
+        const saldo = parseFloat(c.saldo || 0);
+        const badgeCls = saldo <= 0 ? 'badge-ok' : 'badge-saldo';
+        const badgeTxt = saldo <= 0 ? 'Saldado' : '$' + saldo.toFixed(2);
+        const active = c._key === currentId ? 'active' : '';
+        const ds = (c.nombre||'').toLowerCase() + ' ' + (c.dui||'');
+        return `
+        <div class="client-item ${active}" data-search="${ds}"
+             onclick="renderPanel('${c._key}')">
+            <div>
+                <div class="client-item-name">${c.nombre||'—'}</div>
+                <div class="client-item-sub">${c.dui||'sin DUI'}</div>
+            </div>
+            <span class="client-badge ${badgeCls}">${badgeTxt}</span>
+        </div>`;
+    }).join('');
+}
+
+// ─── PANEL ────────────────────────────────────────────────────────────────
+function renderPanel(id) {
+    currentId = id;
+    const s   = allClients[id];
+    if (!s) return;
+
+    // mark active sidebar
+    document.querySelectorAll('.client-item').forEach(el => el.classList.remove('active'));
+    const match = [...document.querySelectorAll('.client-item')]
+        .find(el => el.dataset.search.startsWith((s.nombre||'').toLowerCase()));
+    if (match) match.classList.add('active');
+
+    const total  = parseFloat(s.total || (parseFloat(s.monto||0) * 1.2));
+    const saldo  = parseFloat(s.saldo !== undefined ? s.saldo : total);
+    const pagado = total - saldo;
+
+    document.getElementById('welcome').style.display = 'none';
+    const panel = document.getElementById('panel');
+    panel.style.display = 'flex';
+
+    panel.innerHTML = `
+    <!-- HEADER CLIENTE -->
+    <div class="client-header">
+        <div>
+            <div class="ch-name">${s.nombre||'—'}</div>
+            <div class="ch-meta">
+                DUI: <span>${s.dui||'—'}</span> &nbsp;·&nbsp;
+                Tel: <span>${s.tel||'—'}</span> &nbsp;·&nbsp;
+                Inicio: <span>${s.fechaInicio||s.fecha||'—'}</span>
+            </div>
+        </div>
+        <div class="ch-actions">
+            <a href="https://wa.me/503${s.tel||''}?text=${encodeURIComponent('Hola '+s.nombre+', te contactamos de CrediListo.')}" target="_blank" class="btn btn-accent btn-sm">
+                💬 WhatsApp
+            </a>
+            <button class="btn btn-danger btn-sm" onclick="eliminarCliente()">Eliminar</button>
         </div>
     </div>
 
-    <script>
-        const firebaseConfig = { databaseURL: "https://credilistosv-default-rtdb.firebaseio.com", projectId: "credilistosv" };
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
-        let currentId = null;
+    <!-- STATS -->
+    <div class="stats-row">
+        <div class="stat-card">
+            <div class="sc-label">Total del crédito</div>
+            <div class="sc-val blue">$${total.toFixed(2)}</div>
+        </div>
+        <div class="stat-card">
+            <div class="sc-label">Pagado</div>
+            <div class="sc-val green">$${pagado.toFixed(2)}</div>
+        </div>
+        <div class="stat-card">
+            <div class="sc-label">Deuda restante</div>
+            <div class="sc-val ${saldo > 0 ? 'red' : 'green'}">$${saldo.toFixed(2)}</div>
+        </div>
+    </div>
 
-        function verificarAcceso() {
-            if(document.getElementById('admin-pass').value === "2025") {
-                document.getElementById('lock-screen').style.display = "none";
-                document.getElementById('admin-content').style.display = "block";
-                calcularCuotaRapida();
-                conectarFirebase();
-            } else { alert("PIN Incorrecto"); document.getElementById('admin-pass').value = ""; }
-        }
+    <!-- CUOTAS -->
+    <div class="section-card">
+        <div class="section-head">
+            <div class="section-title">Registro de Pagos — ${(s.frecuencia||'diario').toUpperCase()}</div>
+        </div>
+        <div class="section-body">
+            <div style="display:grid;grid-template-columns:28px 1fr 120px 130px 80px;gap:0.5rem;padding:0 0.75rem 0.5rem;margin-bottom:0.25rem">
+                <span style="font-size:0.55rem;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em">#</span>
+                <span style="font-size:0.55rem;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em">Estado</span>
+                <span style="font-size:0.55rem;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em">Monto ($)</span>
+                <span style="font-size:0.55rem;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em">Fecha</span>
+                <span></span>
+            </div>
+            <div class="cuotas-wrap" id="cuotas-wrap"></div>
+        </div>
+    </div>
 
-        function calcularCuotaRapida() {
-            const m = parseFloat(document.getElementById('m_monto').value);
-            const f = document.getElementById('m_frecuencia').value;
-            const total = m + (m * 0.20);
-            const cuota = f === 'diario' ? (total / 30) : (total / 4);
-            document.getElementById('texto-cuota').innerText = `$${cuota.toFixed(2)} ${f}`;
-        }
+    <!-- FICHA COMPLETA -->
+    <div class="section-card">
+        <div class="section-head">
+            <div class="section-title">Ficha del Cliente</div>
+            <button class="btn btn-ghost btn-sm" onclick="guardarFicha()">Guardar cambios</button>
+        </div>
+        <div class="section-body">
+            <div class="ficha-grid" id="ficha-grid"></div>
+        </div>
+    </div>
 
-        function conectarFirebase() {
-            db.ref('clientes').on('value', (snap) => {
-                const container = document.getElementById('lista-solicitudes');
-                container.innerHTML = "";
-                snap.forEach((child) => {
-                    const s = child.val();
-                    if (s.tipo === "PENDIENTE") {
-                        container.innerHTML += `
-                            <div onclick="abrirS('${child.key}')" class="card p-5 flex justify-between items-center cursor-pointer hover:border-sky-400 transition-all">
-                                <div>
-                                    <h3 class="font-black uppercase text-slate-800">${s.nombre}</h3>
-                                    <p class="text-[10px] text-slate-400 font-bold uppercase">$${s.monto} | ${s.frecuencia} | DUI: ${s.dui}</p>
-                                </div>
-                                <span class="text-sky-500 font-black text-xs italic underline">REVISAR</span>
-                            </div>`;
-                    }
-                });
-            });
-        }
+    <!-- DOCUMENTOS -->
+    <div class="section-card">
+        <div class="section-head">
+            <div class="section-title">Documentos — Contrato & Letra de Cambio</div>
+        </div>
+        <div class="section-body">
+            <p style="font-size:0.7rem;color:var(--muted2);margin-bottom:1rem">
+                Sube una foto o PDF. Se almacena en Firebase Storage y queda vinculado a este cliente.
+            </p>
+            <div class="docs-grid">
+                ${docSlot('contrato', 'Contrato firmado', s.doc_contrato)}
+                ${docSlot('letra', 'Letra de Cambio', s.doc_letra)}
+            </div>
+        </div>
+    </div>`;
 
-        async function abrirS(id) {
-            currentId = id;
-            const snap = await db.ref('clientes/' + id).once('value');
-            const s = snap.val();
-            
-            // Ficha con TODOS los campos
-            document.getElementById('modal-body').innerHTML = `
-                <div class="col-span-full bg-sky-50 p-4 rounded-2xl mb-2">
-                    <p class="label-field text-sky-600 text-center">Datos del Solicitante</p>
-                    <h2 class="text-xl font-black text-center uppercase">${s.nombre}</h2>
-                </div>
-                <div class="bg-slate-50 p-3 rounded-xl"><label class="label-field">DUI</label>${s.dui}</div>
-                <div class="bg-slate-50 p-3 rounded-xl"><label class="label-field">WhatsApp</label>${s.tel}</div>
-                <div class="bg-slate-50 p-3 rounded-xl"><label class="label-field">Dir. Vivienda</label>${s.dirCasa || s.dirVivienda || 'No especificada'}</div>
-                <div class="bg-slate-50 p-3 rounded-xl"><label class="label-field">Negocio</label>${s.negocio || 'Sin nombre'}</div>
-                <div class="bg-slate-50 p-3 rounded-xl"><label class="label-field">Dir. Negocio</label>${s.dirNeg || s.dirNegocio || 'No especificada'}</div>
-                <div class="bg-slate-50 p-3 rounded-xl"><label class="label-field">Sueldo</label>${s.ingresos || 'No registrado'}</div>
-                <div class="col-span-full bg-slate-50 p-3 rounded-xl"><label class="label-field">Motivo del Crédito</label>${s.inversion || 'N/A'}</div>
-                <div class="bg-sky-50 p-3 rounded-xl border border-sky-100"><label class="label-field">Monto Solicitado</label>$${s.monto}</div>
-                <div class="bg-sky-50 p-3 rounded-xl border border-sky-100"><label class="label-field">Frecuencia</label>${s.frecuencia}</div>
-                <div class="bg-slate-50 p-3 rounded-xl"><label class="label-field">Referencia</label>${s.refNom || s.refNombre || 'N/A'}</div>
-                <div class="bg-slate-50 p-3 rounded-xl"><label class="label-field">Tel. Referencia</label>${s.refTel || 'N/A'}</div>
-            `;
-            document.getElementById('modalS').style.display = "block";
-        }
+    renderCuotas(s);
+    renderFicha(s);
+}
 
-        async function aprobarCredito() {
-            const snap = await db.ref('clientes/' + currentId).once('value');
-            const s = snap.val();
-            const monto = parseFloat(s.monto);
-            const total = monto + (monto * 0.20);
-            const numCuotas = s.frecuencia === 'diario' ? 30 : 4;
-            const valorCuota = (total / numCuotas).toFixed(2);
+// ─── CUOTAS ───────────────────────────────────────────────────────────────
+function renderCuotas(s) {
+    const wrap = document.getElementById('cuotas-wrap');
+    if (!wrap) return;
+    const cuotas = s.cuotas || [];
+    if (!cuotas.length) {
+        wrap.innerHTML = '<p style="font-size:0.75rem;color:var(--muted);padding:0.5rem">Sin cuotas registradas.</p>';
+        return;
+    }
+    wrap.innerHTML = cuotas.map((c, i) => {
+        const pagada = !!c.pagada;
+        return `
+        <div class="cuota-row ${pagada ? 'pagada' : ''}">
+            <span class="cuota-n">${c.n||i+1}</span>
+            <span class="cuota-estado ${pagada ? 'ok' : 'pending'}">${pagada ? '✓ Pagado' : '· Pendiente'}</span>
+            <input type="number" class="cuota-input" id="v-${i}" value="${c.valorPagado||0}" step="0.01"
+                   ${pagada ? 'disabled' : ''}>
+            <input type="date" class="cuota-date" id="f-${i}" value="${c.fecha_ISO||''}"
+                   ${pagada ? 'disabled' : ''}>
+            ${pagada
+                ? `<span class="cuota-btn pagado">Pagado</span>`
+                : `<button class="cuota-btn pagar" onclick="pagarCuota(${i})">Pagar</button>`}
+        </div>`;
+    }).join('');
+}
 
-            let cuotas = [];
-            for (let i = 1; i <= numCuotas; i++) {
-                cuotas.push({ n: i, valorPagado: parseFloat(valorCuota), pagada: false, fecha: "" });
+async function pagarCuota(i) {
+    const monto = parseFloat(document.getElementById('v-' + i).value);
+    const fecha = document.getElementById('f-' + i).value || new Date().toISOString().split('T')[0];
+    if (isNaN(monto) || monto <= 0) return toast('Monto no válido', 'error');
+
+    const snap = await db.ref('clientes/' + currentId).once('value');
+    let s = snap.val();
+    s.cuotas[i].pagada = true;
+    s.cuotas[i].valorPagado = monto;
+    s.cuotas[i].fecha_ISO   = fecha;
+    s.cuotas[i].fecha       = fecha.split('-').reverse().join('/');
+
+    let pagadoTotal = 0;
+    s.cuotas.forEach(c => { if (c.pagada) pagadoTotal += parseFloat(c.valorPagado || 0); });
+    s.saldo = (parseFloat(s.total) - pagadoTotal).toFixed(2);
+
+    await db.ref('clientes/' + currentId).set(s);
+    toast('✓ Pago registrado', 'success');
+}
+
+// ─── FICHA ────────────────────────────────────────────────────────────────
+function renderFicha(s) {
+    const g = document.getElementById('ficha-grid');
+    if (!g) return;
+    const campo = (lbl, id, val, tipo='text', full=false, mono=false) => `
+        <div class="ficha-field ${full ? 'full' : ''}">
+            <span class="ff-label">${lbl}</span>
+            <input class="edit-input ${mono ? 'mono' : ''}" type="${tipo}" id="ef-${id}" value="${val||''}">
+        </div>`;
+    const campoSel = (lbl, id, val, opts) => `
+        <div class="ficha-field">
+            <span class="ff-label">${lbl}</span>
+            <select class="edit-select" id="ef-${id}">
+                ${opts.map(o => `<option value="${o}" ${val===o?'selected':''}>${o}</option>`).join('')}
+            </select>
+        </div>`;
+    const campoRO = (lbl, val, accent=false) => `
+        <div class="ficha-field">
+            <span class="ff-label">${lbl}</span>
+            <div class="ff-val ${accent ? 'accent mono' : 'mono'}">${val||'—'}</div>
+        </div>`;
+
+    g.innerHTML =
+        campo('Nombre completo', 'nombre', s.nombre, 'text', true) +
+        campo('DUI', 'dui', s.dui) +
+        campo('WhatsApp / Teléfono', 'tel', s.tel, 'tel') +
+        campo('Contraseña de acceso', 'pass', s.pass) +
+        campo('Dirección de vivienda', 'dirCasa', s.dirCasa||s.dirVivienda, 'text', true) +
+        campo('Nombre del negocio', 'negocio', s.negocio) +
+        campo('Dirección del negocio', 'dirNeg', s.dirNeg||s.dirNegocio) +
+        campo('Ingresos / Sueldo', 'ingresos', s.ingresos) +
+        campo('Propósito del crédito', 'inversion', s.inversion, 'text', true) +
+        campo('Referencia (Nombre)', 'refNom', s.refNom||s.refNombre) +
+        campo('Referencia (Teléfono)', 'refTel', s.refTel, 'tel') +
+        campoSel('Monto del crédito', 'monto',
+            String(s.monto), ['50','100','150','200','250','300','400','500']) +
+        campoSel('Frecuencia de pago', 'frecuencia',
+            s.frecuencia, ['diario','semanal']) +
+        campoRO('Total a pagar (20% interés)', '$' + parseFloat(s.total||0).toFixed(2), true) +
+        campoRO('Fecha de inicio', s.fechaInicio||s.fecha);
+}
+
+async function guardarFicha() {
+    const g = id => (document.getElementById('ef-' + id)||{}).value || '';
+    const updates = {
+        nombre:    g('nombre').toUpperCase(),
+        dui:       g('dui'),
+        tel:       g('tel'),
+        pass:      g('pass'),
+        dirCasa:   g('dirCasa'),
+        negocio:   g('negocio'),
+        dirNeg:    g('dirNeg'),
+        ingresos:  g('ingresos'),
+        inversion: g('inversion'),
+        refNom:    g('refNom'),
+        refTel:    g('refTel'),
+        monto:     g('monto'),
+        frecuencia: g('frecuencia'),
+    };
+    await db.ref('clientes/' + currentId).update(updates);
+    toast('✓ Ficha actualizada', 'success');
+}
+
+async function eliminarCliente() {
+    if (!confirm('¿Eliminar a ' + (allClients[currentId]?.nombre||'este cliente') + '? No se puede deshacer.')) return;
+    await db.ref('clientes/' + currentId).remove();
+    currentId = null;
+    document.getElementById('panel').style.display = 'none';
+    document.getElementById('welcome').style.display = 'flex';
+    toast('Cliente eliminado', 'error');
+}
+
+// ─── DOCUMENTOS / FIREBASE STORAGE ───────────────────────────────────────
+function docSlot(tipo, label, url) {
+    const hasDoc = !!url;
+    const isImg  = hasDoc && (url.includes('contrato') || url.includes('letra') || url.match(/\.(jpg|jpeg|png|webp|gif)/i) || url.includes('firebasestorage'));
+    return `
+    <div class="doc-slot" id="slot-${tipo}">
+        <div class="doc-slot-label">${label}</div>
+        <div class="doc-preview" onclick="document.getElementById('fi-${tipo}').click()">
+            ${hasDoc
+                ? `<div class="doc-placeholder"><span>✅</span><span style="color:var(--accent)">Documento guardado</span></div>`
+                : `<div class="doc-placeholder"><span>📎</span>Toca para subir</div>`}
+        </div>
+        <div class="upload-progress"><div class="upload-bar" id="bar-${tipo}"></div></div>
+        <div class="doc-actions">
+            <button class="btn btn-ghost btn-sm btn-full" onclick="document.getElementById('fi-${tipo}').click()">
+                ${hasDoc ? '↑ Reemplazar' : '↑ Subir foto o PDF'}
+            </button>
+            ${hasDoc ? `<button class="btn btn-blue btn-sm" onclick="window.open('${url}','_blank')">Ver</button>` : ''}
+        </div>
+        <p style="font-size:0.58rem;color:var(--muted);padding:0 0.75rem 0.6rem;text-align:center">
+            Imágenes o PDF · Guardado en Firebase Storage
+        </p>
+    </div>`;
+}
+
+async function subirDoc(input, tipo) {
+    if (!input.files || !input.files[0]) return;
+    const file = input.files[0];
+    const bar  = document.getElementById('bar-' + tipo);
+
+    // Validar tamaño (20MB máx)
+    if (file.size > 20 * 1024 * 1024) {
+        toast('Archivo demasiado grande (máx. 20 MB)', 'error');
+        input.value = '';
+        return;
+    }
+
+    if (bar) bar.style.width = '5%';
+
+    try {
+        const ext  = file.name.split('.').pop();
+        const path = `clientes/${currentId}/${tipo}_${Date.now()}.${ext}`;
+        const ref  = storage.ref(path);
+        const task = ref.put(file);
+
+        task.on('state_changed',
+            snap => {
+                const pct = (snap.bytesTransferred / snap.totalBytes) * 100;
+                if (bar) bar.style.width = pct + '%';
+            },
+            err => {
+                toast('Error al subir: ' + err.message, 'error');
+                input.value = '';
+            },
+            async () => {
+                const url = await task.snapshot.ref.getDownloadURL();
+                await db.ref('clientes/' + currentId).update({ ['doc_' + tipo]: url });
+                setTimeout(() => { if (bar) bar.style.width = '0'; }, 800);
+                toast('✓ Documento guardado en Storage', 'success');
+                input.value = '';
             }
+        );
+    } catch (err) {
+        toast('Error: ' + err.message, 'error');
+        input.value = '';
+    }
+}
 
-            await db.ref('clientes/' + currentId).update({
-                tipo: "ACTIVO",
-                total: total,
-                saldo: total,
-                fechaInicio: new Date().toLocaleDateString(),
-                cuotas: cuotas,
-                pass: s.pass || "1234"
-            });
-            alert("✅ CRÉDITO APROBADO");
-            cerrarM();
-        }
+// ─── EXPORT EXCEL ─────────────────────────────────────────────────────────
+function exportarCartera() {
+    const data = [['CLIENTE', 'DUI', 'TEL', 'MONTO', 'TOTAL', 'SALDO', 'FRECUENCIA', 'INICIO']];
+    Object.values(allClients).forEach(s => {
+        if (s.tipo === 'ACTIVO')
+            data.push([s.nombre, s.dui, s.tel, s.monto, s.total, s.saldo, s.frecuencia, s.fechaInicio||s.fecha]);
+    });
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Cartera');
+    XLSX.writeFile(wb, 'Cartera_CrediListo.xlsx');
+}
 
-        async function guardarNuevoManual() {
-            const id = Date.now();
-            const data = {
-                id: id,
-                nombre: document.getElementById('m_nombre').value.toUpperCase(),
-                dui: document.getElementById('m_dui').value,
-                tel: document.getElementById('m_tel').value,
-                pass: document.getElementById('m_pass').value,
-                dirCasa: document.getElementById('m_dirCasa').value,
-                negocio: document.getElementById('m_negocio').value,
-                dirNeg: document.getElementById('m_dirNeg').value,
-                monto: document.getElementById('m_monto').value,
-                frecuencia: document.getElementById('m_frecuencia').value,
-                ingresos: document.getElementById('m_ingresos').value,
-                inversion: document.getElementById('m_inversion').value,
-                refNom: document.getElementById('m_refNom').value,
-                refTel: document.getElementById('m_refTel').value,
-                tipo: "PENDIENTE",
-                fecha: new Date().toLocaleDateString()
-            };
-            await db.ref('clientes/' + id).set(data);
-            alert("✅ Solicitud guardada en Pendientes.");
-            document.getElementById('form-manual').open = false;
-        }
-
-        function cerrarM() { document.getElementById('modalS').style.display = "none"; }
-        async function eliminarS() { if(confirm("¿Eliminar solicitud?")) { await db.ref('clientes/' + currentId).remove(); cerrarM(); } }
-    </script>
+// ─── TOAST ────────────────────────────────────────────────────────────────
+function toast(msg, type='success') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show ' + type;
+    setTimeout(() => { t.className = 'toast'; }, 3000);
+}
+</script>
 </body>
 </html>
-
