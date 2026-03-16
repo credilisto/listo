@@ -33,8 +33,7 @@
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-        html { height: 100%; }
-        body { height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: 'Instrument Sans', sans-serif; font-size: 15px; }
+        html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Instrument Sans', sans-serif; font-size: 15px; }
 
         /* ── LOCK ─────────────────────────────────────── */
         #lock {
@@ -44,59 +43,35 @@
             align-items: center; justify-content: center; gap: 1.5rem;
             padding: 2rem;
         }
-        .lock-logo {
-            font-family: 'Syne', sans-serif; font-weight: 800;
-            font-size: 2.2rem; letter-spacing: -0.04em; color: #fff;
-        }
+        .lock-logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 2.2rem; letter-spacing: -0.04em; color: #fff; }
         .lock-logo em { color: #0f172a; font-style: normal; }
-        .lock-sub {
-            font-size: 0.65rem; font-weight: 600; letter-spacing: 0.2em;
-            text-transform: uppercase; color: rgba(255,255,255,0.65);
-            margin-top: -1rem;
-        }
-        .lock-box {
-            width: 100%; max-width: 320px;
-            background: rgba(255,255,255,0.15);
-            border: 1px solid rgba(255,255,255,0.3);
-            border-radius: 1.25rem; padding: 1.5rem;
-            display: flex; flex-direction: column; gap: 0.75rem;
-        }
-        .lock-input {
-            width: 100%; background: rgba(255,255,255,0.2);
-            border: 1px solid rgba(255,255,255,0.4); border-radius: 0.75rem;
-            padding: 1rem; color: #fff; font-family: 'JetBrains Mono', monospace;
-            font-size: 1.6rem; font-weight: 700; text-align: center;
-            letter-spacing: 0.5em; outline: none;
-        }
+        .lock-sub { font-size: 0.65rem; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(255,255,255,0.65); margin-top: -1rem; }
+        .lock-box { width: 100%; max-width: 320px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); border-radius: 1.25rem; padding: 1.5rem; display: flex; flex-direction: column; gap: 0.75rem; }
+        .lock-input { width: 100%; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); border-radius: 0.75rem; padding: 1rem; color: #fff; font-family: 'JetBrains Mono', monospace; font-size: 1.6rem; font-weight: 700; text-align: center; letter-spacing: 0.5em; outline: none; }
         .lock-input::placeholder { color: rgba(255,255,255,0.4); }
-        .lock-btn {
-            width: 100%; background: #fff; color: var(--accent); border: none;
-            border-radius: 0.75rem; padding: 0.9rem;
-            font-family: 'Syne', sans-serif; font-weight: 800;
-            font-size: 0.75rem; letter-spacing: 0.15em; text-transform: uppercase; cursor: pointer;
-        }
-        #lock-err { color: #fef08a; font-size: 0.65rem; font-weight: 700;
-                    letter-spacing: 0.1em; text-transform: uppercase; text-align: center; display: none; }
+        .lock-btn { width: 100%; background: #fff; color: var(--accent); border: none; border-radius: 0.75rem; padding: 0.9rem; font-family: 'Syne', sans-serif; font-weight: 800; font-size: 0.75rem; letter-spacing: 0.15em; text-transform: uppercase; cursor: pointer; }
+        #lock-err { color: #fef08a; font-size: 0.65rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; text-align: center; display: none; }
 
-        /* ── APP SHELL ────────────────────────────────── */
-        #app { display: none; position: fixed; inset: 0; overflow: hidden; }
-
-        /* Dos "pantallas" que se deslizan */
+        /* ── PANTALLAS INDEPENDIENTES ─────────────────── */
+        /* Cada pantalla es position:fixed con su propio overflow-y:auto */
         .screen {
-            position: absolute; inset: 0;
-            display: flex; flex-direction: column;
-            transition: transform 0.32s cubic-bezier(0.4,0,0.2,1);
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            display: none;
+            flex-direction: column;
             background: var(--bg);
-            will-change: transform;
+            overflow: hidden; /* el topbar no scrollea */
         }
-        #screen-list  { transform: translateX(0); }
-        #screen-panel { transform: translateX(100%); }
-        #screen-extra { transform: translateX(100%); }
+        .screen.activa { display: flex; }
 
-        .app-showing-panel #screen-list  { transform: translateX(-25%); }
-        .app-showing-panel #screen-panel { transform: translateX(0); }
-        .app-showing-extra #screen-list  { transform: translateX(-25%); }
-        .app-showing-extra #screen-extra { transform: translateX(0); }
+        /* El área scrolleable DENTRO de cada pantalla */
+        .screen-body {
+            flex: 1;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior: contain;
+        }
+        .screen-body::-webkit-scrollbar { display: none; }
 
         /* ── TOP BAR ──────────────────────────────────── */
         .topbar {
@@ -170,10 +145,10 @@
         }
 
         .client-list-mob {
-            overflow-y: scroll;
-            -webkit-overflow-scrolling: touch;
             flex: 1;
-            min-height: 0;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior: contain;
         }
         .client-list-mob::-webkit-scrollbar { display: none; }
 
@@ -206,17 +181,17 @@
 
         /* ── SCREEN PANEL (ficha cliente) ─────────────── */
         .panel-scroll {
-            overflow-y: scroll;
-            -webkit-overflow-scrolling: touch;
             flex: 1;
-            min-height: 0;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior: contain;
             padding: 1rem;
-            display: flex; flex-direction: column; gap: 0.85rem;
         }
+        .panel-scroll > * + * { margin-top: 0.85rem; }
         .panel-scroll::-webkit-scrollbar { display: none; }
 
         /* Stats strip */
-        .mob-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem; }
+        .mob-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem; margin-bottom: 0.85rem; }
         .mob-stat {
             background: var(--surface); border: 1px solid var(--border);
             border-radius: 0.75rem; padding: 0.65rem 0.75rem;
@@ -229,7 +204,8 @@
 
         /* Section */
         .mob-section {
-            background: var(--surface); border: 1px solid var(--border); border-radius: 0.85rem; overflow: hidden;
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 0.85rem; overflow: hidden; margin-bottom: 0.85rem;
         }
         .mob-sec-head {
             padding: 0.6rem 1rem; border-bottom: 1px solid var(--border);
@@ -336,17 +312,18 @@
 
         /* ── SCREEN EXTRA (solicitudes / nuevo) ─────── */
         .extra-scroll {
-            overflow-y: scroll;
-            -webkit-overflow-scrolling: touch;
             flex: 1;
-            min-height: 0;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior: contain;
             padding: 1rem;
-            display: flex; flex-direction: column; gap: 0.85rem;
         }
+        .extra-scroll > * + * { margin-top: 0.85rem; }
         .extra-scroll::-webkit-scrollbar { display: none; }
 
         .sol-card {
-            background: var(--surface); border: 1px solid var(--border); border-radius: 0.85rem; overflow: hidden;
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 0.85rem; overflow: hidden; margin-bottom: 0.85rem;
         }
         .sol-head { padding: 0.65rem 1rem; background: var(--surface2); border-bottom: 1px solid var(--border); }
         .sol-nombre { font-weight: 700; font-size: 0.9rem; }
@@ -445,63 +422,58 @@
     </div>
 </div>
 
-<!-- APP -->
-<div id="app">
+<!-- ── SCREEN LISTA ────────────────────────────── -->
+<div class="screen" id="screen-list">
+    <div class="topbar">
+        <div class="topbar-title">Credi<em>Listo</em></div>
+    </div>
 
-    <!-- ── SCREEN LIST ─────────────────────────────── -->
-    <div class="screen" id="screen-list">
-        <div class="topbar">
-            <div class="topbar-title">Credi<em>Listo</em></div>
+    <div class="list-stats">
+        <div class="ls-item">
+            <span class="ls-label">Clientes activos</span>
+            <span class="ls-val" id="ls-activos">0</span>
         </div>
-
-        <div class="list-stats">
-            <div class="ls-item">
-                <span class="ls-label">Clientes activos</span>
-                <span class="ls-val" id="ls-activos">0</span>
-            </div>
-            <div class="ls-item">
-                <span class="ls-label">Cobrado hoy</span>
-                <span class="ls-val" id="ls-hoy">$0.00</span>
-            </div>
-        </div>
-
-        <div class="list-actions">
-            <button class="la-btn" onclick="irExtra('solicitudes')">
-                📋 Solicitudes
-                <span class="la-badge" id="badge-pend">0</span>
-            </button>
-            <button class="la-btn primary" onclick="irExtra('nuevo')">+ Nuevo</button>
-            <button class="la-btn" onclick="location.href='reporte-activos.html?from=movil'">📊 Reporte</button>
-        </div>
-
-        <div class="list-search">
-            <input type="text" id="mob-search" placeholder="🔍 Buscar…" oninput="filtrarMob()">
-        </div>
-
-        <div class="client-list-mob" id="mob-list">
-            <div class="empty-mob">Cargando clientes…</div>
+        <div class="ls-item">
+            <span class="ls-label">Cobrado hoy</span>
+            <span class="ls-val" id="ls-hoy">$0.00</span>
         </div>
     </div>
 
-    <!-- ── SCREEN PANEL (cliente activo) ──────────── -->
-    <div class="screen" id="screen-panel">
-        <div class="topbar">
-            <button class="topbar-back" onclick="irLista()">← Atrás</button>
-            <div class="topbar-title" id="panel-title">—</div>
-            <a id="btn-ws" href="#" target="_blank" class="topbar-action">💬 WA</a>
-        </div>
-        <div class="panel-scroll" id="panel-scroll"></div>
+    <div class="list-actions">
+        <button class="la-btn" onclick="irExtra('solicitudes')">
+            📋 Solicitudes
+            <span class="la-badge" id="badge-pend">0</span>
+        </button>
+        <button class="la-btn primary" onclick="irExtra('nuevo')">+ Nuevo</button>
+        <button class="la-btn" onclick="location.href='reporte-activos.html?from=movil'">📊 Reporte</button>
     </div>
 
-    <!-- ── SCREEN EXTRA (solicitudes / nuevo) ─────── -->
-    <div class="screen" id="screen-extra">
-        <div class="topbar">
-            <button class="topbar-back" onclick="irLista()">← Atrás</button>
-            <div class="topbar-title" id="extra-title">—</div>
-        </div>
-        <div class="extra-scroll" id="extra-scroll"></div>
+    <div class="list-search">
+        <input type="text" id="mob-search" placeholder="🔍 Buscar…" oninput="filtrarMob()">
     </div>
 
+    <div class="client-list-mob" id="mob-list">
+        <div class="empty-mob">Cargando clientes…</div>
+    </div>
+</div>
+
+<!-- ── SCREEN PANEL (cliente activo) ──────────── -->
+<div class="screen" id="screen-panel">
+    <div class="topbar">
+        <button class="topbar-back" onclick="irLista()">← Atrás</button>
+        <div class="topbar-title" id="panel-title">—</div>
+        <a id="btn-ws" href="#" target="_blank" class="topbar-action">💬 WA</a>
+    </div>
+    <div class="panel-scroll" id="panel-scroll"></div>
+</div>
+
+<!-- ── SCREEN EXTRA (solicitudes / nuevo) ─────── -->
+<div class="screen" id="screen-extra">
+    <div class="topbar">
+        <button class="topbar-back" onclick="irLista()">← Atrás</button>
+        <div class="topbar-title" id="extra-title">—</div>
+    </div>
+    <div class="extra-scroll" id="extra-scroll"></div>
 </div>
 
 <!-- TOAST -->
@@ -534,7 +506,7 @@ let docAprobFiles = {};
 function auth() {
     if (document.getElementById('pin').value === PIN) {
         document.getElementById('lock').style.display = 'none';
-        document.getElementById('app').style.display  = 'block';
+        mostrarScreen('screen-list');
         initFirebase();
         sessionStorage.setItem('mob_auth','1');
     } else {
@@ -545,7 +517,7 @@ function auth() {
 window.addEventListener('DOMContentLoaded', () => {
     if (sessionStorage.getItem('mob_auth')) {
         document.getElementById('lock').style.display = 'none';
-        document.getElementById('app').style.display  = 'block';
+        mostrarScreen('screen-list');
         initFirebase();
     }
 });
@@ -578,27 +550,36 @@ function escuchar() {
         document.getElementById('ls-activos').textContent = activos;
         document.getElementById('ls-hoy').textContent     = '$'+hoyTotal.toFixed(2);
         const b = document.getElementById('badge-pend');
-        b.textContent    = pendientes;
-        b.style.display  = pendientes > 0 ? 'inline' : 'none';
+        b.textContent   = pendientes;
+        b.style.display = pendientes > 0 ? 'inline' : 'none';
         renderLista();
         if (currentId && allClients[currentId]) renderPanel(currentId);
     });
 }
 
 // ── NAVEGACIÓN ────────────────────────────────────
+function mostrarScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('activa'));
+    const el = document.getElementById(id);
+    if (el) el.classList.add('activa');
+    // scroll al top del área scrolleable de la pantalla que aparece
+    const body = el?.querySelector('.panel-scroll, .extra-scroll, .client-list-mob');
+    if (body) body.scrollTop = 0;
+}
+
 function irLista() {
-    document.getElementById('app').className = '';
+    mostrarScreen('screen-list');
     currentId = null;
 }
 function irPanel(id) {
     currentId = id;
-    document.getElementById('app').className = 'app-showing-panel';
     renderPanel(id);
+    mostrarScreen('screen-panel');
 }
 function irExtra(modo) {
-    document.getElementById('app').className = 'app-showing-extra';
     if (modo === 'solicitudes') renderSolicitudes();
     else renderNuevo();
+    mostrarScreen('screen-extra');
 }
 
 // ── LISTA ─────────────────────────────────────────
@@ -690,8 +671,8 @@ function renderPanel(id) {
     </div>
 
     <!-- ACCIONES -->
-    <button class="mob-btn-full danger" onclick="eliminarClienteMob()">Eliminar cliente</button>
-    <div style="height:1rem"></div>`;
+    <button class="mob-btn-full danger" style="margin-bottom:0.85rem" onclick="eliminarClienteMob()">Eliminar cliente</button>
+    <div style="height:2rem"></div>`;
 
     renderCuotasMob(s);
     renderFichaMob(s);
@@ -897,7 +878,7 @@ function renderSolicitudes() {
                 <button class="sol-btn no"  onclick="rechazar('${s._key}')">✗ Rechazar</button>
             </div>
         </div>`;
-    }).join('');
+    }).join('') + '<div style="height:2rem"></div>';
 }
 
 async function rechazar(id) {
@@ -1100,7 +1081,6 @@ async function confirmarAprobM() {
         document.getElementById('modal-aprob')?.remove();
         toast('✓ Crédito aprobado — '+(s.nombre||''),'success');
         setTimeout(()=>irPanel(aprobandoId), 400);
-
     } catch(err) {
         msg.textContent  = 'Error: '+err.message;
         msg.style.color  = 'var(--danger)';
@@ -1115,7 +1095,7 @@ function renderNuevo() {
     document.getElementById('extra-title').textContent = 'Nuevo Cliente';
     const wrap = document.getElementById('extra-scroll');
     wrap.innerHTML = `
-    <div class="mob-section">
+    <div class="mob-section" style="margin-bottom:0.85rem">
         <div class="mob-sec-head"><span class="mob-sec-title">Datos personales</span></div>
         <div class="mob-sec-body">
             <div class="ficha-mob">
@@ -1131,7 +1111,7 @@ function renderNuevo() {
         </div>
     </div>
 
-    <div class="mob-section">
+    <div class="mob-section" style="margin-bottom:0.85rem">
         <div class="mob-sec-head"><span class="mob-sec-title">Condiciones del crédito</span></div>
         <div class="mob-sec-body">
             <div class="ficha-mob">
@@ -1152,9 +1132,9 @@ function renderNuevo() {
         </div>
     </div>
 
-    <button class="mob-btn-full primary" onclick="guardarNuevoMob()">✓ Registrar como ACTIVO</button>
-    <button class="mob-btn-full ghost"   onclick="guardarPendienteMob()">Guardar como Pendiente</button>
-    <p style="font-size:0.65rem;color:var(--muted2);text-align:center;padding:0.5rem 0 1rem">
+    <button class="mob-btn-full primary" style="margin-bottom:0.6rem" onclick="guardarNuevoMob()">✓ Registrar como ACTIVO</button>
+    <button class="mob-btn-full ghost"   style="margin-bottom:0.6rem" onclick="guardarPendienteMob()">Guardar como Pendiente</button>
+    <p style="font-size:0.65rem;color:var(--muted2);text-align:center;padding:0.5rem 0 2rem">
         💡 Los documentos y fotos de DUI se agregan desde la ficha del cliente.
     </p>`;
 
