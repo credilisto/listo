@@ -862,6 +862,12 @@ function renderFicha(s) {
             <div class="ff-val ${accent ? 'accent mono' : 'mono'}">${val||'—'}</div>
         </div>`;
 
+    const campoNum = (lbl, id, val) => `
+        <div class="ficha-field">
+            <span class="ff-label">${lbl}</span>
+            <input class="edit-input mono" type="number" min="1" step="1" id="ef-${id}" value="${val||''}">
+        </div>`;
+
     g.innerHTML =
         campo('Nombre completo', 'nombre', s.nombre, 'text', true) +
         campo('DUI', 'dui', s.dui) +
@@ -874,8 +880,7 @@ function renderFicha(s) {
         campo('Propósito del crédito', 'inversion', s.inversion, 'text', true) +
         campo('Referencia (Nombre)', 'refNom', s.refNom||s.refNombre) +
         campo('Referencia (Teléfono)', 'refTel', s.refTel, 'tel') +
-        campoSel('Monto del crédito', 'monto',
-            String(s.monto), ['50','100','150','200','250','300','400','500']) +
+        campoNum('Monto del crédito ($)', 'monto', s.monto) +
         campoSel('Frecuencia de pago', 'frecuencia',
             s.frecuencia, ['diario','semanal']) +
         campoRO('Total a pagar (20% interés)', '$' + parseFloat(s.total||0).toFixed(2), true) +
@@ -884,6 +889,15 @@ function renderFicha(s) {
 
 async function guardarFicha() {
     const g = id => (document.getElementById('ef-' + id)||{}).value || '';
+    const nuevoMonto     = parseFloat(g('monto')) || 0;
+    const nuevaFrecuencia = g('frecuencia');
+    const clienteActual  = allClients[currentId] || {};
+
+    // Recalcular total y cuotas si cambió monto o frecuencia
+    const montoAnterior = parseFloat(clienteActual.monto) || 0;
+    const frecAnterior  = clienteActual.frecuencia || 'diario';
+    const montoOFrecCambio = nuevoMonto !== montoAnterior || nuevaFrecuencia !== frecAnterior;
+
     const updates = {
         nombre:    g('nombre').toUpperCase(),
         dui:       g('dui'),
@@ -896,9 +910,34 @@ async function guardarFicha() {
         inversion: g('inversion'),
         refNom:    g('refNom'),
         refTel:    g('refTel'),
-        monto:     g('monto'),
-        frecuencia: g('frecuencia'),
+        monto:     String(nuevoMonto),
+        frecuencia: nuevaFrecuencia,
     };
+
+    if (montoOFrecCambio && nuevoMonto > 0) {
+        const nCuotas = nuevaFrecuencia === 'semanal' ? 4 : 30;
+        const nuevoTotal = parseFloat((nuevoMonto * 1.2).toFixed(2));
+        const nuevaCuota = parseFloat((nuevoTotal / nCuotas).toFixed(2));
+        // Recalcular cuotas existentes respetando las ya pagadas
+        const cuotasActuales = clienteActual.cuotas || [];
+        const cuotasRecalc = cuotasActuales.map((c, i) => {
+            if (i < nCuotas) {
+                return c.pagada ? c : { ...c, n: i+1, valorPagado: nuevaCuota };
+            }
+            return null;
+        }).filter(Boolean);
+        // Si hay menos cuotas que las nuevas necesarias, agregar las que falten
+        for (let i = cuotasRecalc.length; i < nCuotas; i++) {
+            cuotasRecalc.push({ n: i+1, valorPagado: nuevaCuota, pagada: false, fecha: '', fecha_ISO: '' });
+        }
+        let pagadoTotal = 0;
+        cuotasRecalc.forEach(c => { if (c.pagada) pagadoTotal += parseFloat(c.valorPagado || 0); });
+        updates.total  = nuevoTotal;
+        updates.saldo  = parseFloat((nuevoTotal - pagadoTotal).toFixed(2));
+        updates.cuotas = cuotasRecalc;
+        if (!confirm(`¿Cambiar monto a $${nuevoMonto}?\n\nNuevo total: $${nuevoTotal.toFixed(2)}\nNueva cuota: $${nuevaCuota.toFixed(2)} (${nuevaFrecuencia})\n\nSe recalcularán las cuotas pendientes.`)) return;
+    }
+
     await db.ref('clientes/' + currentId).update(updates);
     toast('✓ Ficha actualizada', 'success');
 }
@@ -1116,7 +1155,7 @@ function aprobarSolicitud(id) {
                 <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.1rem;color:var(--text)">
                     Aprobar Crédito
                 </div>
-                <div style="font-size:0.65rem;color:var(--muted2);margin-top:0.1rem">${s.nombre||'—'} · $${s.monto}</div>
+                <div style="font-size:0.65rem;color:var(--muted2);margin-top:0.1rem">${s.nombre||'—'}</div>
             </div>
             <button onclick="document.getElementById('modal-aprobacion').remove()"
                     style="background:var(--surface2);border:1px solid var(--border2);border-radius:0.5rem;
@@ -1127,17 +1166,24 @@ function aprobarSolicitud(id) {
 
             <!-- resumen crédito -->
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.5rem">
-                <div style="background:var(--surface2);border:1px solid var(--border);border-radius:0.6rem;padding:0.75rem">
-                    <div style="font-size:0.55rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:0.25rem">Monto</div>
-                    <div style="font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--accent)">$${monto.toFixed(2)}</div>
+                <div style="background:var(--surface2);border:2px solid var(--accent);border-radius:0.6rem;padding:0.75rem">
+                    <div style="font-size:0.55rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:0.25rem">Monto a prestar</div>
+                    <div style="display:flex;align-items:center;gap:0.3rem">
+                        <span style="font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--accent);font-size:0.9rem">$</span>
+                        <input type="number" id="ap-monto" value="${monto.toFixed(2)}" min="1" step="1"
+                               onchange="recalcularAprobacion()" oninput="recalcularAprobacion()"
+                               style="background:transparent;border:none;outline:none;width:100%;
+                                      font-family:'JetBrains Mono',monospace;font-weight:700;
+                                      color:var(--accent);font-size:0.9rem;padding:0">
+                    </div>
                 </div>
                 <div style="background:var(--surface2);border:1px solid var(--border);border-radius:0.6rem;padding:0.75rem">
                     <div style="font-size:0.55rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:0.25rem">Total (20%)</div>
-                    <div style="font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--text)">$${total.toFixed(2)}</div>
+                    <div id="ap-total-preview" style="font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--text)">$${total.toFixed(2)}</div>
                 </div>
                 <div style="background:var(--surface2);border:1px solid var(--border);border-radius:0.6rem;padding:0.75rem">
                     <div style="font-size:0.55rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:0.25rem">Cuota ${s.frecuencia||'diario'}</div>
-                    <div style="font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--text)">$${cuota}</div>
+                    <div id="ap-cuota-preview" style="font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--text)">$${cuota}</div>
                 </div>
             </div>
 
@@ -1243,6 +1289,20 @@ function actualizarFechasPago() {
     }).join('');
 }
 
+function recalcularAprobacion() {
+    const s = allClients[aprobandoId];
+    if (!s) return;
+    const monto = parseFloat(document.getElementById('ap-monto')?.value) || 0;
+    const esSemanl = (s.frecuencia || 'diario') === 'semanal';
+    const nCuotas = esSemanl ? 4 : 30;
+    const total = monto * 1.2;
+    const cuota = (total / nCuotas).toFixed(2);
+    const totalEl = document.getElementById('ap-total-preview');
+    const cuotaEl = document.getElementById('ap-cuota-preview');
+    if (totalEl) totalEl.textContent = '$' + total.toFixed(2);
+    if (cuotaEl) cuotaEl.textContent = '$' + cuota;
+}
+
 function previewDocAprob(input, tipo) {
     if (!input.files || !input.files[0]) return;
     const file = input.files[0];
@@ -1278,7 +1338,7 @@ async function confirmarAprobacion() {
 
     const esSemanl = (s.frecuencia || 'diario') === 'semanal';
     const nCuotas  = esSemanl ? 4 : 30;
-    const monto    = parseFloat(s.monto) || 0;
+    const monto    = parseFloat(document.getElementById('ap-monto')?.value) || parseFloat(s.monto) || 0;
     const total    = parseFloat((monto * 1.2).toFixed(2));
     const cuota    = parseFloat((total / nCuotas).toFixed(2));
     const base     = new Date(fechaISO + 'T12:00:00');
@@ -1392,7 +1452,7 @@ async function confirmarAprobacion() {
             inversion:    s.inversion    || '',
             refNom:       s.refNom       || s.refNombre || '',
             refTel:       s.refTel       || '',
-            monto:        s.monto        || '',
+            monto:        String(monto),
             frecuencia:   s.frecuencia   || 'diario',
             fecha:        s.fecha        || fechaSV,
             // nuevos campos de aprobación
