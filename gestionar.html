@@ -862,10 +862,13 @@ function renderFicha(s) {
             <div class="ff-val ${accent ? 'accent mono' : 'mono'}">${val||'—'}</div>
         </div>`;
 
-    const campoNum = (lbl, id, val) => `
+    const campoMontoSel = (lbl, id, val, opts, frecuencia) => `
         <div class="ficha-field">
             <span class="ff-label">${lbl}</span>
-            <input class="edit-input mono" type="number" min="1" step="1" id="ef-${id}" value="${val||''}">
+            <select class="edit-select" id="ef-${id}"
+                    onchange="actualizarPreviewFicha()">
+                ${opts.map(o => `<option value="${o}" ${String(val)===String(o)?'selected':''}>${'$'+o}</option>`).join('')}
+            </select>
         </div>`;
 
     g.innerHTML =
@@ -880,62 +883,105 @@ function renderFicha(s) {
         campo('Propósito del crédito', 'inversion', s.inversion, 'text', true) +
         campo('Referencia (Nombre)', 'refNom', s.refNom||s.refNombre) +
         campo('Referencia (Teléfono)', 'refTel', s.refTel, 'tel') +
-        campoNum('Monto del crédito ($)', 'monto', s.monto) +
-        campoSel('Frecuencia de pago', 'frecuencia',
-            s.frecuencia, ['diario','semanal']) +
-        campoRO('Total a pagar (20% interés)', '$' + parseFloat(s.total||0).toFixed(2), true) +
+        campoMontoSel('Monto del crédito', 'monto', s.monto,
+            ['50','100','150','200','250','300','400','500']) +
+        `<div class="ficha-field">
+            <span class="ff-label">Frecuencia de pago</span>
+            <select class="edit-select" id="ef-frecuencia" onchange="actualizarPreviewFicha()">
+                <option value="diario" ${(s.frecuencia||'diario')==='diario'?'selected':''}>Diario</option>
+                <option value="semanal" ${s.frecuencia==='semanal'?'selected':''}>Semanal</option>
+            </select>
+        </div>` +
+        `<div class="ficha-field">
+            <span class="ff-label">Total a pagar (20% interés)</span>
+            <div class="ff-val accent mono" id="ef-total-preview">$${parseFloat(s.total||0).toFixed(2)}</div>
+        </div>` +
+        `<div class="ficha-field">
+            <span class="ff-label">Cuota por pago</span>
+            <div class="ff-val mono" id="ef-cuota-preview">${(() => {
+                const t = parseFloat(s.total||0);
+                const n = (s.frecuencia||'diario')==='semanal' ? 4 : 30;
+                return '$' + (t/n).toFixed(2) + ' ' + (s.frecuencia||'diario');
+            })()}</div>
+        </div>` +
         campoRO('Fecha de inicio', s.fechaInicio||s.fecha);
+}
+
+function actualizarPreviewFicha() {
+    const monto = parseFloat(document.getElementById('ef-monto')?.value) || 0;
+    const frec  = document.getElementById('ef-frecuencia')?.value || 'diario';
+    const total = monto * 1.2;
+    const n     = frec === 'semanal' ? 4 : 30;
+    const cuota = (total / n).toFixed(2);
+    const elT = document.getElementById('ef-total-preview');
+    const elC = document.getElementById('ef-cuota-preview');
+    if (elT) elT.textContent = '$' + total.toFixed(2);
+    if (elC) elC.textContent = '$' + cuota + ' ' + frec;
 }
 
 async function guardarFicha() {
     const g = id => (document.getElementById('ef-' + id)||{}).value || '';
-    const nuevoMonto     = parseFloat(g('monto')) || 0;
+    const nuevoMonto      = parseFloat(g('monto')) || 0;
     const nuevaFrecuencia = g('frecuencia');
-    const clienteActual  = allClients[currentId] || {};
-
-    // Recalcular total y cuotas si cambió monto o frecuencia
-    const montoAnterior = parseFloat(clienteActual.monto) || 0;
-    const frecAnterior  = clienteActual.frecuencia || 'diario';
-    const montoOFrecCambio = nuevoMonto !== montoAnterior || nuevaFrecuencia !== frecAnterior;
+    const clienteActual   = allClients[currentId] || {};
+    const montoAnterior   = parseFloat(clienteActual.monto) || 0;
+    const frecAnterior    = clienteActual.frecuencia || 'diario';
+    const cambio          = nuevoMonto !== montoAnterior || nuevaFrecuencia !== frecAnterior;
 
     const updates = {
-        nombre:    g('nombre').toUpperCase(),
-        dui:       g('dui'),
-        tel:       g('tel'),
-        pass:      g('pass'),
-        dirCasa:   g('dirCasa'),
-        negocio:   g('negocio'),
-        dirNeg:    g('dirNeg'),
-        ingresos:  g('ingresos'),
-        inversion: g('inversion'),
-        refNom:    g('refNom'),
-        refTel:    g('refTel'),
-        monto:     String(nuevoMonto),
+        nombre:     g('nombre').toUpperCase(),
+        dui:        g('dui'),
+        tel:        g('tel'),
+        pass:       g('pass'),
+        dirCasa:    g('dirCasa'),
+        negocio:    g('negocio'),
+        dirNeg:     g('dirNeg'),
+        ingresos:   g('ingresos'),
+        inversion:  g('inversion'),
+        refNom:     g('refNom'),
+        refTel:     g('refTel'),
+        monto:      String(nuevoMonto),
         frecuencia: nuevaFrecuencia,
     };
 
-    if (montoOFrecCambio && nuevoMonto > 0) {
-        const nCuotas = nuevaFrecuencia === 'semanal' ? 4 : 30;
+    if (cambio && nuevoMonto > 0) {
+        const nCuotas    = nuevaFrecuencia === 'semanal' ? 4 : 30;
         const nuevoTotal = parseFloat((nuevoMonto * 1.2).toFixed(2));
         const nuevaCuota = parseFloat((nuevoTotal / nCuotas).toFixed(2));
-        // Recalcular cuotas existentes respetando las ya pagadas
+
+        // Recalcular cuotas: respetar pagadas, actualizar pendientes
         const cuotasActuales = clienteActual.cuotas || [];
-        const cuotasRecalc = cuotasActuales.map((c, i) => {
-            if (i < nCuotas) {
-                return c.pagada ? c : { ...c, n: i+1, valorPagado: nuevaCuota };
+        const cuotasRecalc = [];
+        for (let i = 0; i < nCuotas; i++) {
+            const anterior = cuotasActuales[i];
+            if (anterior && anterior.pagada) {
+                cuotasRecalc.push(anterior);
+            } else {
+                cuotasRecalc.push({
+                    n: i + 1,
+                    valorPagado: nuevaCuota,
+                    pagada: false,
+                    fecha: anterior?.fecha || '',
+                    fecha_ISO: anterior?.fecha_ISO || '',
+                    fecha_prog: anterior?.fecha_prog || '',
+                    fecha_prog_sv: anterior?.fecha_prog_sv || '',
+                });
             }
-            return null;
-        }).filter(Boolean);
-        // Si hay menos cuotas que las nuevas necesarias, agregar las que falten
-        for (let i = cuotasRecalc.length; i < nCuotas; i++) {
-            cuotasRecalc.push({ n: i+1, valorPagado: nuevaCuota, pagada: false, fecha: '', fecha_ISO: '' });
         }
+
         let pagadoTotal = 0;
         cuotasRecalc.forEach(c => { if (c.pagada) pagadoTotal += parseFloat(c.valorPagado || 0); });
+
         updates.total  = nuevoTotal;
         updates.saldo  = parseFloat((nuevoTotal - pagadoTotal).toFixed(2));
         updates.cuotas = cuotasRecalc;
-        if (!confirm(`¿Cambiar monto a $${nuevoMonto}?\n\nNuevo total: $${nuevoTotal.toFixed(2)}\nNueva cuota: $${nuevaCuota.toFixed(2)} (${nuevaFrecuencia})\n\nSe recalcularán las cuotas pendientes.`)) return;
+
+        if (!confirm(
+            `¿Cambiar monto a $${nuevoMonto}?\n\n` +
+            `Nuevo total: $${nuevoTotal.toFixed(2)}\n` +
+            `Nueva cuota: $${nuevaCuota.toFixed(2)} (${nuevaFrecuencia})\n\n` +
+            `Las cuotas pendientes se recalcularán.`
+        )) return;
     }
 
     await db.ref('clientes/' + currentId).update(updates);
@@ -1167,15 +1213,15 @@ function aprobarSolicitud(id) {
             <!-- resumen crédito -->
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.5rem">
                 <div style="background:var(--surface2);border:2px solid var(--accent);border-radius:0.6rem;padding:0.75rem">
-                    <div style="font-size:0.55rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:0.25rem">Monto a prestar</div>
-                    <div style="display:flex;align-items:center;gap:0.3rem">
-                        <span style="font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--accent);font-size:0.9rem">$</span>
-                        <input type="number" id="ap-monto" value="${monto.toFixed(2)}" min="1" step="1"
-                               onchange="recalcularAprobacion()" oninput="recalcularAprobacion()"
-                               style="background:transparent;border:none;outline:none;width:100%;
-                                      font-family:'JetBrains Mono',monospace;font-weight:700;
-                                      color:var(--accent);font-size:0.9rem;padding:0">
-                    </div>
+                    <div style="font-size:0.55rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:0.4rem">Monto a prestar</div>
+                    <select id="ap-monto" onchange="recalcularAprobacion()"
+                            style="background:transparent;border:none;outline:none;width:100%;
+                                   font-family:'JetBrains Mono',monospace;font-weight:700;
+                                   color:var(--accent);font-size:0.9rem;cursor:pointer;padding:0">
+                        ${['50','100','150','200','250','300','400','500'].map(v =>
+                            `<option value="${v}" ${String(Math.round(monto))===v?'selected':''}>\$${v}</option>`
+                        ).join('')}
+                    </select>
                 </div>
                 <div style="background:var(--surface2);border:1px solid var(--border);border-radius:0.6rem;padding:0.75rem">
                     <div style="font-size:0.55rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:0.25rem">Total (20%)</div>
