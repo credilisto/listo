@@ -2262,6 +2262,55 @@ function mostrarNuevoCliente() {
         </div>
     </div>
 
+    <!-- PROCEDENCIA DE CAPITAL -->
+    <div class="section-card">
+        <div class="section-head"><div class="section-title">💼 Procedencia del Capital</div></div>
+        <div class="section-body">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-bottom:1rem">
+                <div style="background:rgba(14,165,233,0.07);border:1px solid rgba(14,165,233,0.2);border-radius:0.6rem;padding:0.75rem">
+                    <div style="font-size:0.55rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:0.2rem">Capital invertido</div>
+                    <div id="nm-capital-inv" style="font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--accent)">$0.00</div>
+                </div>
+                <div style="background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.2);border-radius:0.6rem;padding:0.75rem">
+                    <div style="font-size:0.55rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:0.2rem">Caja Chica disponible</div>
+                    <div id="nm-caja-chica" style="font-family:'JetBrains Mono',monospace;font-weight:700;color:#10b981">$0.00</div>
+                </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem">
+                <div id="nm-opt-inyeccion" onclick="selProcNM('inyeccion')"
+                     style="border:2px solid var(--border2);background:var(--surface2);border-radius:0.75rem;
+                            padding:0.85rem 0.75rem;cursor:pointer;text-align:center;transition:all 0.2s">
+                    <div style="font-size:1.3rem;margin-bottom:0.3rem">💰</div>
+                    <div style="font-size:0.72rem;font-weight:800;color:var(--muted2)">Inyección de fondo</div>
+                    <div style="font-size:0.6rem;color:var(--muted2);margin-top:0.15rem">Dinero nuevo · sube capital</div>
+                </div>
+                <div id="nm-opt-recogido" onclick="selProcNM('recogido')"
+                     style="border:2px solid var(--accent);background:var(--accent-dim);border-radius:0.75rem;
+                            padding:0.85rem 0.75rem;cursor:pointer;text-align:center;transition:all 0.2s">
+                    <div style="font-size:1.3rem;margin-bottom:0.3rem">🔄</div>
+                    <div style="font-size:0.72rem;font-weight:800;color:var(--accent)">Dinero recogido</div>
+                    <div style="font-size:0.6rem;color:var(--muted2);margin-top:0.15rem">Sale de Caja Chica</div>
+                </div>
+            </div>
+            <input type="hidden" id="n-procedencia" value="recogido">
+            <div id="nm-impacto-caja" style="margin-top:0.75rem;background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.3);border-radius:0.6rem;padding:0.75rem">
+                <div style="font-size:0.55rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:#10b981;margin-bottom:0.4rem">Impacto en Caja Chica</div>
+                <div style="display:flex;justify-content:space-between;font-size:0.72rem;margin-bottom:0.2rem">
+                    <span style="color:var(--muted2)">Caja Chica actual:</span>
+                    <span id="nm-imp-actual" style="font-family:'JetBrains Mono',monospace;font-weight:700;color:#10b981">$0.00</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;font-size:0.72rem;margin-bottom:0.2rem">
+                    <span style="color:var(--muted2)">− Monto a prestar:</span>
+                    <span id="nm-imp-monto" style="font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--danger)">$0.00</span>
+                </div>
+                <div style="border-top:1px solid rgba(16,185,129,0.3);padding-top:0.4rem;margin-top:0.4rem;display:flex;justify-content:space-between">
+                    <strong style="font-size:0.72rem">= Caja Chica resultante:</strong>
+                    <strong id="nm-imp-resultado" style="font-family:'JetBrains Mono',monospace;color:#10b981">$0.00</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div style="display:flex;gap:0.75rem;padding-bottom:1rem">
         <button class="btn btn-accent btn-lg" style="flex:1;justify-content:center" onclick="guardarNuevoManual()">
             ✓ Registrar como ACTIVO
@@ -2275,6 +2324,17 @@ function mostrarNuevoCliente() {
     </p>`;
 
     calcularPreview();
+    // Cargar finanzas globales en el formulario
+    db.ref('config/finanzas').once('value').then(snap => {
+        const cfg = snap.val() || {};
+        window._nmCajaChica    = parseFloat(cfg.cajaChica || 0);
+        window._nmCapitalInv   = parseFloat(cfg.capitalInvertido || 0);
+        const elCap  = document.getElementById('nm-capital-inv');
+        const elCaja = document.getElementById('nm-caja-chica');
+        if (elCap)  elCap.textContent  = '$' + window._nmCapitalInv.toFixed(2);
+        if (elCaja) elCaja.textContent = '$' + window._nmCajaChica.toFixed(2);
+        actualizarImpactoNM();
+    });
 }
 
 function calcularPreview() {
@@ -2287,6 +2347,8 @@ function calcularPreview() {
     const el2 = document.getElementById('n-preview-cuota');
     if (el1) el1.textContent = '$' + total.toFixed(2);
     if (el2) el2.textContent = '$' + cuota + ' ' + f;
+    // Actualizar impacto en caja chica si aplica
+    if (typeof actualizarImpactoNM === 'function') actualizarImpactoNM();
 }
 
 function recogerDatosNuevo() {
@@ -2309,11 +2371,67 @@ function recogerDatosNuevo() {
     };
 }
 
+function selProcNM(tipo) {
+    document.getElementById('n-procedencia').value = tipo;
+    const optI = document.getElementById('nm-opt-inyeccion');
+    const optR = document.getElementById('nm-opt-recogido');
+    if (!optI || !optR) return;
+    if (tipo === 'inyeccion') {
+        optI.style.borderColor = 'var(--accent)'; optI.style.background = 'var(--accent-dim)';
+        optI.querySelector('div:nth-child(2)').style.color = 'var(--accent)';
+        optR.style.borderColor = 'var(--border2)'; optR.style.background = 'var(--surface2)';
+        optR.querySelector('div:nth-child(2)').style.color = 'var(--muted2)';
+        const imp = document.getElementById('nm-impacto-caja');
+        if (imp) imp.style.display = 'none';
+    } else {
+        optR.style.borderColor = 'var(--accent)'; optR.style.background = 'var(--accent-dim)';
+        optR.querySelector('div:nth-child(2)').style.color = 'var(--accent)';
+        optI.style.borderColor = 'var(--border2)'; optI.style.background = 'var(--surface2)';
+        optI.querySelector('div:nth-child(2)').style.color = 'var(--muted2)';
+        const imp = document.getElementById('nm-impacto-caja');
+        if (imp) imp.style.display = 'block';
+    }
+    actualizarImpactoNM();
+}
+
+function actualizarImpactoNM() {
+    const monto  = parseFloat(document.getElementById('n-monto')?.value || 0);
+    const caja   = window._nmCajaChica || 0;
+    const result = caja - monto;
+    const elAct  = document.getElementById('nm-imp-actual');
+    const elMon  = document.getElementById('nm-imp-monto');
+    const elRes  = document.getElementById('nm-imp-resultado');
+    const elCont = document.getElementById('nm-impacto-caja');
+    if (elAct) elAct.textContent = '$' + caja.toFixed(2);
+    if (elMon) elMon.textContent = '$' + monto.toFixed(2);
+    if (elRes) {
+        elRes.textContent = '$' + Math.max(0, result).toFixed(2);
+        elRes.style.color = result < 0 ? 'var(--danger)' : '#10b981';
+    }
+    if (elCont) {
+        elCont.style.borderColor = result < 0 ? 'rgba(239,68,68,0.4)' : 'rgba(16,185,129,0.3)';
+        elCont.style.background  = result < 0 ? 'rgba(239,68,68,0.05)' : 'rgba(16,185,129,0.07)';
+    }
+}
+
 async function guardarNuevoManual() {
     const data = recogerDatosNuevo();
     if (!data.nombre || !data.dui) { toast('Nombre y DUI son obligatorios', 'error'); return; }
 
-    const monto     = parseFloat(data.monto);
+    const procedencia = document.getElementById('n-procedencia')?.value || 'recogido';
+    const monto       = parseFloat(data.monto);
+
+    // Leer y validar finanzas globales
+    const snapCfg = await db.ref('config/finanzas').once('value');
+    const cfg = snapCfg.val() || {};
+    let cajaChica        = parseFloat(cfg.cajaChica || 0);
+    let capitalInvertido = parseFloat(cfg.capitalInvertido || 0);
+
+    if (procedencia === 'recogido' && monto > cajaChica + 0.01) {
+        toast('Caja Chica insuficiente. Disponible: $' + cajaChica.toFixed(2), 'error');
+        return;
+    }
+
     const total     = monto * 1.2;
     const numCuotas = data.frecuencia === 'semanal' ? 4 : 30;
     const cuota     = (total / numCuotas).toFixed(2);
@@ -2321,12 +2439,28 @@ async function guardarNuevoManual() {
         n: i+1, valorPagado: parseFloat(cuota), pagada: false, fecha: ''
     }));
 
+    if (procedencia === 'recogido') {
+        cajaChica = parseFloat((cajaChica - monto).toFixed(2));
+    } else {
+        capitalInvertido = parseFloat((capitalInvertido + monto).toFixed(2));
+    }
+
     const id = Date.now();
-    await db.ref('clientes/' + id).set({
-        ...data, id, tipo: 'ACTIVO', total, saldo: total,
-        fechaInicio: new Date().toLocaleDateString('es-SV'), cuotas
-    });
-    toast('✓ Cliente registrado como ACTIVO', 'success');
+    await Promise.all([
+        db.ref('clientes/' + id).set({
+            ...data, id, tipo: 'ACTIVO', total, saldo: total,
+            fechaInicio: new Date().toLocaleDateString('es-SV'),
+            cajachica: 0,
+            procedenciaCapital: procedencia,
+            cuotas
+        }),
+        db.ref('config/finanzas').update({ cajaChica, capitalInvertido })
+    ]);
+
+    const msg = procedencia === 'inyeccion'
+        ? '✓ Registrado · Capital invertido: $' + capitalInvertido.toFixed(2)
+        : '✓ Registrado · Caja Chica restante: $' + cajaChica.toFixed(2);
+    toast(msg, 'success');
     mostrarNuevoCliente();
 }
 
