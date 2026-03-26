@@ -810,7 +810,7 @@ function renderPanel(id) {
             <a href="https://wa.me/503${s.tel||''}?text=${encodeURIComponent('Hola '+s.nombre+', te contactamos de CrediListo.')}" target="_blank" class="btn btn-accent btn-sm">
                 💬 WhatsApp
             </a>
-            ${s.tipo === 'ARCHIVO' ? `
+            ${(s.tipo === 'ARCHIVO' || saldo <= 0) ? `
             <button class="btn btn-sm" style="background:rgba(14,165,233,0.1);color:var(--accent);border:1px solid var(--accent-border)" onclick="modalNuevoCredito()">🔄 Nuevo Crédito</button>
             ` : ''}
             <button class="btn btn-danger btn-sm" onclick="eliminarCliente()">Eliminar</button>
@@ -843,9 +843,16 @@ function renderPanel(id) {
     <!-- ACCIONES FINANCIERAS -->
     <div style="display:flex;gap:0.5rem;padding:0 0 0.5rem 0;flex-wrap:wrap">
         ${s.tipo !== 'ARCHIVO' ? `
+        ${saldo > 0 ? `
         <button class="btn btn-blue btn-sm" onclick="modalInyectarCapital()">💰 Inyectar Capital</button>
         <button class="btn btn-ghost btn-sm" onclick="modalDeducirCobrado()">➖ Deducir de Cobrado</button>
-        ${saldo <= 0 ? `<button class="btn btn-sm" style="background:rgba(16,185,129,0.12);color:#10b981;border:1px solid rgba(16,185,129,0.3)" onclick="archivarCliente()">📁 Archivar cliente</button>` : ''}
+        ` : `
+        <div style="background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.3);border-radius:0.5rem;padding:0.5rem 0.75rem;font-size:0.72rem;color:#10b981;font-weight:700;display:flex;align-items:center;gap:0.5rem">
+            ✅ Crédito SALDADO — elige una acción:
+        </div>
+        <button class="btn btn-sm" style="background:rgba(14,165,233,0.1);color:var(--accent);border:1px solid var(--accent-border)" onclick="modalNuevoCredito()">🔄 Nuevo Crédito</button>
+        <button class="btn btn-sm" style="background:rgba(16,185,129,0.12);color:#10b981;border:1px solid rgba(16,185,129,0.3)" onclick="archivarCliente()">📁 Solo Archivar</button>
+        `}
         ` : `
         <div style="background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.25);border-radius:0.5rem;padding:0.5rem 0.75rem;font-size:0.7rem;color:#10b981;font-weight:600">
             📁 Cliente archivado el ${s.fechaArchivo||'—'} · Usa <strong>Nuevo Crédito</strong> para reactivarlo
@@ -1155,7 +1162,7 @@ function modalNuevoCredito() {
                         position:sticky;top:0;background:var(--surface);z-index:1">
                 <div>
                     <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.1rem;color:var(--text)">🔄 Nuevo Crédito</div>
-                    <div style="font-size:0.65rem;color:var(--muted2);margin-top:0.1rem">${s.nombre||'—'}</div>
+                    <div style="font-size:0.65rem;color:var(--muted2);margin-top:0.1rem">${s.nombre||'—'} &nbsp;·&nbsp; ${s.tipo === 'ARCHIVO' ? '📁 Desde Archivo' : '✅ Crédito Saldado'}</div>
                 </div>
                 <button onclick="document.getElementById('modal-nuevo-credito').remove()"
                         style="background:var(--surface2);border:1px solid var(--border2);border-radius:0.5rem;
