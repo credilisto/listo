@@ -169,8 +169,14 @@
             <div class="cons-val sky" id="c-total">0</div>
         </div>
         <div class="cons-item">
-            <div class="cons-label">Capital prestado</div>
+            <div class="cons-label">💼 Capital invertido</div>
+            <div class="cons-val gold" id="c-capital-inv">$0</div>
+            <div class="cons-sub">fondos reales aportados</div>
+        </div>
+        <div class="cons-item">
+            <div class="cons-label">Cartera activa</div>
             <div class="cons-val gold" id="c-capital">$0</div>
+            <div class="cons-sub">monto en créditos activos</div>
         </div>
         <div class="cons-item">
             <div class="cons-label">Total a cobrar</div>
@@ -184,6 +190,11 @@
         <div class="cons-item">
             <div class="cons-label">Ya cobrado</div>
             <div class="cons-val green" id="c-cobrado">$0</div>
+        </div>
+        <div class="cons-item">
+            <div class="cons-label">🏦 Caja Chica</div>
+            <div class="cons-val green" id="c-cajachica-global">$0</div>
+            <div class="cons-sub">disponible para reinvertir</div>
         </div>
         <div class="cons-item">
             <div class="cons-label">Diarios</div>
@@ -235,6 +246,17 @@
         // Smart back button
         const fromMob = new URLSearchParams(location.search).get('from') === 'movil';
         document.getElementById('btn-back').onclick = () => location.href = fromMob ? 'gestionmovil.html' : 'gestionar.html';
+        // Escuchar finanzas globales
+        db.ref('config/finanzas').on('value', snapCfg => {
+            const cfg = snapCfg.val() || {};
+            window._globalCajaChica      = parseFloat(cfg.cajaChica || 0);
+            window._globalCapitalInv     = parseFloat(cfg.capitalInvertido || 0);
+            if (document.getElementById('c-capital-inv'))
+                document.getElementById('c-capital-inv').textContent = fmt(window._globalCapitalInv);
+            if (document.getElementById('c-cajachica-global'))
+                document.getElementById('c-cajachica-global').textContent = fmt(window._globalCajaChica);
+        });
+
         db.ref('clientes').on('value', snap => {
             todos = [];
             snap.forEach(c => {
@@ -276,6 +298,11 @@
         document.getElementById('c-cobrado').textContent  = fmt(cobrado);
         document.getElementById('c-diarios').textContent  = diarios;
         document.getElementById('c-semanales').textContent= semanales;
+        // Totales globales
+        if (document.getElementById('c-capital-inv'))
+            document.getElementById('c-capital-inv').textContent = fmt(window._globalCapitalInv || 0);
+        if (document.getElementById('c-cajachica-global'))
+            document.getElementById('c-cajachica-global').textContent = fmt(window._globalCajaChica || 0);
         document.getElementById('consolidado').style.display = visibles.length ? 'grid' : 'none';
     }
 

@@ -543,7 +543,11 @@
                     <span class="stat-val" id="cobrado-hoy">$0.00</span>
                 </div>
                 <div class="sidebar-stat" style="border-top:1px solid var(--border);padding-top:0.5rem">
-                    <span class="stat-label">Saldo en Caja Chica</span>
+                    <span class="stat-label">Capital invertido</span>
+                    <span class="stat-val" id="capital-invertido" style="color:var(--accent)">$0.00</span>
+                </div>
+                <div class="sidebar-stat" style="border-top:1px solid var(--border);padding-top:0.5rem">
+                    <span class="stat-label">Caja Chica disponible</span>
                     <span class="stat-val" id="saldo-caja" style="color:#10b981">$0.00</span>
                 </div>
                 <div style="display:flex;flex-direction:column;gap:0.4rem;padding-top:0.5rem;border-top:1px solid var(--border)">
@@ -563,6 +567,10 @@
                     <button class="btn btn-ghost btn-sm" style="justify-content:center;width:100%"
                             onclick="location.href='reporte-activos.html'">
                         📊 Reporte clientes activos
+                    </button>
+                    <button class="btn btn-ghost btn-sm" style="justify-content:center;width:100%;border-color:rgba(245,158,11,0.4);color:#b45309"
+                            onclick="modalConfigurarFinanzas()">
+                        ⚙️ Configurar Capital Inicial
                     </button>
                 </div>
             </div>
@@ -640,9 +648,21 @@ function initFirebase() {
 
 function escucharClientes() {
     const hoy = new Date().toISOString().split('T')[0];
+
+    // Escuchar finanzas globales
+    db.ref('config/finanzas').on('value', snapCfg => {
+        const cfg = snapCfg.val() || {};
+        const cajaChica      = parseFloat(cfg.cajaChica || 0);
+        const capitalInv     = parseFloat(cfg.capitalInvertido || 0);
+        const elCaja = document.getElementById('saldo-caja');
+        const elCap  = document.getElementById('capital-invertido');
+        if (elCaja) elCaja.textContent = '$' + cajaChica.toFixed(2);
+        if (elCap)  elCap.textContent  = '$' + capitalInv.toFixed(2);
+    });
+
     db.ref('clientes').on('value', snap => {
         allClients = {};
-        let activos = 0, cobradoHoy = 0, pendientes = 0, cajachicaTotal = 0;
+        let activos = 0, cobradoHoy = 0, pendientes = 0;
 
         snap.forEach(c => {
             const v = c.val();
@@ -653,15 +673,12 @@ function escucharClientes() {
                     if (cuo.pagada && cuo.fecha_ISO === hoy)
                         cobradoHoy += parseFloat(cuo.valorPagado || 0);
                 });
-                cajachicaTotal += parseFloat(v.cajachica || 0);
             }
             if (v.tipo === 'PENDIENTE') pendientes++;
         });
 
         document.getElementById('total-activos').textContent = activos;
         document.getElementById('cobrado-hoy').textContent   = '$' + cobradoHoy.toFixed(2);
-        const elCaja = document.getElementById('saldo-caja');
-        if (elCaja) elCaja.textContent = '$' + cajachicaTotal.toFixed(2);
         const badge = document.getElementById('badge-pendientes');
         if (pendientes > 0) {
             badge.textContent = pendientes;
@@ -1093,100 +1110,195 @@ async function eliminarCliente() {
 async function archivarCliente() {
     const s = allClients[currentId];
     if (!s) return;
-    if (!confirm('¿Archivar a ' + (s.nombre||'este cliente') + '?\nSu ficha pasará al Archivo. Podrás crear un nuevo crédito desde ahí.')) return;
+    if (!confirm('¿Archivar a ' + (s.nombre||'este cliente') + '?\nSu ficha pasará al Archivo y lo cobrado sumará a Caja Chica.')) return;
+
     const fechaArchivo = new Date().toLocaleDateString('es-SV');
-    await db.ref('clientes/' + currentId).update({ tipo: 'ARCHIVO', fechaArchivo });
+    const totalCobrado = parseFloat((parseFloat(s.total||0) - parseFloat(s.saldo||0)).toFixed(2));
+
+    const snapCfg = await db.ref('config/finanzas').once('value');
+    const cfg = snapCfg.val() || {};
+    const nuevaCaja = parseFloat((parseFloat(cfg.cajaChica||0) + totalCobrado).toFixed(2));
+
+    await Promise.all([
+        db.ref('clientes/' + currentId).update({ tipo: 'ARCHIVO', fechaArchivo }),
+        db.ref('config/finanzas').update({ cajaChica: nuevaCaja })
+    ]);
+
     currentId = null;
     document.getElementById('panel').style.display = 'none';
     document.getElementById('welcome').style.display = 'flex';
-    toast('✓ Cliente archivado', 'success');
+    toast('✓ Archivado · $' + totalCobrado.toFixed(2) + ' sumados a Caja Chica', 'success');
 }
 
-// ─── NUEVO CRÉDITO DESDE ARCHIVO ─────────────────────────────────────────
+// ─── NUEVO CRÉDITO (desde Activo saldado o desde Archivo) ──────────────
 function modalNuevoCredito() {
     const s = allClients[currentId];
     if (!s) return;
     const hoy = new Date().toISOString().split('T')[0];
 
-    const modal = document.createElement('div');
-    modal.id = 'modal-nuevo-credito';
-    modal.style.cssText = `position:fixed;inset:0;z-index:8000;background:rgba(15,23,42,0.7);
-        backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:1rem;overflow-y:auto`;
+    // Leer caja chica global para mostrarlo en el modal
+    db.ref('config/finanzas').once('value').then(snapCfg => {
+        const cfg = snapCfg.val() || {};
+        const cajaChicaGlobal = parseFloat(cfg.cajaChica || 0);
+        const capitalInvertido = parseFloat(cfg.capitalInvertido || 0);
 
-    modal.innerHTML = `
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:1.25rem;
-                width:min(96vw,500px);max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.15)">
-        <div style="padding:1.25rem 1.5rem;border-bottom:1px solid var(--border);
-                    display:flex;justify-content:space-between;align-items:center;
-                    position:sticky;top:0;background:var(--surface);z-index:1">
-            <div>
-                <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.1rem;color:var(--text)">
-                    🔄 Nuevo Crédito
-                </div>
-                <div style="font-size:0.65rem;color:var(--muted2);margin-top:0.1rem">${s.nombre||'—'} — Renovar desde Archivo</div>
-            </div>
-            <button onclick="document.getElementById('modal-nuevo-credito').remove()"
-                    style="background:var(--surface2);border:1px solid var(--border2);border-radius:0.5rem;
-                           padding:0.35rem 0.6rem;cursor:pointer;color:var(--muted2);font-size:0.75rem">✕</button>
-        </div>
-        <div style="padding:1.25rem;display:flex;flex-direction:column;gap:1rem">
-            <p style="font-size:0.75rem;color:var(--muted2);background:var(--surface2);border-radius:0.6rem;padding:0.75rem">
-                Se duplicará la ficha del cliente con <strong>cuenta a cero</strong>. Elige el nuevo monto y periodo y el cliente volverá a Activos.
-            </p>
+        const modal = document.createElement('div');
+        modal.id = 'modal-nuevo-credito';
+        modal.style.cssText = `position:fixed;inset:0;z-index:8000;background:rgba(15,23,42,0.7);
+            backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:1rem;overflow-y:auto`;
 
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+        modal.innerHTML = `
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:1.25rem;
+                    width:min(96vw,520px);max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.15)">
+            <div style="padding:1.25rem 1.5rem;border-bottom:1px solid var(--border);
+                        display:flex;justify-content:space-between;align-items:center;
+                        position:sticky;top:0;background:var(--surface);z-index:1">
                 <div>
-                    <div style="font-size:0.6rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted2);margin-bottom:0.4rem">Nuevo monto</div>
-                    <select id="nc-monto" onchange="recalcNC()"
-                            style="width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:0.5rem;
-                                   padding:0.6rem 0.75rem;color:var(--text);font-family:'JetBrains Mono',monospace;
-                                   font-size:0.9rem;font-weight:700;outline:none">
-                        ${['50','100','150','200','250','300','400','500'].map(v =>
-                            `<option value="${v}" ${String(Math.round(parseFloat(s.monto||200)))===v?'selected':''}>$${v}</option>`
-                        ).join('')}
-                    </select>
+                    <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.1rem;color:var(--text)">🔄 Nuevo Crédito</div>
+                    <div style="font-size:0.65rem;color:var(--muted2);margin-top:0.1rem">${s.nombre||'—'}</div>
                 </div>
+                <button onclick="document.getElementById('modal-nuevo-credito').remove()"
+                        style="background:var(--surface2);border:1px solid var(--border2);border-radius:0.5rem;
+                               padding:0.35rem 0.6rem;cursor:pointer;color:var(--muted2);font-size:0.75rem">✕</button>
+            </div>
+            <div style="padding:1.25rem;display:flex;flex-direction:column;gap:1rem">
+
+                <!-- INFO FINANCIERA GLOBAL -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem">
+                    <div style="background:rgba(14,165,233,0.07);border:1px solid rgba(14,165,233,0.25);border-radius:0.6rem;padding:0.75rem">
+                        <div style="font-size:0.55rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:0.2rem">Capital invertido total</div>
+                        <div style="font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--accent);font-size:1rem">$${capitalInvertido.toFixed(2)}</div>
+                    </div>
+                    <div style="background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.25);border-radius:0.6rem;padding:0.75rem">
+                        <div style="font-size:0.55rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:0.2rem">Caja Chica disponible</div>
+                        <div style="font-family:'JetBrains Mono',monospace;font-weight:700;color:#10b981;font-size:1rem">$${cajaChicaGlobal.toFixed(2)}</div>
+                    </div>
+                </div>
+
+                <!-- PROCEDENCIA DE CAPITAL -->
                 <div>
-                    <div style="font-size:0.6rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted2);margin-bottom:0.4rem">Frecuencia</div>
-                    <select id="nc-frec" onchange="recalcNC()"
-                            style="width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:0.5rem;
-                                   padding:0.6rem 0.75rem;color:var(--text);font-family:'Instrument Sans',sans-serif;
-                                   font-size:0.85rem;font-weight:600;outline:none">
-                        <option value="diario" ${(s.frecuencia||'diario')==='diario'?'selected':''}>Diario (30 pagos)</option>
-                        <option value="semanal" ${s.frecuencia==='semanal'?'selected':''}>Semanal (4 pagos)</option>
-                    </select>
+                    <div style="font-size:0.6rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted2);margin-bottom:0.6rem">💼 Procedencia del Capital</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem">
+                        <div id="opt-inyeccion"
+                             onclick="selProcNC('inyeccion')"
+                             style="border:2px solid var(--border2);background:var(--surface2);border-radius:0.75rem;
+                                    padding:0.85rem 0.75rem;cursor:pointer;text-align:center;transition:all 0.2s">
+                            <div style="font-size:1.3rem;margin-bottom:0.3rem">💰</div>
+                            <div style="font-size:0.72rem;font-weight:800;color:var(--muted2)">Inyección de fondo</div>
+                            <div style="font-size:0.6rem;color:var(--muted2);margin-top:0.15rem">Dinero nuevo · sube capital</div>
+                        </div>
+                        <div id="opt-recogido"
+                             onclick="selProcNC('recogido')"
+                             style="border:2px solid var(--accent);background:var(--accent-dim);border-radius:0.75rem;
+                                    padding:0.85rem 0.75rem;cursor:pointer;text-align:center;transition:all 0.2s">
+                            <div style="font-size:1.3rem;margin-bottom:0.3rem">🔄</div>
+                            <div style="font-size:0.72rem;font-weight:800;color:var(--accent)">Dinero recogido</div>
+                            <div style="font-size:0.6rem;color:var(--muted2);margin-top:0.15rem">Sale de Caja Chica</div>
+                        </div>
+                    </div>
+                    <input type="hidden" id="nc-procedencia" value="recogido">
                 </div>
-            </div>
 
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem">
-                <div style="background:var(--surface2);border:1px solid var(--border);border-radius:0.6rem;padding:0.75rem">
-                    <div style="font-size:0.55rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:0.25rem">Total a pagar (20%)</div>
-                    <div id="nc-total" style="font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--accent);font-size:1rem">$0.00</div>
+                <!-- MONTO Y FRECUENCIA -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+                    <div>
+                        <div style="font-size:0.6rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted2);margin-bottom:0.4rem">Monto del crédito</div>
+                        <select id="nc-monto" onchange="recalcNC()"
+                                style="width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:0.5rem;
+                                       padding:0.6rem 0.75rem;color:var(--text);font-family:'JetBrains Mono',monospace;
+                                       font-size:0.9rem;font-weight:700;outline:none">
+                            ${['50','100','150','200','250','300','400','500'].map(v =>
+                                `<option value="${v}" ${String(Math.round(parseFloat(s.monto||200)))===v?'selected':''}>$${v}</option>`
+                            ).join('')}
+                        </select>
+                    </div>
+                    <div>
+                        <div style="font-size:0.6rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted2);margin-bottom:0.4rem">Frecuencia</div>
+                        <select id="nc-frec" onchange="recalcNC()"
+                                style="width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:0.5rem;
+                                       padding:0.6rem 0.75rem;color:var(--text);font-family:'Instrument Sans',sans-serif;
+                                       font-size:0.85rem;font-weight:600;outline:none">
+                            <option value="diario" ${(s.frecuencia||'diario')==='diario'?'selected':''}>Diario (30 pagos)</option>
+                            <option value="semanal" ${s.frecuencia==='semanal'?'selected':''}>Semanal (4 pagos)</option>
+                        </select>
+                    </div>
                 </div>
-                <div style="background:var(--surface2);border:1px solid var(--border);border-radius:0.6rem;padding:0.75rem">
-                    <div style="font-size:0.55rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:0.25rem">Cuota por pago</div>
-                    <div id="nc-cuota" style="font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--text);font-size:1rem">$0.00</div>
+
+                <!-- TOTALES PREVIEW -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem">
+                    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:0.6rem;padding:0.75rem">
+                        <div style="font-size:0.55rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:0.25rem">Total a pagar (20%)</div>
+                        <div id="nc-total" style="font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--accent);font-size:1rem">$0.00</div>
+                    </div>
+                    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:0.6rem;padding:0.75rem">
+                        <div style="font-size:0.55rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:0.25rem">Cuota por pago</div>
+                        <div id="nc-cuota" style="font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--text);font-size:1rem">$0.00</div>
+                    </div>
                 </div>
+
+                <!-- IMPACTO EN CAJA CHICA (visible con "recogido") -->
+                <div id="nc-impacto-caja" style="background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.3);border-radius:0.6rem;padding:0.75rem">
+                    <div style="font-size:0.55rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:#10b981;margin-bottom:0.5rem">Impacto en Caja Chica</div>
+                    <div style="display:flex;justify-content:space-between;font-size:0.72rem;margin-bottom:0.2rem">
+                        <span style="color:var(--muted2)">Caja Chica actual:</span>
+                        <span style="font-family:'JetBrains Mono',monospace;font-weight:700;color:#10b981">$${cajaChicaGlobal.toFixed(2)}</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;font-size:0.72rem;margin-bottom:0.2rem">
+                        <span style="color:var(--muted2)">− Monto a prestar:</span>
+                        <span id="nc-imp-monto" style="font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--danger)">$0.00</span>
+                    </div>
+                    <div style="border-top:1px solid rgba(16,185,129,0.3);padding-top:0.4rem;margin-top:0.4rem;display:flex;justify-content:space-between">
+                        <strong style="font-size:0.72rem">= Caja Chica resultante:</strong>
+                        <strong id="nc-imp-resultado" style="font-family:'JetBrains Mono',monospace;color:#10b981">$0.00</strong>
+                    </div>
+                </div>
+
+                <!-- FECHA -->
+                <div>
+                    <div style="font-size:0.6rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted2);margin-bottom:0.4rem">Fecha de inicio</div>
+                    <input type="date" id="nc-fecha" value="${hoy}"
+                           style="width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:0.5rem;
+                                  padding:0.6rem 0.75rem;color:var(--text);font-family:'JetBrains Mono',monospace;
+                                  font-size:0.85rem;font-weight:600;outline:none">
+                </div>
+
+                <button onclick="confirmarNuevoCredito()"
+                        style="width:100%;background:var(--accent);color:#fff;border:none;border-radius:0.75rem;
+                               padding:0.85rem;font-family:'Syne',sans-serif;font-weight:800;font-size:0.75rem;
+                               letter-spacing:0.1em;text-transform:uppercase;cursor:pointer">
+                    ✓ Activar Nuevo Crédito
+                </button>
             </div>
+        </div>`;
 
-            <div>
-                <div style="font-size:0.6rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted2);margin-bottom:0.4rem">Fecha de inicio</div>
-                <input type="date" id="nc-fecha" value="${hoy}"
-                       style="width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:0.5rem;
-                              padding:0.6rem 0.75rem;color:var(--text);font-family:'JetBrains Mono',monospace;
-                              font-size:0.85rem;font-weight:600;outline:none">
-            </div>
+        document.body.appendChild(modal);
+        // Guardar cajaChica en variable global del modal para usarla en recalcNC
+        window._ncCajaChicaGlobal = cajaChicaGlobal;
+        window._ncCapitalInvertido = capitalInvertido;
+        recalcNC();
+    });
+}
 
-            <button onclick="confirmarNuevoCredito()"
-                    style="width:100%;background:var(--accent);color:#fff;border:none;border-radius:0.75rem;
-                           padding:0.85rem;font-family:'Syne',sans-serif;font-weight:800;font-size:0.75rem;
-                           letter-spacing:0.1em;text-transform:uppercase;cursor:pointer">
-                ✓ Activar Nuevo Crédito
-            </button>
-        </div>
-    </div>`;
-
-    document.body.appendChild(modal);
+function selProcNC(tipo) {
+    document.getElementById('nc-procedencia').value = tipo;
+    const optI = document.getElementById('opt-inyeccion');
+    const optR = document.getElementById('opt-recogido');
+    if (!optI || !optR) return;
+    if (tipo === 'inyeccion') {
+        optI.style.borderColor = 'var(--accent)'; optI.style.background = 'var(--accent-dim)';
+        optI.querySelector('div:nth-child(2)').style.color = 'var(--accent)';
+        optR.style.borderColor = 'var(--border2)'; optR.style.background = 'var(--surface2)';
+        optR.querySelector('div:nth-child(2)').style.color = 'var(--muted2)';
+        const impacto = document.getElementById('nc-impacto-caja');
+        if (impacto) impacto.style.display = 'none';
+    } else {
+        optR.style.borderColor = 'var(--accent)'; optR.style.background = 'var(--accent-dim)';
+        optR.querySelector('div:nth-child(2)').style.color = 'var(--accent)';
+        optI.style.borderColor = 'var(--border2)'; optI.style.background = 'var(--surface2)';
+        optI.querySelector('div:nth-child(2)').style.color = 'var(--muted2)';
+        const impacto = document.getElementById('nc-impacto-caja');
+        if (impacto) impacto.style.display = 'block';
+    }
     recalcNC();
 }
 
@@ -1200,18 +1312,56 @@ function recalcNC() {
     const elC = document.getElementById('nc-cuota');
     if (elT) elT.textContent = '$' + total.toFixed(2);
     if (elC) elC.textContent = '$' + cuota + ' ' + f;
+
+    // Actualizar impacto en caja chica
+    const elImpMonto = document.getElementById('nc-imp-monto');
+    const elImpRes   = document.getElementById('nc-imp-resultado');
+    if (elImpMonto) elImpMonto.textContent = '$' + m.toFixed(2);
+    if (elImpRes) {
+        const caja = window._ncCajaChicaGlobal || 0;
+        const resultado = caja - m;
+        elImpRes.textContent = '$' + Math.max(0, resultado).toFixed(2);
+        elImpRes.style.color = resultado < 0 ? 'var(--danger)' : '#10b981';
+        const impCont = document.getElementById('nc-impacto-caja');
+        if (impCont && resultado < 0) {
+            impCont.style.borderColor = 'rgba(239,68,68,0.4)';
+            impCont.style.background  = 'rgba(239,68,68,0.05)';
+        } else if (impCont) {
+            impCont.style.borderColor = 'rgba(16,185,129,0.3)';
+            impCont.style.background  = 'rgba(16,185,129,0.07)';
+        }
+    }
 }
 
 async function confirmarNuevoCredito() {
     const s = allClients[currentId];
     if (!s) return;
-    const monto   = parseFloat(document.getElementById('nc-monto').value);
-    const frec    = document.getElementById('nc-frec').value;
-    const fechaISO = document.getElementById('nc-fecha').value || new Date().toISOString().split('T')[0];
-    const total   = parseFloat((monto * 1.2).toFixed(2));
-    const nCuotas = frec === 'semanal' ? 4 : 30;
-    const cuota   = parseFloat((total / nCuotas).toFixed(2));
-    const fechaSV = new Date(fechaISO + 'T12:00:00').toLocaleDateString('es-SV');
+    const monto      = parseFloat(document.getElementById('nc-monto').value);
+    const frec       = document.getElementById('nc-frec').value;
+    const fechaISO   = document.getElementById('nc-fecha').value || new Date().toISOString().split('T')[0];
+    const procedencia = document.getElementById('nc-procedencia')?.value || 'recogido';
+    const total      = parseFloat((monto * 1.2).toFixed(2));
+    const nCuotas    = frec === 'semanal' ? 4 : 30;
+    const cuota      = parseFloat((total / nCuotas).toFixed(2));
+    const fechaSV    = new Date(fechaISO + 'T12:00:00').toLocaleDateString('es-SV');
+
+    // Leer config global actual
+    const snapCfg = await db.ref('config/finanzas').once('value');
+    const cfg = snapCfg.val() || {};
+    let cajaChica       = parseFloat(cfg.cajaChica || 0);
+    let capitalInvertido = parseFloat(cfg.capitalInvertido || 0);
+
+    // Validar si alcanza la caja chica
+    if (procedencia === 'recogido') {
+        if (monto > cajaChica + 0.01) {
+            toast(`Caja Chica insuficiente. Disponible: $${cajaChica.toFixed(2)}`, 'error');
+            return;
+        }
+        cajaChica = parseFloat((cajaChica - monto).toFixed(2));
+    } else {
+        // Inyección: sube el capital invertido
+        capitalInvertido = parseFloat((capitalInvertido + monto).toFixed(2));
+    }
 
     function fechasPago(inicio, n, semanal) {
         const base = new Date(inicio + 'T12:00:00');
@@ -1221,43 +1371,66 @@ async function confirmarNuevoCredito() {
             return { iso: d.toISOString().split('T')[0], sv: d.toLocaleDateString('es-SV') };
         });
     }
-    const fechas  = fechasPago(fechaISO, nCuotas, frec === 'semanal');
-    const cuotas  = fechas.map((f, i) => ({
+    const fechas = fechasPago(fechaISO, nCuotas, frec === 'semanal');
+    const cuotas = fechas.map((fec, i) => ({
         n: i+1, valorPagado: cuota, pagada: false,
-        fecha: '', fecha_ISO: '', fecha_prog: f.sv, fecha_prog_sv: f.sv
+        fecha: '', fecha_ISO: '', fecha_prog: fec.sv, fecha_prog_sv: fec.sv
     }));
 
+    // Guardar historial del crédito anterior
+    const historial = Array.isArray(s.historialCreditos) ? [...s.historialCreditos] : [];
+    historial.push({
+        monto:        s.monto || '0',
+        total:        s.total || 0,
+        fechaInicio:  s.fechaInicio || s.fecha || '—',
+        fechaArchivo: new Date().toLocaleDateString('es-SV'),
+        frecuencia:   s.frecuencia || 'diario',
+        procedencia:  s.procedenciaCapital || '—',
+    });
+
+    // El cliente activo reemplaza el mismo nodo (tarjeta en Archivo se preserva
+    // porque el tipo pasa a ACTIVO pero el historial queda en historialCreditos)
     const nuevoCliente = {
-        id:          s.id || currentId,
-        nombre:      s.nombre || '',
-        dui:         s.dui || '',
-        tel:         s.tel || '',
-        pass:        s.pass || '1234',
-        dirCasa:     s.dirCasa || s.dirVivienda || '',
-        negocio:     s.negocio || '',
-        dirNeg:      s.dirNeg || s.dirNegocio || '',
-        ingresos:    s.ingresos || '',
-        inversion:   s.inversion || '',
-        refNom:      s.refNom || s.refNombre || '',
-        refTel:      s.refTel || '',
-        monto:       String(monto),
-        frecuencia:  frec,
-        fecha:       fechaSV,
-        fechaInicio: fechaSV,
-        tipo:        'ACTIVO',
-        total:       total,
-        saldo:       total,
-        cajachica:   parseFloat(s.cajachica || 0),
-        cuotas:      cuotas,
-        doc_contrato:    s.doc_contrato || '',
-        doc_letra:       s.doc_letra || '',
-        doc_dui_frontal: s.doc_dui_frontal || '',
-        doc_dui_reverso: s.doc_dui_reverso || '',
+        id:                 s.id || currentId,
+        nombre:             s.nombre || '',
+        dui:                s.dui || '',
+        tel:                s.tel || '',
+        pass:               s.pass || '1234',
+        dirCasa:            s.dirCasa || s.dirVivienda || '',
+        negocio:            s.negocio || '',
+        dirNeg:             s.dirNeg || s.dirNegocio || '',
+        ingresos:           s.ingresos || '',
+        inversion:          s.inversion || '',
+        refNom:             s.refNom || s.refNombre || '',
+        refTel:             s.refTel || '',
+        monto:              String(monto),
+        frecuencia:         frec,
+        fecha:              fechaSV,
+        fechaInicio:        fechaSV,
+        tipo:               'ACTIVO',
+        total:              total,
+        saldo:              total,
+        cajachica:          0,
+        procedenciaCapital: procedencia,
+        historialCreditos:  historial,
+        cuotas:             cuotas,
+        doc_contrato:       s.doc_contrato || '',
+        doc_letra:          s.doc_letra || '',
+        doc_dui_frontal:    s.doc_dui_frontal || '',
+        doc_dui_reverso:    s.doc_dui_reverso || '',
     };
 
-    await db.ref('clientes/' + currentId).set(nuevoCliente);
+    // Guardar cliente + actualizar config global en paralelo
+    await Promise.all([
+        db.ref('clientes/' + currentId).set(nuevoCliente),
+        db.ref('config/finanzas').update({ cajaChica, capitalInvertido })
+    ]);
+
     document.getElementById('modal-nuevo-credito')?.remove();
-    toast('✓ Nuevo crédito activado — ' + (s.nombre||''), 'success');
+    const msg = procedencia === 'inyeccion'
+        ? `✓ Crédito activado · Capital invertido: $${capitalInvertido.toFixed(2)}`
+        : `✓ Crédito activado · Caja Chica restante: $${cajaChica.toFixed(2)}`;
+    toast(msg, 'success');
     cambiarTab('activos');
     setTimeout(() => renderPanel(currentId), 400);
 }
@@ -1647,6 +1820,31 @@ function aprobarSolicitud(id) {
                 </div>
             </div>
 
+            <!-- PROCEDENCIA DE CAPITAL -->
+            <div>
+                <div style="font-size:0.6rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;
+                            color:var(--muted2);margin-bottom:0.5rem">💼 Procedencia del Capital</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem">
+                    <div id="ap-opt-inyeccion"
+                         onclick="selProcAP('inyeccion')"
+                         style="border:2px solid var(--border2);background:var(--surface2);border-radius:0.75rem;
+                                padding:0.75rem;cursor:pointer;text-align:center;transition:all 0.2s">
+                        <div style="font-size:1.2rem;margin-bottom:0.25rem">💰</div>
+                        <div style="font-size:0.7rem;font-weight:800;color:var(--muted2)">Inyección de fondo</div>
+                        <div style="font-size:0.58rem;color:var(--muted2);margin-top:0.1rem">Dinero nuevo · sube capital</div>
+                    </div>
+                    <div id="ap-opt-recogido"
+                         onclick="selProcAP('recogido')"
+                         style="border:2px solid var(--accent);background:var(--accent-dim);border-radius:0.75rem;
+                                padding:0.75rem;cursor:pointer;text-align:center;transition:all 0.2s">
+                        <div style="font-size:1.2rem;margin-bottom:0.25rem">🔄</div>
+                        <div style="font-size:0.7rem;font-weight:800;color:var(--accent)">Dinero recogido</div>
+                        <div style="font-size:0.58rem;color:var(--muted2);margin-top:0.1rem">Sale de Caja Chica</div>
+                    </div>
+                </div>
+                <input type="hidden" id="ap-procedencia" value="recogido">
+            </div>
+
             <!-- fecha desembolso -->
             <div>
                 <div style="font-size:0.6rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;
@@ -1784,13 +1982,28 @@ async function confirmarAprobacion() {
     const s = allClients[aprobandoId];
     if (!s) return;
 
-    const btn      = document.getElementById('ap-btn-confirmar');
-    const bar      = document.getElementById('ap-upload-bar');
-    const msg      = document.getElementById('ap-upload-msg');
-    const fechaISO = document.getElementById('ap-fecha').value;
-    const pass     = document.getElementById('ap-pass').value || '1234';
+    const btn       = document.getElementById('ap-btn-confirmar');
+    const bar       = document.getElementById('ap-upload-bar');
+    const msg       = document.getElementById('ap-upload-msg');
+    const fechaISO  = document.getElementById('ap-fecha').value;
+    const pass      = document.getElementById('ap-pass').value || '1234';
+    const procedencia = document.getElementById('ap-procedencia')?.value || 'recogido';
 
     if (!fechaISO) { toast('Selecciona la fecha de desembolso', 'error'); return; }
+
+    // Leer config global
+    const snapCfg = await db.ref('config/finanzas').once('value');
+    const cfg = snapCfg.val() || {};
+    let cajaChica        = parseFloat(cfg.cajaChica || 0);
+    let capitalInvertido = parseFloat(cfg.capitalInvertido || 0);
+
+    const monto = parseFloat(document.getElementById('ap-monto')?.value) || parseFloat(s.monto) || 0;
+
+    // Validar caja chica si es dinero recogido
+    if (procedencia === 'recogido' && monto > cajaChica + 0.01) {
+        toast(`Caja Chica insuficiente. Disponible: $${cajaChica.toFixed(2)}`, 'error');
+        return;
+    }
 
     btn.disabled    = true;
     btn.textContent = 'Procesando…';
@@ -1798,150 +2011,107 @@ async function confirmarAprobacion() {
 
     const esSemanl = (s.frecuencia || 'diario') === 'semanal';
     const nCuotas  = esSemanl ? 4 : 30;
-    const monto    = parseFloat(document.getElementById('ap-monto')?.value) || parseFloat(s.monto) || 0;
     const total    = parseFloat((monto * 1.2).toFixed(2));
     const cuota    = parseFloat((total / nCuotas).toFixed(2));
     const base     = new Date(fechaISO + 'T12:00:00');
 
-    // Generar cuotas con fechas programadas
     const cuotas = Array.from({length: nCuotas}, (_, i) => {
         const d = new Date(base);
         d.setDate(d.getDate() + (esSemanl ? (i+1)*7 : (i+1)));
         const iso = d.toISOString().split('T')[0];
         return {
-            n:             i + 1,
-            valorPagado:   cuota,
-            pagada:        false,
-            fecha:         '',
-            fecha_ISO:     '',
-            fecha_prog:    iso,
+            n: i + 1, valorPagado: cuota, pagada: false,
+            fecha: '', fecha_ISO: '', fecha_prog: iso,
             fecha_prog_sv: d.toLocaleDateString('es-SV')
         };
     });
 
-    // Subir documentos si los hay
     let urlContrato   = s.doc_contrato   || '';
     let urlLetra      = s.doc_letra      || '';
     let urlDuiFrontal = s.doc_dui_frontal || '';
     let urlDuiReverso = s.doc_dui_reverso || '';
 
     try {
-        // --- subida contrato ---
         if (docAprobFiles.contrato) {
-            msg.textContent = 'Subiendo contrato…';
-            bar.style.width = '5%';
+            msg.textContent = 'Subiendo contrato…'; bar.style.width = '5%';
             const file = docAprobFiles.contrato;
             const ext  = file.name.split('.').pop();
-            const path = `clientes/${aprobandoId}/contrato_${Date.now()}.${ext}`;
             urlContrato = await new Promise((res, rej) => {
-                const task = storage.ref(path).put(file);
-                task.on('state_changed',
-                    snap => { bar.style.width = (5 + snap.bytesTransferred/snap.totalBytes*20) + '%'; },
-                    rej, async () => res(await task.snapshot.ref.getDownloadURL())
-                );
+                const task = storage.ref(`clientes/${aprobandoId}/contrato_${Date.now()}.${ext}`).put(file);
+                task.on('state_changed', snap => { bar.style.width = (5 + snap.bytesTransferred/snap.totalBytes*20) + '%'; }, rej, async () => res(await task.snapshot.ref.getDownloadURL()));
             });
             bar.style.width = '25%';
         }
-
-        // --- subida letra ---
         if (docAprobFiles.letra) {
-            msg.textContent = 'Subiendo letra de cambio…';
-            bar.style.width = '25%';
+            msg.textContent = 'Subiendo letra…'; bar.style.width = '25%';
             const file = docAprobFiles.letra;
             const ext  = file.name.split('.').pop();
-            const path = `clientes/${aprobandoId}/letra_${Date.now()}.${ext}`;
             urlLetra = await new Promise((res, rej) => {
-                const task = storage.ref(path).put(file);
-                task.on('state_changed',
-                    snap => { bar.style.width = (25 + snap.bytesTransferred/snap.totalBytes*20) + '%'; },
-                    rej, async () => res(await task.snapshot.ref.getDownloadURL())
-                );
+                const task = storage.ref(`clientes/${aprobandoId}/letra_${Date.now()}.${ext}`).put(file);
+                task.on('state_changed', snap => { bar.style.width = (25 + snap.bytesTransferred/snap.totalBytes*20) + '%'; }, rej, async () => res(await task.snapshot.ref.getDownloadURL()));
             });
             bar.style.width = '50%';
         }
-
-        // --- subida DUI frontal ---
         if (docAprobFiles.dui_frontal) {
             msg.textContent = 'Subiendo DUI frontal…';
-            const file = docAprobFiles.dui_frontal;
-            const ext  = file.name.split('.').pop();
-            const path = `clientes/${aprobandoId}/dui_frontal_${Date.now()}.${ext}`;
+            const file = docAprobFiles.dui_frontal; const ext = file.name.split('.').pop();
             urlDuiFrontal = await new Promise((res, rej) => {
-                const task = storage.ref(path).put(file);
-                task.on('state_changed',
-                    snap => { bar.style.width = (50 + snap.bytesTransferred/snap.totalBytes*20) + '%'; },
-                    rej, async () => res(await task.snapshot.ref.getDownloadURL())
-                );
+                const task = storage.ref(`clientes/${aprobandoId}/dui_frontal_${Date.now()}.${ext}`).put(file);
+                task.on('state_changed', snap => { bar.style.width = (50 + snap.bytesTransferred/snap.totalBytes*20) + '%'; }, rej, async () => res(await task.snapshot.ref.getDownloadURL()));
             });
             bar.style.width = '70%';
         }
-
-        // --- subida DUI reverso ---
         if (docAprobFiles.dui_reverso) {
             msg.textContent = 'Subiendo DUI reverso…';
-            const file = docAprobFiles.dui_reverso;
-            const ext  = file.name.split('.').pop();
-            const path = `clientes/${aprobandoId}/dui_reverso_${Date.now()}.${ext}`;
+            const file = docAprobFiles.dui_reverso; const ext = file.name.split('.').pop();
             urlDuiReverso = await new Promise((res, rej) => {
-                const task = storage.ref(path).put(file);
-                task.on('state_changed',
-                    snap => { bar.style.width = (70 + snap.bytesTransferred/snap.totalBytes*15) + '%'; },
-                    rej, async () => res(await task.snapshot.ref.getDownloadURL())
-                );
+                const task = storage.ref(`clientes/${aprobandoId}/dui_reverso_${Date.now()}.${ext}`).put(file);
+                task.on('state_changed', snap => { bar.style.width = (70 + snap.bytesTransferred/snap.totalBytes*15) + '%'; }, rej, async () => res(await task.snapshot.ref.getDownloadURL()));
             });
             bar.style.width = '85%';
         }
 
-        // --- construir objeto completo y guardar con set() ---
-        msg.textContent = 'Guardando en base de datos…';
+        msg.textContent = 'Guardando…';
+        const fechaSV = new Date(fechaISO + 'T12:00:00').toLocaleDateString('es-SV');
 
-        const fechaSV   = new Date(fechaISO + 'T12:00:00').toLocaleDateString('es-SV');
+        // Actualizar finanzas globales
+        if (procedencia === 'recogido') {
+            cajaChica = parseFloat((cajaChica - monto).toFixed(2));
+        } else {
+            capitalInvertido = parseFloat((capitalInvertido + monto).toFixed(2));
+        }
 
-        // Partir el objeto en dos operaciones separadas para evitar
-        // problemas con el array cuotas en update()
         const datosBase = {
-            // conservar todo lo del cliente original
-            id:           s.id || aprobandoId,
-            nombre:       s.nombre       || '',
-            dui:          s.dui          || '',
-            tel:          s.tel          || '',
-            dirCasa:      s.dirCasa      || s.dirVivienda || '',
-            negocio:      s.negocio      || '',
-            dirNeg:       s.dirNeg       || s.dirNegocio || '',
-            ingresos:     s.ingresos     || '',
-            inversion:    s.inversion    || '',
-            refNom:       s.refNom       || s.refNombre || '',
-            refTel:       s.refTel       || '',
-            monto:        String(monto),
-            frecuencia:   s.frecuencia   || 'diario',
-            fecha:        s.fecha        || fechaSV,
-            // nuevos campos de aprobación
-            tipo:         'ACTIVO',
-            pass:         pass,
-            total:        total,
-            saldo:        total,
-            fechaInicio:  fechaSV,
-            cuotas:       cuotas,
-            doc_contrato:    urlContrato,
-            doc_letra:       urlLetra,
-            doc_dui_frontal: urlDuiFrontal,
-            doc_dui_reverso: urlDuiReverso,
+            id: s.id || aprobandoId,
+            nombre: s.nombre || '', dui: s.dui || '', tel: s.tel || '',
+            dirCasa: s.dirCasa || s.dirVivienda || '', negocio: s.negocio || '',
+            dirNeg: s.dirNeg || s.dirNegocio || '', ingresos: s.ingresos || '',
+            inversion: s.inversion || '', refNom: s.refNom || s.refNombre || '',
+            refTel: s.refTel || '', monto: String(monto),
+            frecuencia: s.frecuencia || 'diario',
+            fecha: s.fecha || fechaSV,
+            tipo: 'ACTIVO', pass, total, saldo: total,
+            fechaInicio: fechaSV, cuotas,
+            cajachica: 0,
+            procedenciaCapital: procedencia,
+            doc_contrato: urlContrato, doc_letra: urlLetra,
+            doc_dui_frontal: urlDuiFrontal, doc_dui_reverso: urlDuiReverso,
         };
 
-        // Usar set() en lugar de update() para escritura completa y limpia
-        await db.ref('clientes/' + aprobandoId).set(datosBase);
+        await Promise.all([
+            db.ref('clientes/' + aprobandoId).set(datosBase),
+            db.ref('config/finanzas').update({ cajaChica, capitalInvertido })
+        ]);
 
         bar.style.width = '100%';
         msg.textContent = '¡Aprobado!';
         msg.style.color = 'var(--accent)';
+        document.getElementById('modal-aprobacion')?.remove();
 
-        // Cerrar modal
-        const modalEl = document.getElementById('modal-aprobacion');
-        if (modalEl) modalEl.remove();
-
-        toast('✓ Crédito aprobado — ' + (s.nombre||''), 'success');
-
-        // Abrir la ficha del cliente recién aprobado
+        const toastMsg = procedencia === 'inyeccion'
+            ? `✓ Aprobado · Capital invertido: $${capitalInvertido.toFixed(2)}`
+            : `✓ Aprobado · Caja Chica restante: $${cajaChica.toFixed(2)}`;
+        toast(toastMsg, 'success');
         setTimeout(() => renderPanel(aprobandoId), 400);
 
     } catch (err) {
@@ -1949,9 +2119,27 @@ async function confirmarAprobacion() {
         msg.textContent = 'Error: ' + err.message;
         msg.style.color = 'var(--danger)';
         toast('Error: ' + err.message, 'error');
-        btn.disabled    = false;
+        btn.disabled = false;
         btn.textContent = '✓ Confirmar Aprobación';
         bar.style.width = '0';
+    }
+}
+
+function selProcAP(tipo) {
+    document.getElementById('ap-procedencia').value = tipo;
+    const optI = document.getElementById('ap-opt-inyeccion');
+    const optR = document.getElementById('ap-opt-recogido');
+    if (!optI || !optR) return;
+    if (tipo === 'inyeccion') {
+        optI.style.borderColor = 'var(--accent)'; optI.style.background = 'var(--accent-dim)';
+        optI.querySelector('div:nth-child(2)').style.color = 'var(--accent)';
+        optR.style.borderColor = 'var(--border2)'; optR.style.background = 'var(--surface2)';
+        optR.querySelector('div:nth-child(2)').style.color = 'var(--muted2)';
+    } else {
+        optR.style.borderColor = 'var(--accent)'; optR.style.background = 'var(--accent-dim)';
+        optR.querySelector('div:nth-child(2)').style.color = 'var(--accent)';
+        optI.style.borderColor = 'var(--border2)'; optI.style.background = 'var(--surface2)';
+        optI.querySelector('div:nth-child(2)').style.color = 'var(--muted2)';
     }
 }
 
@@ -2155,6 +2343,74 @@ function exportarCartera() {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Cartera');
     XLSX.writeFile(wb, 'Cartera_CrediListo.xlsx');
+}
+
+// ─── CONFIGURAR FINANZAS GLOBALES ────────────────────────────────────────
+function modalConfigurarFinanzas() {
+    db.ref('config/finanzas').once('value').then(snap => {
+        const cfg = snap.val() || {};
+        const capital = parseFloat(cfg.capitalInvertido || 0);
+        const caja    = parseFloat(cfg.cajaChica || 0);
+
+        const modal = document.createElement('div');
+        modal.id = 'modal-config-finanzas';
+        modal.style.cssText = `position:fixed;inset:0;z-index:8000;background:rgba(15,23,42,0.7);
+            backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:1rem`;
+        modal.innerHTML = `
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:1.25rem;
+                    width:min(96vw,420px);box-shadow:0 20px 60px rgba(0,0,0,0.15)">
+            <div style="padding:1.25rem 1.5rem;border-bottom:1px solid var(--border);
+                        display:flex;justify-content:space-between;align-items:center">
+                <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:1rem">⚙️ Finanzas Globales</div>
+                <button onclick="document.getElementById('modal-config-finanzas').remove()"
+                        style="background:var(--surface2);border:1px solid var(--border2);border-radius:0.5rem;
+                               padding:0.35rem 0.6rem;cursor:pointer;color:var(--muted2);font-size:0.75rem">✕</button>
+            </div>
+            <div style="padding:1.25rem;display:flex;flex-direction:column;gap:1rem">
+                <p style="font-size:0.73rem;color:var(--muted2);background:rgba(245,158,11,0.07);
+                           border:1px solid rgba(245,158,11,0.25);border-radius:0.6rem;padding:0.75rem">
+                    ⚠️ Estos valores son la base financiera del sistema. Ajústalos solo si necesitas corregir el capital inicial o la caja chica.
+                </p>
+                <div>
+                    <div style="font-size:0.6rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted2);margin-bottom:0.4rem">Capital Invertido Total ($)</div>
+                    <input type="number" id="cfg-capital" value="${capital.toFixed(2)}" step="0.01" min="0"
+                           style="width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:0.5rem;
+                                  padding:0.7rem 0.75rem;color:var(--text);font-family:'JetBrains Mono',monospace;
+                                  font-size:1.1rem;font-weight:700;outline:none">
+                    <div style="font-size:0.6rem;color:var(--muted2);margin-top:0.3rem">Suma total de dinero real que has puesto a circular</div>
+                </div>
+                <div>
+                    <div style="font-size:0.6rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted2);margin-bottom:0.4rem">Caja Chica Disponible ($)</div>
+                    <input type="number" id="cfg-caja" value="${caja.toFixed(2)}" step="0.01" min="0"
+                           style="width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:0.5rem;
+                                  padding:0.7rem 0.75rem;color:var(--text);font-family:'JetBrains Mono',monospace;
+                                  font-size:1.1rem;font-weight:700;outline:none">
+                    <div style="font-size:0.6rem;color:var(--muted2);margin-top:0.3rem">Dinero cobrado disponible para reinvertir en nuevos créditos</div>
+                </div>
+                <div style="display:flex;gap:0.5rem">
+                    <button onclick="document.getElementById('modal-config-finanzas').remove()"
+                            style="flex:1;background:var(--surface2);border:1px solid var(--border2);border-radius:0.6rem;
+                                   padding:0.7rem;cursor:pointer;font-weight:700;font-size:0.75rem;color:var(--muted2)">Cancelar</button>
+                    <button onclick="guardarConfigFinanzas()"
+                            style="flex:2;background:#b45309;color:#fff;border:none;border-radius:0.6rem;
+                                   padding:0.7rem;cursor:pointer;font-family:'Syne',sans-serif;font-weight:800;
+                                   font-size:0.75rem;letter-spacing:0.1em;text-transform:uppercase">
+                        ✓ Guardar
+                    </button>
+                </div>
+            </div>
+        </div>`;
+        document.body.appendChild(modal);
+    });
+}
+
+async function guardarConfigFinanzas() {
+    const capital = parseFloat(document.getElementById('cfg-capital')?.value || 0);
+    const caja    = parseFloat(document.getElementById('cfg-caja')?.value || 0);
+    if (isNaN(capital) || isNaN(caja)) { toast('Valores inválidos', 'error'); return; }
+    await db.ref('config/finanzas').set({ capitalInvertido: capital, cajaChica: caja });
+    document.getElementById('modal-config-finanzas')?.remove();
+    toast(`✓ Finanzas actualizadas · Capital: $${capital.toFixed(2)} · Caja: $${caja.toFixed(2)}`, 'success');
 }
 
 // ─── TOAST ────────────────────────────────────────────────────────────────
