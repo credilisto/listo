@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <title>CrediListo</title>
+    <title>INVER 2 Móvil | CrediListo</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=JetBrains+Mono:wght@500;600;700&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-app-compat.js"></script>
@@ -487,7 +487,7 @@
 
 <script>
 // ── CONFIG ────────────────────────────────────────
-const PIN    = "2025";
+const PIN    = "2030";
 const FB_CFG = {
     apiKey:        "AIzaSyC1GiJitT0QegrVe9o6CHCsvf7sEZELwRk",
     authDomain:    "credilistosv.firebaseapp.com",
@@ -524,20 +524,21 @@ window.addEventListener('pageshow', () => {
 
 // ── FIREBASE ──────────────────────────────────────
 function initFirebase() {
-    firebase.initializeApp(FB_CFG);
-    db      = firebase.database();
-    storage = firebase.storage();
+    firebase.initializeApp(FB_CFG, "mob2");
+    db      = firebase.app("mob2").database();
+    storage = firebase.app("mob2").storage();
     escuchar();
 }
 
 function escuchar() {
     const hoy = new Date().toISOString().split('T')[0];
-    db.ref('clientes').on('value', snap => {
-        allClients = {};
+    let propios = {};
+    let compartidos = {};
+
+    function recalc() {
+        allClients = { ...compartidos, ...propios };
         let activos=0, hoyTotal=0, pendientes=0;
-        snap.forEach(c => {
-            const v = c.val();
-            allClients[c.key] = { ...v, _key: c.key };
+        Object.values(allClients).forEach(v => {
             if (v.tipo === 'ACTIVO') {
                 activos++;
                 (v.cuotas||[]).forEach(cuo => {
@@ -554,6 +555,27 @@ function escuchar() {
         b.style.display = pendientes > 0 ? 'inline' : 'none';
         renderLista();
         if (currentId && allClients[currentId]) renderPanel(currentId);
+    }
+
+    // Solicitudes compartidas del formulario
+    db.ref('clientes').on('value', snap => {
+        compartidos = {};
+        snap.forEach(ch => {
+            const v = ch.val();
+            if (v && v.tipo === 'PENDIENTE')
+                compartidos[ch.key] = { ...v, _key: ch.key, _origen: 'clientes' };
+        });
+        recalc();
+    });
+
+    // Clientes propios INVER 2
+    db.ref('clientes2').on('value', snap => {
+        propios = {};
+        snap.forEach(ch => {
+            const v = ch.val();
+            propios[ch.key] = { ...v, _key: ch.key, _origen: 'clientes2' };
+        });
+        recalc();
     });
 }
 
@@ -710,7 +732,7 @@ async function pagarMob(i) {
     const monto = parseFloat(document.getElementById('mv-'+i).value);
     const fecha = document.getElementById('mf-'+i).value || new Date().toISOString().split('T')[0];
     if (isNaN(monto)||monto<=0) return toast('Monto inválido','error');
-    const snap = await db.ref('clientes/'+currentId).once('value');
+    const snap = await db.ref('clientes2/'+currentId).once('value');
     let s = snap.val();
     s.cuotas[i].pagada      = true;
     s.cuotas[i].valorPagado = monto;
@@ -719,7 +741,7 @@ async function pagarMob(i) {
     let tot = 0;
     s.cuotas.forEach(c => { if(c.pagada) tot += parseFloat(c.valorPagado||0); });
     s.saldo = (parseFloat(s.total)-tot).toFixed(2);
-    await db.ref('clientes/'+currentId).set(s);
+    await db.ref('clientes2/'+currentId).set(s);
     toast('✓ Pago registrado','success');
 }
 
@@ -755,7 +777,7 @@ function renderFichaMob(s) {
 
 async function guardarFichaMob() {
     const g = id => (document.getElementById('mf-'+id)||{}).value||'';
-    await db.ref('clientes/'+currentId).update({
+    await db.ref('clientes2/'+currentId).update({
         nombre: g('nombre').toUpperCase(), dui: g('dui'), tel: g('tel'),
         pass: g('pass'), dirCasa: g('dirCasa'), negocio: g('negocio'),
         dirNeg: g('dirNeg'), ingresos: g('ingresos'), inversion: g('inversion'),
@@ -766,7 +788,7 @@ async function guardarFichaMob() {
 
 async function eliminarClienteMob() {
     if (!confirm('¿Eliminar a '+(allClients[currentId]?.nombre||'este cliente')+'?')) return;
-    await db.ref('clientes/'+currentId).remove();
+    await db.ref('clientes2/'+currentId).remove();
     toast('Cliente eliminado','error');
     irLista();
 }
@@ -816,14 +838,14 @@ async function subirDoc(input, tipo) {
     if (file.size > 20*1024*1024) { toast('Máx 20 MB','error'); input.value=''; return; }
     const bar = document.getElementById('dbar-'+tipo);
     const ext  = file.name.split('.').pop();
-    const path = `clientes/${currentId}/${tipo}_${Date.now()}.${ext}`;
+    const path = `clientes2/${currentId}/${tipo}_${Date.now()}.${ext}`;
     const task = storage.ref(path).put(file);
     task.on('state_changed',
         s => { if(bar) bar.style.width=(s.bytesTransferred/s.totalBytes*100)+'%'; },
         e => { toast('Error: '+e.message,'error'); input.value=''; },
         async () => {
             const url = await task.snapshot.ref.getDownloadURL();
-            await db.ref('clientes/'+currentId).update({['doc_'+tipo]:url});
+            await db.ref('clientes2/'+currentId).update({['doc_'+tipo]:url});
             if(bar) setTimeout(()=>{bar.style.width='0';},800);
             toast('✓ '+labels_doc[tipo]+' guardado','success');
             input.value='';
@@ -884,7 +906,9 @@ function renderSolicitudes() {
 async function rechazar(id) {
     const s = allClients[id];
     if (!confirm('¿Rechazar solicitud de '+(s?.nombre||'?')+'?')) return;
-    await db.ref('clientes/'+id).remove();
+    const origen = allClients[id]?._origen || 'clientes2';
+    if (origen === 'clientes') { await db.ref('clientes/'+id).remove(); }
+    else { await db.ref('clientes2/'+id).remove(); }
     toast('Solicitud rechazada','error');
     renderSolicitudes();
 }
@@ -1051,7 +1075,7 @@ async function confirmarAprobM() {
             msg.textContent = 'Subiendo '+tipo.replace('_',' ')+'…';
             const file = docAprobFiles[tipo];
             const ext  = file.name.split('.').pop();
-            const path = `clientes/${aprobandoId}/${tipo}_${Date.now()}.${ext}`;
+            const path = `clientes2/${aprobandoId}/${tipo}_${Date.now()}.${ext}`;
             urls[tipo]  = await new Promise((res,rej)=>{
                 const task = storage.ref(path).put(file);
                 task.on('state_changed',
@@ -1065,7 +1089,9 @@ async function confirmarAprobM() {
         msg.textContent = 'Guardando…';
         const fechaSV = new Date(fecha+'T12:00:00').toLocaleDateString('es-SV');
 
-        await db.ref('clientes/'+aprobandoId).set({
+        const origenSol = allClients[aprobandoId]?._origen || 'clientes2';
+        if (origenSol === 'clientes') await db.ref('clientes/'+aprobandoId).remove();
+        await db.ref('clientes2/'+aprobandoId).set({
             id: s.id||aprobandoId, nombre:s.nombre||'', dui:s.dui||'', tel:s.tel||'',
             dirCasa:s.dirCasa||s.dirVivienda||'', negocio:s.negocio||'',
             dirNeg:s.dirNeg||s.dirNegocio||'', ingresos:s.ingresos||'',
@@ -1169,7 +1195,7 @@ async function guardarNuevoMob() {
     const nC=d.frecuencia==='semanal'?4:30, cuot=parseFloat((tot/nC).toFixed(2));
     const cuotas=Array.from({length:nC},(_,i)=>({n:i+1,valorPagado:cuot,pagada:false,fecha:''}));
     const id=Date.now();
-    await db.ref('clientes/'+id).set({...d,id,tipo:'ACTIVO',total:tot,saldo:tot,
+    await db.ref('clientes2/'+id).set({...d,id,tipo:'ACTIVO',total:tot,saldo:tot,
         fechaInicio:new Date().toLocaleDateString('es-SV'),cuotas});
     toast('✓ Cliente registrado','success');
     renderNuevo();
@@ -1179,7 +1205,7 @@ async function guardarPendienteMob() {
     const d=getDatosNuevo();
     if(!d.nombre||!d.dui){toast('Nombre y DUI obligatorios','error');return;}
     const id=Date.now();
-    await db.ref('clientes/'+id).set({...d,id,tipo:'PENDIENTE'});
+    await db.ref('clientes2/'+id).set({...d,id,tipo:'PENDIENTE'});
     toast('Guardado como Pendiente','success');
     irExtra('solicitudes');
 }

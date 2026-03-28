@@ -164,14 +164,14 @@
     <h1>Seleccionar Cuenta</h1>
 
     <div class="cards">
-        <a href="gestionar.html" class="card card-1">
+        <a href="#" onclick="entrar(1)" class="card card-1">
             <div class="card-icon">💼</div>
             <div class="card-title">INVER 1</div>
             <div class="card-desc">Cuenta principal<br>Cartera activa</div>
             <button class="card-enter">Ingresar</button>
         </a>
 
-        <a href="gestionar2.html" class="card card-2">
+        <a href="#" onclick="entrar(2)" class="card card-2">
             <div class="card-icon">📂</div>
             <div class="card-title">INVER 2</div>
             <div class="card-desc">Segunda cuenta<br>Cartera independiente</div>
@@ -180,5 +180,19 @@
     </div>
 
     <div class="footer">CrediListo &nbsp;·&nbsp; Sistema de Gestión</div>
+
+    <script>
+    function isMobile() {
+        return /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent)
+            || window.innerWidth <= 768;
+    }
+    function entrar(num) {
+        if (num === 1) {
+            window.location.href = isMobile() ? 'gestionmovil.html' : 'gestionar.html';
+        } else {
+            window.location.href = isMobile() ? 'gestionmovil2.html' : 'gestionar2.html';
+        }
+    }
+    </script>
 </body>
 </html>
