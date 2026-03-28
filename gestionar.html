@@ -629,7 +629,19 @@ function auth() {
     }
 }
 document.addEventListener('DOMContentLoaded', () => {
+    // Siempre mostrar lock al cargar
+    document.getElementById('lock').style.display = 'flex';
+    document.getElementById('app').style.display  = 'none';
+    document.getElementById('pin').value = '';
+    document.getElementById('lock-err').style.display = 'none';
     document.getElementById('pin').addEventListener('keydown', e => { if(e.key==='Enter') auth(); });
+    document.getElementById('pin').focus();
+});
+// Forzar lock al volver con botón atrás del navegador (bfcache)
+window.addEventListener('pageshow', () => {
+    document.getElementById('lock').style.display = 'flex';
+    document.getElementById('app').style.display  = 'none';
+    document.getElementById('pin').value = '';
 });
 
 // ─── FIREBASE ─────────────────────────────────────────────────────────────
