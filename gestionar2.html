@@ -629,20 +629,14 @@ function auth() {
     }
 }
 document.addEventListener('DOMContentLoaded', () => {
-    if (sessionStorage.getItem('cl_auth_2')) {
-        document.getElementById('lock').style.display = 'none';
-        document.getElementById('app').style.display  = 'block';
-        initFirebase();
-    }
     document.getElementById('pin').addEventListener('keydown', e => { if(e.key==='Enter') auth(); });
 });
 
 // ─── FIREBASE ─────────────────────────────────────────────────────────────
 function initFirebase() {
     firebase.initializeApp(FB_CFG, "inver2");
-    db      = firebase.database();
-    storage = firebase.storage();
-    sessionStorage.setItem('cl_auth_2', '1');
+    db      = firebase.app("inver2").database();
+    storage = firebase.app("inver2").storage();
     escucharClientes();
 }
 

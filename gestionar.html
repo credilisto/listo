@@ -629,11 +629,6 @@ function auth() {
     }
 }
 document.addEventListener('DOMContentLoaded', () => {
-    if (sessionStorage.getItem('cl_auth_1')) {
-        document.getElementById('lock').style.display = 'none';
-        document.getElementById('app').style.display  = 'block';
-        initFirebase();
-    }
     document.getElementById('pin').addEventListener('keydown', e => { if(e.key==='Enter') auth(); });
 });
 
@@ -642,7 +637,6 @@ function initFirebase() {
     firebase.initializeApp(FB_CFG);
     db      = firebase.database();
     storage = firebase.storage();
-    sessionStorage.setItem('cl_auth_1', '1');
     escucharClientes();
 }
 
