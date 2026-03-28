@@ -629,7 +629,7 @@ function auth() {
     }
 }
 document.addEventListener('DOMContentLoaded', () => {
-    if (sessionStorage.getItem('cl_auth')) {
+    if (sessionStorage.getItem('cl_auth_2')) {
         document.getElementById('lock').style.display = 'none';
         document.getElementById('app').style.display  = 'block';
         initFirebase();
@@ -642,7 +642,7 @@ function initFirebase() {
     firebase.initializeApp(FB_CFG, "inver2");
     db      = firebase.database();
     storage = firebase.storage();
-    sessionStorage.setItem('cl_auth', '1');
+    sessionStorage.setItem('cl_auth_2', '1');
     escucharClientes();
 }
 
