@@ -5,16 +5,180 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin | CrediListo</title>
     <link rel="manifest" href="manifest.json">
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #050b16;
+            color: #fff;
+            font-family: 'Instrument Sans', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .logo-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.4rem;
+            margin-bottom: 3rem;
+        }
+        .logo-img {
+            height: 36px;
+            opacity: 0.85;
+        }
+        .logo-sub {
+            font-size: 0.55rem;
+            font-weight: 700;
+            letter-spacing: 0.28em;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.4);
+        }
+
+        h1 {
+            font-family: 'Syne', sans-serif;
+            font-weight: 800;
+            font-size: clamp(1rem, 3vw, 1.25rem);
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.6);
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 1.5rem;
+            width: 100%;
+            max-width: 620px;
+        }
+
+        .card {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.09);
+            border-radius: 28px;
+            padding: 2.5rem 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+            transition: transform 0.2s, background 0.2s, border-color 0.2s, box-shadow 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+        .card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            transition: opacity 0.25s;
+        }
+        .card-1::before { background: radial-gradient(circle at 50% 0%, rgba(14,165,233,0.18), transparent 70%); }
+        .card-2::before { background: radial-gradient(circle at 50% 0%, rgba(139,92,246,0.18), transparent 70%); }
+        .card:hover { transform: translateY(-4px); }
+        .card-1:hover { border-color: rgba(14,165,233,0.5); box-shadow: 0 8px 40px rgba(14,165,233,0.15); background: rgba(14,165,233,0.06); }
+        .card-2:hover { border-color: rgba(139,92,246,0.5); box-shadow: 0 8px 40px rgba(139,92,246,0.15); background: rgba(139,92,246,0.06); }
+        .card:hover::before { opacity: 1; }
+
+        .card-icon {
+            width: 64px;
+            height: 64px;
+            border-radius: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            position: relative;
+            z-index: 1;
+        }
+        .card-1 .card-icon { background: rgba(14,165,233,0.12); border: 1px solid rgba(14,165,233,0.25); }
+        .card-2 .card-icon { background: rgba(139,92,246,0.12); border: 1px solid rgba(139,92,246,0.25); }
+
+        .card-title {
+            font-family: 'Syne', sans-serif;
+            font-weight: 800;
+            font-size: 1.4rem;
+            letter-spacing: -0.02em;
+            position: relative;
+            z-index: 1;
+        }
+        .card-1 .card-title { color: #38bdf8; }
+        .card-2 .card-title { color: #a78bfa; }
+
+        .card-desc {
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.35);
+            text-align: center;
+            line-height: 1.5;
+            position: relative;
+            z-index: 1;
+        }
+
+        .card-enter {
+            margin-top: 0.5rem;
+            padding: 0.6rem 1.6rem;
+            border-radius: 999px;
+            font-family: 'Instrument Sans', sans-serif;
+            font-weight: 700;
+            font-size: 0.65rem;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            border: none;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            position: relative;
+            z-index: 1;
+        }
+        .card-1 .card-enter { background: #0ea5e9; color: #fff; }
+        .card-2 .card-enter { background: #8b5cf6; color: #fff; }
+        .card-enter:hover { opacity: 0.85; }
+
+        .footer {
+            margin-top: 3rem;
+            font-size: 0.55rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.2);
+        }
+    </style>
 </head>
-<body class="bg-[#050b16] text-white flex items-center justify-center min-h-screen">
-    <div class="w-full max-w-md p-8 bg-white/5 rounded-[40px] border border-white/10 shadow-2xl text-center">
-        <img src="logocredi.png" alt="Logo" class="h-10 mx-auto mb-8 opacity-80">
-        <h2 class="text-xl font-black uppercase italic mb-6 tracking-widest">Panel de Control</h2>
-        <form action="gestionar.html" class="space-y-4">
-            <input type="password" placeholder="PIN DE ACCESO" class="w-full py-4 bg-white/5 border border-white/10 rounded-2xl text-center font-black tracking-[0.5em] focus:outline-none focus:border-cyan-500 transition-colors">
-            <button class="w-full py-4 bg-white text-[#050b16] rounded-2xl font-black uppercase tracking-widest hover:scale-105 transition-all">Entrar</button>
-        </form>
+<body>
+    <div class="logo-wrap">
+        <img src="logocredi.png" alt="CrediListo" class="logo-img">
+        <span class="logo-sub">Panel de Control</span>
     </div>
+
+    <h1>Seleccionar Cuenta</h1>
+
+    <div class="cards">
+        <a href="gestionar.html" class="card card-1">
+            <div class="card-icon">💼</div>
+            <div class="card-title">INVER 1</div>
+            <div class="card-desc">Cuenta principal<br>Cartera activa</div>
+            <button class="card-enter">Ingresar</button>
+        </a>
+
+        <a href="gestionar2.html" class="card card-2">
+            <div class="card-icon">📂</div>
+            <div class="card-title">INVER 2</div>
+            <div class="card-desc">Segunda cuenta<br>Cartera independiente</div>
+            <button class="card-enter">Ingresar</button>
+        </a>
+    </div>
+
+    <div class="footer">CrediListo &nbsp;·&nbsp; Sistema de Gestión</div>
 </body>
 </html>
