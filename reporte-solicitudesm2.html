@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporte de Solicitudes | CrediListo — INVER 2</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-database-compat.js"></script>
+
+    <style>
+        :root {
+            --ink: #0d1117;
+            --paper: #f5f0e8;
+            --cream: #ede8dc;
+            --rule: #c8bfaa;
+            --accent: #1a472a;
+            --accent2: #8b3a1a;
+            --gold: #c4922a;
+            --muted: #6b6355;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: var(--paper);
+            color: var(--ink);
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            min-height: 100vh;
+        }
+
+        /* ===== PANTALLA DE ACCESO ===== */
+        #lock-screen {
+            position: fixed; inset: 0; z-index: 9999;
+            background: var(--ink);
+            display: flex; align-items: center; justify-content: center;
+            flex-direction: column; gap: 2rem;
+        }
+        #lock-screen .logo {
+            font-family: 'DM Serif Display', serif;
+            font-style: italic;
+            color: var(--paper);
+            font-size: 2.5rem;
+            letter-spacing: -0.02em;
+        }
+        #lock-screen .logo span { color: var(--gold); }
+        #lock-screen .pin-box {
+            background: #1c2333;
+            border: 1px solid #2d3748;
+            border-radius: 1.5rem;
+            padding: 2rem;
+            width: min(90vw, 320px);
+            text-align: center;
+        }
+        #lock-screen label {
+            display: block;
+            font-size: 0.6rem;
+            font-weight: 700;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: #64748b;
+            margin-bottom: 0.75rem;
+        }
+        #lock-screen input {
+            width: 100%;
+            background: #0d1117;
+            border: 1px solid #2d3748;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            text-align: center;
+            font-size: 1.5rem;
+            font-family: 'DM Mono', monospace;
+            font-weight: 600;
+            letter-spacing: 0.5em;
+            color: var(--paper);
+            outline: none;
+            margin-bottom: 1rem;
+            transition: border-color 0.2s;
+        }
+        #lock-screen input:focus { border-color: var(--gold); }
+        #lock-screen button {
+            width: 100%;
+            background: var(--gold);
+            color: var(--ink);
+            border: none;
+            border-radius: 0.75rem;
+            padding: 0.9rem;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-weight: 800;
+            font-size: 0.7rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        #lock-screen button:hover { opacity: 0.85; }
+
+        /* ===== PANTALLA PRINCIPAL ===== */
+        #app { display: none; }
+
+        /* HEADER */
+        .app-header {
+            background: var(--ink);
+            color: var(--paper);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky; top: 0; z-index: 100;
+            border-bottom: 3px solid var(--gold);
+        }
+        .app-header .brand {
+            font-family: 'DM Serif Display', serif;
+            font-style: italic;
+            font-size: 1.4rem;
+        }
+        .app-header .brand span { color: var(--gold); }
+        .app-header .tagline {
+            font-size: 0.55rem;
+            font-weight: 700;
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            color: #64748b;
+        }
+        .header-actions { display: flex; gap: 0.75rem; align-items: center; }
+
+        /* BOTONES */
+        .btn {
+            display: inline-flex; align-items: center; gap: 0.4rem;
+            padding: 0.6rem 1.2rem;
+            border-radius: 0.6rem;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-weight: 700;
+            font-size: 0.65rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            cursor: pointer;
+            border: none;
+            transition: all 0.15s;
+        }
+        .btn-primary { background: var(--gold); color: var(--ink); }
+        .btn-primary:hover { opacity: 0.85; }
+        .btn-secondary { background: #1c2333; color: var(--paper); border: 1px solid #2d3748; }
+        .btn-secondary:hover { background: #2d3748; }
+        .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--rule); }
+        .btn-ghost:hover { background: var(--cream); }
+
+        /* TOOLBAR */
+        .toolbar {
+            background: var(--cream);
+            border-bottom: 1px solid var(--rule);
+            padding: 0.75rem 2rem;
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .toolbar input[type="text"] {
+            flex: 1; min-width: 200px;
+            background: white;
+            border: 1px solid var(--rule);
+            border-radius: 0.5rem;
+            padding: 0.5rem 1rem;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: var(--ink);
+            outline: none;
+        }
+        .toolbar input:focus { border-color: var(--accent); }
+        .toolbar select {
+            background: white;
+            border: 1px solid var(--rule);
+            border-radius: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--ink);
+            outline: none;
+            cursor: pointer;
+        }
+        .count-badge {
+            font-size: 0.6rem; font-weight: 800; letter-spacing: 0.1em;
+            text-transform: uppercase; color: var(--muted);
+            padding: 0.25rem 0.75rem;
+            background: white;
+            border: 1px solid var(--rule);
+            border-radius: 2rem;
+        }
+
+        /* CONTENEDOR PRINCIPAL */
+        .main-content { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+
+        /* ESTADO VACÍO / CARGANDO */
+        .state-msg {
+            text-align: center; padding: 5rem 2rem; color: var(--muted);
+        }
+        .state-msg .icon { font-size: 3rem; margin-bottom: 1rem; opacity: 0.4; }
+        .state-msg p { font-size: 0.85rem; font-weight: 600; }
+
+        /* TABLA DE SOLICITUDES */
+        .solicitudes-grid { display: grid; gap: 1rem; }
+
+        .solicitud-card {
+            background: white;
+            border: 1px solid var(--rule);
+            border-radius: 1rem;
+            overflow: hidden;
+            transition: box-shadow 0.2s, transform 0.2s;
+        }
+        .solicitud-card:hover { box-shadow: 0 8px 24px rgba(0,0,0,0.08); transform: translateY(-1px); }
+
+        .card-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 1rem 1.25rem 0.75rem;
+            border-bottom: 1px solid var(--cream);
+        }
+        .card-nombre {
+            font-family: 'DM Serif Display', serif;
+            font-size: 1.15rem;
+            color: var(--ink);
+        }
+        .card-meta {
+            font-size: 0.6rem; font-weight: 700; letter-spacing: 0.1em;
+            text-transform: uppercase; color: var(--muted);
+            margin-top: 0.1rem;
+        }
+        .status-badge {
+            font-size: 0.55rem; font-weight: 800; letter-spacing: 0.15em;
+            text-transform: uppercase; padding: 0.3rem 0.7rem;
+            border-radius: 2rem;
+        }
+        .status-PENDIENTE { background: #fef3c7; color: #92400e; }
+        .status-ACTIVO { background: #d1fae5; color: #065f46; }
+        .status-OTHER { background: #f1f5f9; color: #475569; }
+
+        .card-body {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 0; 
+        }
+        .dato {
+            padding: 0.6rem 1rem;
+            border-right: 1px solid var(--cream);
+            border-bottom: 1px solid var(--cream);
+        }
+        .dato:last-child { border-right: none; }
+        .dato-label {
+            font-size: 0.55rem; font-weight: 800; letter-spacing: 0.12em;
+            text-transform: uppercase; color: var(--muted); margin-bottom: 0.2rem;
+        }
+        .dato-val {
+            font-size: 0.8rem; font-weight: 600; color: var(--ink);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .dato-val.highlight { color: var(--accent); font-weight: 800; font-size: 0.9rem; }
+        .dato-val.highlight2 { color: var(--accent2); font-weight: 700; }
+
+        .card-footer {
+            padding: 0.6rem 1.25rem;
+            display: flex; justify-content: flex-end; align-items: center; gap: 0.5rem;
+            background: var(--cream);
+        }
+
+        /* ===== VISTA DE IMPRESIÓN / PDF ===== */
+        #print-area { display: none; }
+
+        @media print {
+            body * { visibility: hidden; }
+            #print-area, #print-area * { visibility: visible; }
+            #print-area { display: block !important; position: absolute; inset: 0; }
+
+            .print-page {
+                page-break-after: always;
+                width: 100%;
+                padding: 1.5cm;
+                font-family: 'Plus Jakarta Sans', sans-serif;
+                color: #0d1117;
+                background: white;
+            }
+            .print-page:last-child { page-break-after: avoid; }
+
+            .print-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+                border-bottom: 3px solid #0d1117;
+                padding-bottom: 0.75cm;
+                margin-bottom: 0.75cm;
+            }
+            .print-brand { font-size: 22pt; font-style: italic; font-weight: 900; }
+            .print-brand span { color: #c4922a; }
+            .print-brand small { display: block; font-size: 7pt; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: #6b6355; font-style: normal; }
+            .print-meta { text-align: right; font-size: 7pt; color: #6b6355; font-weight: 600; }
+
+            .print-title {
+                font-size: 11pt;
+                font-weight: 800;
+                letter-spacing: 2px;
+                text-transform: uppercase;
+                color: #1a472a;
+                margin-bottom: 0.3cm;
+            }
+            .print-nombre {
+                font-size: 18pt;
+                font-weight: 900;
+                margin-bottom: 0.5cm;
+                line-height: 1.1;
+            }
+
+            .print-grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 0.3cm;
+                margin-bottom: 0.5cm;
+            }
+            .print-field {
+                border: 1px solid #c8bfaa;
+                border-radius: 4px;
+                padding: 0.2cm 0.3cm;
+            }
+            .print-field.full { grid-column: 1 / -1; }
+            .print-field label {
+                display: block;
+                font-size: 6pt;
+                font-weight: 800;
+                letter-spacing: 2px;
+                text-transform: uppercase;
+                color: #6b6355;
+                margin-bottom: 0.1cm;
+            }
+            .print-field .val {
+                font-size: 10pt;
+                font-weight: 600;
+                color: #0d1117;
+            }
+            .print-field.credit-field { background: #f5f0e8; }
+            .print-field.credit-field .val { color: #1a472a; font-weight: 800; font-size: 12pt; }
+
+            .print-section-title {
+                font-size: 7pt; font-weight: 900; letter-spacing: 3px;
+                text-transform: uppercase; color: #6b6355;
+                border-bottom: 1px solid #c8bfaa;
+                padding-bottom: 0.1cm; margin-bottom: 0.3cm; margin-top: 0.4cm;
+            }
+
+            .print-footer {
+                margin-top: 0.7cm;
+                border-top: 1px solid #c8bfaa;
+                padding-top: 0.4cm;
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 1cm;
+            }
+            .print-firma {
+                text-align: center;
+            }
+            .print-firma .linea {
+                border-bottom: 1px solid #0d1117;
+                margin-bottom: 0.2cm;
+                height: 1.2cm;
+            }
+            .print-firma small {
+                font-size: 6pt;
+                font-weight: 700;
+                letter-spacing: 1.5px;
+                text-transform: uppercase;
+                color: #6b6355;
+            }
+
+            /* LISTA RESUMEN (primera página cuando se imprimen todas) */
+            .print-list-page {
+                page-break-after: always;
+                padding: 1.5cm;
+                font-family: 'Plus Jakarta Sans', sans-serif;
+            }
+            .print-list-header {
+                border-bottom: 3px solid #0d1117;
+                padding-bottom: 0.5cm;
+                margin-bottom: 0.5cm;
+                display: flex; justify-content: space-between; align-items: flex-end;
+            }
+            .print-list-brand { font-size: 20pt; font-style: italic; font-weight: 900; }
+            .print-list-brand span { color: #c4922a; }
+            .print-list-title { font-size: 9pt; font-weight: 800; letter-spacing: 3px; text-transform: uppercase; color: #6b6355; }
+            .print-table { width: 100%; border-collapse: collapse; font-size: 8pt; }
+            .print-table th {
+                background: #0d1117; color: white;
+                padding: 0.2cm 0.3cm;
+                text-align: left;
+                font-size: 6pt; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase;
+            }
+            .print-table td {
+                padding: 0.2cm 0.3cm;
+                border-bottom: 1px solid #c8bfaa;
+                font-weight: 600;
+            }
+            .print-table tr:nth-child(even) td { background: #f5f0e8; }
+        }
+        /* ===== CONSOLIDADO ===== */
+        .consolidado {
+            background: white;
+            border-top: 3px solid var(--gold);
+            border-bottom: 1px solid var(--rule);
+            padding: 1rem 2rem;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 0;
+        }
+        .cons-item {
+            padding: 0.5rem 1rem;
+            border-right: 1px solid var(--cream);
+            display: flex; flex-direction: column; gap: 0.2rem;
+        }
+        .cons-item:last-child { border-right: none; }
+        .cons-label {
+            font-size: 0.55rem; font-weight: 800; letter-spacing: 0.18em;
+            text-transform: uppercase; color: var(--muted);
+        }
+        .cons-val {
+            font-family: 'DM Mono', monospace;
+            font-size: 1.3rem; font-weight: 600; color: var(--ink);
+            line-height: 1;
+        }
+        .cons-val.gold { color: var(--gold); }
+        .cons-val.green { color: var(--accent); }
+        .cons-sub {
+            font-size: 0.6rem; font-weight: 600; color: var(--muted);
+        }
+
+        @media print {
+            .consolidado { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- PANTALLA DE ACCESO -->
+<div id="lock-screen">
+    <div class="logo">Credi<span>Listo</span></div>
+    <div class="pin-box">
+        <label>Pin de Acceso</label>
+        <input type="password" id="pin-input" inputmode="numeric" placeholder="••••" maxlength="6"
+               onkeydown="if(event.key==='Enter') verificar()">
+        <button onclick="verificar()">Entrar al reporte</button>
+        <p id="pin-error" style="color:#f87171;font-size:0.65rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;margin-top:0.5rem;display:none;">PIN incorrecto</p>
+    </div>
+</div>
+
+<!-- APP PRINCIPAL -->
+<div id="app">
+    <header class="app-header">
+        <div>
+            <div class="brand">Credi<span>Listo</span> &mdash; Reporte</div>
+            <div class="tagline">Solicitudes registradas en el sistema</div>
+        </div>
+        <div class="header-actions">
+            <button class="btn btn-secondary" id="btn-back">← Panel Admin</button>
+            <button class="btn btn-primary" onclick="imprimirTodo()">🖨 Imprimir Todo</button>
+        </div>
+    </header>
+
+    <div class="toolbar">
+        <input type="text" id="buscador" placeholder="🔍  Buscar por nombre, DUI o teléfono…" oninput="filtrar()">
+        <select id="filtro-tipo" onchange="filtrar()">
+            <option value="">Todos los estados</option>
+            <option value="PENDIENTE">Pendientes</option>
+            <option value="ACTIVO">Activos</option>
+        </select>
+        <select id="filtro-monto" onchange="filtrar()">
+            <option value="">Todos los montos</option>
+            <option value="50">$50</option>
+            <option value="100">$100</option>
+            <option value="150">$150</option>
+            <option value="200">$200</option>
+            <option value="250">$250</option>
+            <option value="300">$300</option>
+            <option value="400">$400</option>
+            <option value="500">$500</option>
+        </select>
+        <div class="count-badge" id="count-badge">Cargando…</div>
+        <button class="btn btn-ghost" onclick="seleccionarTodo()" id="btn-sel-todo">Seleccionar todo</button>
+        <button class="btn btn-primary" onclick="imprimirSeleccion()" id="btn-print-sel" style="display:none">🖨 Imprimir seleccionados (<span id="n-sel">0</span>)</button>
+    </div>
+
+    <!-- CONSOLIDADO -->
+    <div class="consolidado" id="consolidado" style="display:none">
+        <div class="cons-item">
+            <div class="cons-label">Total solicitado</div>
+            <div class="cons-val gold" id="c-total-monto">$0</div>
+            <div class="cons-sub" id="c-total-sub">0 clientes</div>
+        </div>
+        <div class="cons-item">
+            <div class="cons-label">Total a cobrar (20%)</div>
+            <div class="cons-val green" id="c-total-cobrar">$0</div>
+            <div class="cons-sub">Capital + intereses</div>
+        </div>
+        <div class="cons-item">
+            <div class="cons-label">Comisión 17%</div>
+            <div class="cons-val" style="color:var(--accent2)" id="c-com17">$0</div>
+            <div class="cons-sub" id="c-com17-sub">del total a cobrar</div>
+        </div>
+        <div class="cons-item">
+            <div class="cons-label">Comisión 3%</div>
+            <div class="cons-val" style="color:var(--muted)" id="c-com3">$0</div>
+            <div class="cons-sub" id="c-com3-sub">del total a cobrar</div>
+        </div>
+        <div class="cons-item">
+            <div class="cons-label">Créditos diarios</div>
+            <div class="cons-val" id="c-diarios">0</div>
+            <div class="cons-sub" id="c-diarios-monto">$0 solicitados</div>
+        </div>
+        <div class="cons-item">
+            <div class="cons-label">Créditos semanales</div>
+            <div class="cons-val" id="c-semanales">0</div>
+            <div class="cons-sub" id="c-semanales-monto">$0 solicitados</div>
+        </div>
+        <div class="cons-item">
+            <div class="cons-label">Pendientes</div>
+            <div class="cons-val" id="c-pendientes">0</div>
+            <div class="cons-sub" id="c-pendientes-monto">$0</div>
+        </div>
+        <div class="cons-item">
+            <div class="cons-label">Activos</div>
+            <div class="cons-val" id="c-activos">0</div>
+            <div class="cons-sub" id="c-activos-monto">$0</div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div id="msg-cargando" class="state-msg">
+            <div class="icon">⏳</div>
+            <p>Conectando con Firebase…</p>
+        </div>
+        <div id="msg-vacio" class="state-msg" style="display:none">
+            <div class="icon">📋</div>
+            <p>No hay solicitudes que coincidan con el filtro.</p>
+        </div>
+        <div class="solicitudes-grid" id="lista"></div>
+    </div>
+</div>
+
+<!-- ÁREA DE IMPRESIÓN -->
+<div id="print-area"></div>
+
+<script>
+    const PIN = "2030";
+    const DB_URL = "https://credilistosv-default-rtdb.firebaseio.com";
+    // Smart back button
+    const fromMob = new URLSearchParams(location.search).get('from') === 'movil';
+    document.getElementById('btn-back').onclick = () => location.href = fromMob ? 'gestionmovil.html' : 'gestionar.html';
+
+    let todosLosClientes = [];
+    let visibles = [];
+    let seleccionados = new Set();
+
+    // ===== ACCESO =====
+    function verificar() {
+        const v = document.getElementById('pin-input').value;
+        if (v === PIN) {
+            document.getElementById('lock-screen').style.display = 'none';
+            document.getElementById('app').style.display = 'block';
+            initFirebase();
+        } else {
+            document.getElementById('pin-error').style.display = 'block';
+            document.getElementById('pin-input').value = '';
+        }
+    }
+
+    // ===== FIREBASE =====
+    function initFirebase() {
+        const config = { databaseURL: DB_URL };
+        firebase.initializeApp(config, "rpt_solm2");
+        const db = firebase.app("rpt_solm2").database();
+        db.ref('clientes2').on('value', snap => {
+            todosLosClientes = [];
+            snap.forEach(child => {
+                todosLosClientes.push({ key: child.key, ...child.val() });
+            });
+            filtrar();
+        });
+    }
+
+    // ===== RENDER =====
+    function filtrar() {
+        const q = (document.getElementById('buscador').value || '').toLowerCase();
+        const tipo = document.getElementById('filtro-tipo').value;
+        const monto = document.getElementById('filtro-monto').value;
+
+        visibles = todosLosClientes.filter(s => {
+            const matchQ = !q || (s.nombre||'').toLowerCase().includes(q) || (s.dui||'').includes(q) || (s.tel||'').includes(q);
+            const matchT = !tipo || s.tipo === tipo;
+            const matchM = !monto || String(s.monto) === monto;
+            return matchQ && matchT && matchM;
+        });
+
+        renderLista();
+    }
+
+    function renderLista() {
+        const lista = document.getElementById('lista');
+        const msgC = document.getElementById('msg-cargando');
+        const msgV = document.getElementById('msg-vacio');
+
+        msgC.style.display = 'none';
+
+        if (visibles.length === 0) {
+            lista.innerHTML = '';
+            msgV.style.display = 'block';
+            document.getElementById('count-badge').textContent = '0 solicitudes';
+            document.getElementById('consolidado').style.display = 'none';
+            return;
+        }
+        msgV.style.display = 'none';
+        document.getElementById('count-badge').textContent = `${visibles.length} solicitud${visibles.length!==1?'es':''}`;
+
+        // ── CONSOLIDADO ──────────────────────────────────────
+        let totalMonto = 0, nDiarios = 0, montoDiarios = 0,
+            nSemanales = 0, montoSemanales = 0,
+            nPendientes = 0, montoPendientes = 0,
+            nActivos = 0, montoActivos = 0;
+
+        visibles.forEach(s => {
+            const m = parseFloat(s.monto) || 0;
+            totalMonto += m;
+            if ((s.frecuencia || '').toLowerCase() === 'semanal') {
+                nSemanales++; montoSemanales += m;
+            } else {
+                nDiarios++; montoDiarios += m;
+            }
+            if (s.tipo === 'PENDIENTE') { nPendientes++; montoPendientes += m; }
+            if (s.tipo === 'ACTIVO')    { nActivos++;    montoActivos    += m; }
+        });
+
+        const fmt = v => '$' + v.toLocaleString('es-SV', {minimumFractionDigits:2, maximumFractionDigits:2});
+
+        const totalCobrar = totalMonto * 1.2;
+        const com17 = totalCobrar * 0.17;
+        const com3  = totalCobrar * 0.03;
+
+        document.getElementById('c-total-monto').textContent   = fmt(totalMonto);
+        document.getElementById('c-total-sub').textContent     = visibles.length + ' cliente' + (visibles.length!==1?'s':'');
+        document.getElementById('c-total-cobrar').textContent  = fmt(totalCobrar);
+        document.getElementById('c-com17').textContent         = fmt(com17);
+        document.getElementById('c-com17-sub').textContent     = '17% de ' + fmt(totalCobrar);
+        document.getElementById('c-com3').textContent          = fmt(com3);
+        document.getElementById('c-com3-sub').textContent      = '3% de ' + fmt(totalCobrar);
+        document.getElementById('c-diarios').textContent       = nDiarios;
+        document.getElementById('c-diarios-monto').textContent = fmt(montoDiarios) + ' solicitados';
+        document.getElementById('c-semanales').textContent     = nSemanales;
+        document.getElementById('c-semanales-monto').textContent = fmt(montoSemanales) + ' solicitados';
+        document.getElementById('c-pendientes').textContent    = nPendientes;
+        document.getElementById('c-pendientes-monto').textContent = fmt(montoPendientes);
+        document.getElementById('c-activos').textContent       = nActivos;
+        document.getElementById('c-activos-monto').textContent = fmt(montoActivos);
+        document.getElementById('consolidado').style.display   = 'grid';
+        // ─────────────────────────────────────────────────────
+        lista.innerHTML = visibles.map(s => {
+            const statusClass = s.tipo === 'PENDIENTE' ? 'status-PENDIENTE' : s.tipo === 'ACTIVO' ? 'status-ACTIVO' : 'status-OTHER';
+            const isSelected = seleccionados.has(s.key);
+
+            const cuota = calcularCuota(s);
+            return `
+            <div class="solicitud-card" id="card-${s.key}" style="${isSelected ? 'outline:2px solid #c4922a;outline-offset:2px;' : ''}">
+                <div class="card-header">
+                    <div>
+                        <div class="card-nombre">${s.nombre || '—'}</div>
+                        <div class="card-meta">Registrado: ${s.fecha || '—'} &nbsp;·&nbsp; ID: ${s.key}</div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:0.5rem">
+                        <span class="status-badge ${statusClass}">${s.tipo || 'N/D'}</span>
+                        <input type="checkbox" ${isSelected?'checked':''} onchange="toggleSel('${s.key}', this)"
+                            style="width:18px;height:18px;cursor:pointer;accent-color:#c4922a">
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="dato">
+                        <div class="dato-label">DUI</div>
+                        <div class="dato-val">${s.dui || '—'}</div>
+                    </div>
+                    <div class="dato">
+                        <div class="dato-label">WhatsApp</div>
+                        <div class="dato-val">${s.tel || '—'}</div>
+                    </div>
+                    <div class="dato">
+                        <div class="dato-label">Monto</div>
+                        <div class="dato-val highlight">$${s.monto || '—'}</div>
+                    </div>
+                    <div class="dato">
+                        <div class="dato-label">Frecuencia</div>
+                        <div class="dato-val">${(s.frecuencia||'—').toUpperCase()}</div>
+                    </div>
+                    <div class="dato">
+                        <div class="dato-label">Cuota</div>
+                        <div class="dato-val highlight2">$${cuota}</div>
+                    </div>
+                    <div class="dato">
+                        <div class="dato-label">Total a pagar</div>
+                        <div class="dato-val">${s.monto ? '$'+(parseFloat(s.monto)*1.2).toFixed(2) : '—'}</div>
+                    </div>
+                    <div class="dato" style="grid-column: span 2">
+                        <div class="dato-label">Dirección</div>
+                        <div class="dato-val">${s.dirCasa || s.dirVivienda || '—'}</div>
+                    </div>
+                    <div class="dato">
+                        <div class="dato-label">Negocio</div>
+                        <div class="dato-val">${s.negocio || '—'}</div>
+                    </div>
+                    <div class="dato">
+                        <div class="dato-label">Dir. Negocio</div>
+                        <div class="dato-val">${s.dirNeg || s.dirNegocio || '—'}</div>
+                    </div>
+                    <div class="dato">
+                        <div class="dato-label">Motivo</div>
+                        <div class="dato-val">${s.inversion || '—'}</div>
+                    </div>
+                    <div class="dato">
+                        <div class="dato-label">Ingresos</div>
+                        <div class="dato-val">${s.ingresos || '—'}</div>
+                    </div>
+                    <div class="dato">
+                        <div class="dato-label">Referencia</div>
+                        <div class="dato-val">${s.refNom || s.refNombre || '—'}</div>
+                    </div>
+                    <div class="dato">
+                        <div class="dato-label">Tel. Referencia</div>
+                        <div class="dato-val">${s.refTel || '—'}</div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <button class="btn btn-ghost" onclick="imprimirUno('${s.key}')">🖨 Imprimir ficha</button>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    // ===== SELECCIÓN =====
+    function toggleSel(key, chk) {
+        if (chk.checked) seleccionados.add(key);
+        else seleccionados.delete(key);
+        actualizarBtnSel();
+        const card = document.getElementById('card-' + key);
+        if (card) card.style.outline = chk.checked ? '2px solid #c4922a' : '';
+    }
+
+    function seleccionarTodo() {
+        const allSelected = seleccionados.size === visibles.length;
+        if (allSelected) {
+            seleccionados.clear();
+        } else {
+            visibles.forEach(s => seleccionados.add(s.key));
+        }
+        renderLista();
+        actualizarBtnSel();
+    }
+
+    function actualizarBtnSel() {
+        const n = seleccionados.size;
+        document.getElementById('n-sel').textContent = n;
+        document.getElementById('btn-print-sel').style.display = n > 0 ? 'inline-flex' : 'none';
+    }
+
+    // ===== CÁLCULOS =====
+    function calcularCuota(s) {
+        if (!s.monto) return '—';
+        const m = parseFloat(s.monto);
+        const total = m * 1.2;
+        const n = s.frecuencia === 'semanal' ? 4 : 30;
+        return (total / n).toFixed(2);
+    }
+
+    // ===== IMPRESIÓN =====
+    function generarHTMLFicha(s) {
+        const cuota = calcularCuota(s);
+        const total = s.monto ? (parseFloat(s.monto)*1.2).toFixed(2) : '—';
+        const numCuotas = s.frecuencia === 'semanal' ? '4 semanas' : '30 días';
+        const ahora = new Date().toLocaleDateString('es-SV', {day:'2-digit',month:'long',year:'numeric'});
+
+        return `
+        <div class="print-page">
+            <div class="print-header">
+                <div>
+                    <div class="print-brand">Credi<span>Listo</span>
+                        <small>Sistema de Microcréditos — Santiago de María</small>
+                    </div>
+                </div>
+                <div class="print-meta">
+                    <div>Fecha de impresión: ${ahora}</div>
+                    <div>ID: ${s.key}</div>
+                    <div>Estado: ${s.tipo || 'N/D'}</div>
+                </div>
+            </div>
+
+            <div class="print-title">Ficha de Solicitud de Crédito</div>
+            <div class="print-nombre">${s.nombre || '—'}</div>
+
+            <div class="print-section-title">Datos Personales y Contacto</div>
+            <div class="print-grid">
+                <div class="print-field">
+                    <label>DUI</label>
+                    <div class="val">${s.dui || '—'}</div>
+                </div>
+                <div class="print-field">
+                    <label>WhatsApp / Teléfono</label>
+                    <div class="val">${s.tel || '—'}</div>
+                </div>
+                <div class="print-field full">
+                    <label>Dirección de Vivienda</label>
+                    <div class="val">${s.dirCasa || s.dirVivienda || '—'}</div>
+                </div>
+                <div class="print-field">
+                    <label>Nombre del Negocio</label>
+                    <div class="val">${s.negocio || '—'}</div>
+                </div>
+                <div class="print-field">
+                    <label>Dirección del Negocio</label>
+                    <div class="val">${s.dirNeg || s.dirNegocio || '—'}</div>
+                </div>
+                <div class="print-field">
+                    <label>Ingresos Mensuales</label>
+                    <div class="val">${s.ingresos || '—'}</div>
+                </div>
+                <div class="print-field">
+                    <label>Fecha de Registro</label>
+                    <div class="val">${s.fecha || '—'}</div>
+                </div>
+            </div>
+
+            <div class="print-section-title">Condiciones del Crédito</div>
+            <div class="print-grid">
+                <div class="print-field credit-field">
+                    <label>Monto Solicitado</label>
+                    <div class="val">$${s.monto || '—'}</div>
+                </div>
+                <div class="print-field credit-field">
+                    <label>Total a Pagar (20% interés)</label>
+                    <div class="val">$${total}</div>
+                </div>
+                <div class="print-field credit-field">
+                    <label>Frecuencia de Pago</label>
+                    <div class="val">${(s.frecuencia||'—').toUpperCase()}</div>
+                </div>
+                <div class="print-field credit-field">
+                    <label>Cuota por Pago</label>
+                    <div class="val">$${cuota} × ${numCuotas}</div>
+                </div>
+                <div class="print-field full">
+                    <label>Propósito del Crédito / Inversión</label>
+                    <div class="val">${s.inversion || '—'}</div>
+                </div>
+            </div>
+
+            <div class="print-section-title">Referencia Personal</div>
+            <div class="print-grid">
+                <div class="print-field">
+                    <label>Nombre de Referencia</label>
+                    <div class="val">${s.refNom || s.refNombre || '—'}</div>
+                </div>
+                <div class="print-field">
+                    <label>Teléfono de Referencia</label>
+                    <div class="val">${s.refTel || '—'}</div>
+                </div>
+            </div>
+
+            <div class="print-footer">
+                <div class="print-firma">
+                    <div class="linea"></div>
+                    <small>Firma del Solicitante</small>
+                </div>
+                <div class="print-firma">
+                    <div class="linea"></div>
+                    <small>Firma del Asesor CrediListo</small>
+                </div>
+            </div>
+        </div>`;
+    }
+
+    function generarHTMLResumen(lista) {
+        const ahora = new Date().toLocaleDateString('es-SV', {day:'2-digit',month:'long',year:'numeric'});
+        const filas = lista.map(s => `
+            <tr>
+                <td>${s.nombre || '—'}</td>
+                <td>${s.dui || '—'}</td>
+                <td>${s.tel || '—'}</td>
+                <td>$${s.monto || '—'}</td>
+                <td>${(s.frecuencia||'').toUpperCase()}</td>
+                <td>$${calcularCuota(s)}</td>
+                <td>${s.tipo || '—'}</td>
+                <td>${s.fecha || '—'}</td>
+            </tr>`).join('');
+
+        return `
+        <div class="print-list-page">
+            <div class="print-list-header">
+                <div>
+                    <div class="print-list-brand">Credi<span>Listo</span></div>
+                    <div class="print-list-title">Reporte de Solicitudes — Santiago de María</div>
+                </div>
+                <div style="text-align:right;font-size:8pt;color:#6b6355;font-weight:600">
+                    <div>Fecha: ${ahora}</div>
+                    <div>Total: ${lista.length} solicitudes</div>
+                </div>
+            </div>
+            <table class="print-table">
+                <thead>
+                    <tr>
+                        <th>Nombre</th><th>DUI</th><th>WhatsApp</th>
+                        <th>Monto</th><th>Frecuencia</th><th>Cuota</th>
+                        <th>Estado</th><th>Fecha</th>
+                    </tr>
+                </thead>
+                <tbody>${filas}</tbody>
+            </table>
+        </div>`;
+    }
+
+    function imprimirUno(key) {
+        const s = todosLosClientes.find(x => x.key === key);
+        if (!s) return;
+        const area = document.getElementById('print-area');
+        area.innerHTML = generarHTMLFicha(s);
+        setTimeout(() => window.print(), 150);
+    }
+
+    function imprimirSeleccion() {
+        const lista = todosLosClientes.filter(s => seleccionados.has(s.key));
+        if (!lista.length) return;
+        const area = document.getElementById('print-area');
+        area.innerHTML = generarHTMLResumen(lista) + lista.map(generarHTMLFicha).join('');
+        setTimeout(() => window.print(), 150);
+    }
+
+    function imprimirTodo() {
+        if (!visibles.length) return;
+        const area = document.getElementById('print-area');
+        area.innerHTML = generarHTMLResumen(visibles) + visibles.map(generarHTMLFicha).join('');
+        setTimeout(() => window.print(), 150);
+    }
+</script>
+</body>
+</html>
