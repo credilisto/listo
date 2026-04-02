@@ -2,211 +2,389 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cobros de Campo | CrediListo</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Caja Chica | CrediListo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=JetBrains+Mono:wght@500;600;700&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-database-compat.js"></script>
+
     <style>
-        :root { --bg: #0f172a; --card: #1e293b; --accent: #0ea5e9; }
-        body { background-color: var(--bg); font-family: 'Inter', sans-serif; color: white; }
-        .input-dark { background: #334155; border: 1px solid #475569; padding: 1rem; border-radius: 1rem; width: 100%; color: white; font-weight: 700; outline: none; }
-        .btn-cobrar { background: linear-gradient(to right, #0ea5e9, #2563eb); transition: all 0.3s ease; }
-        .btn-cobrar:active { transform: scale(0.95); opacity: 0.9; }
-        #bloqueo { background: #050b16; display: flex; align-items: center; justify-content: center; z-index: 9999; position: fixed; inset: 0; }
-        .cliente-card { background: var(--card); border: 1px solid #334155; border-radius: 1.2rem; margin-bottom: 0.8rem; }
+        :root {
+            --bg:         #f0f4f8;
+            --surface:    #ffffff;
+            --surface2:   #f1f5f9;
+            --border:     #e2e8f0;
+            --border2:    #cbd5e1;
+            --text:       #0f172a;
+            --muted:      #94a3b8;
+            --muted2:     #64748b;
+            --accent:     #0ea5e9;
+            --green:      #16a34a;
+            --green-dim:  rgba(22,163,74,0.1);
+            --danger:     #ef4444;
+            --danger-dim: rgba(239,68,68,0.08);
+            --warn:       #f59e0b;
+            --inver1:     #0ea5e9;
+            --inver1-dim: rgba(14,165,233,0.1);
+            --inver2:     #8b5cf6;
+            --inver2-dim: rgba(139,92,246,0.1);
+            --safe-b:     env(safe-area-inset-bottom, 0px);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Instrument Sans', sans-serif; }
+
+        /* ── LOCK ── */
+        #lock {
+            position: fixed; inset: 0; z-index: 9999;
+            background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2rem; padding: 2rem;
+        }
+        .lock-logo { font-family: 'Syne', sans-serif; font-size: 2.2rem; color: #fff; }
+        .lock-logo span { color: rgba(255,255,255,0.5); }
+        .lock-box { background: rgba(255,255,255,0.15); backdrop-filter: blur(12px);
+                    border: 1px solid rgba(255,255,255,0.3); border-radius: 1.5rem;
+                    padding: 2rem 1.5rem; width: min(90vw, 320px); text-align: center; }
+        .lock-label { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase;
+                      color: rgba(255,255,255,0.8); margin-bottom: 1rem; display: block; }
+        .lock-input { width: 100%; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.35);
+                      border-radius: 0.75rem; padding: 0.9rem 1rem; font-size: 1.4rem; letter-spacing: 0.3em;
+                      color: white; text-align: center; outline: none; font-family: 'JetBrains Mono', monospace; }
+        .lock-input::placeholder { color: rgba(255,255,255,0.4); letter-spacing: 0.1em; }
+        .lock-btn { margin-top: 1rem; width: 100%; background: white; color: #0284c7;
+                    border: none; border-radius: 0.75rem; padding: 0.9rem; font-size: 0.85rem;
+                    font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; }
+        .lock-err { color: #fef08a; font-size: 0.65rem; font-weight: 700; letter-spacing: 0.1em;
+                    text-transform: uppercase; margin-top: 0.75rem; display: none; }
+
+        /* ── APP ── */
+        #app { display: none; min-height: 100vh; }
+
+        /* Header */
+        .hdr { background: white; border-bottom: 1px solid var(--border);
+               padding: 1rem 1.25rem 0.75rem; position: sticky; top: 0; z-index: 100; }
+        .hdr-top { display: flex; align-items: center; justify-content: space-between; }
+        .hdr-logo { font-family: 'Syne', sans-serif; font-size: 1.25rem; color: var(--text); }
+        .hdr-logo span { color: var(--muted); }
+        .hdr-sub { font-size: 0.65rem; color: var(--muted2); font-weight: 600;
+                   letter-spacing: 0.1em; text-transform: uppercase; margin-top: 0.15rem; }
+
+        /* Cuenta selector */
+        .cuenta-tabs { display: flex; gap: 0.5rem; padding: 1rem 1.25rem 0; }
+        .tab { flex: 1; padding: 0.75rem; border-radius: 0.75rem; border: 2px solid var(--border);
+               background: var(--surface2); font-size: 0.8rem; font-weight: 700; cursor: pointer;
+               text-align: center; transition: all 0.18s; color: var(--muted2); }
+        .tab.active-1 { background: var(--inver1-dim); border-color: var(--inver1); color: var(--inver1); }
+        .tab.active-2 { background: var(--inver2-dim); border-color: var(--inver2); color: var(--inver2); }
+
+        /* Saldo card */
+        .saldo-card { margin: 1rem 1.25rem 0; border-radius: 1.25rem; padding: 1.25rem 1.5rem;
+                      background: var(--surface); border: 1px solid var(--border); }
+        .saldo-label { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.18em;
+                       text-transform: uppercase; color: var(--muted); margin-bottom: 0.3rem; }
+        .saldo-valor { font-family: 'JetBrains Mono', monospace; font-size: 2.4rem;
+                       font-weight: 700; line-height: 1; }
+        .saldo-valor.c1 { color: var(--inver1); }
+        .saldo-valor.c2 { color: var(--inver2); }
+        .saldo-sub { font-size: 0.68rem; color: var(--muted2); margin-top: 0.3rem; }
+
+        /* Modo tabs */
+        .modo-tabs { display: flex; margin: 1rem 1.25rem 0; background: var(--surface2);
+                     border-radius: 0.75rem; padding: 0.25rem; gap: 0.2rem; border: 1px solid var(--border); }
+        .modo-tab { flex: 1; padding: 0.6rem; border-radius: 0.5rem; font-size: 0.72rem; font-weight: 700;
+                    text-align: center; cursor: pointer; color: var(--muted2); transition: all 0.15s; }
+        .modo-tab.active { background: white; color: var(--text); box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+
+        /* Forms */
+        .form-card { margin: 1rem 1.25rem 0; background: var(--surface); border: 1px solid var(--border);
+                     border-radius: 1.25rem; padding: 1.25rem; }
+        .form-title { font-size: 0.65rem; font-weight: 800; letter-spacing: 0.15em;
+                      text-transform: uppercase; color: var(--muted); margin-bottom: 1rem; }
+        .field { margin-bottom: 0.85rem; }
+        .field label { display: block; font-size: 0.65rem; font-weight: 700; letter-spacing: 0.1em;
+                       text-transform: uppercase; color: var(--muted2); margin-bottom: 0.35rem; }
+        .field input, .field textarea, .field select {
+            width: 100%; background: var(--surface2); border: 1.5px solid var(--border);
+            border-radius: 0.75rem; padding: 0.8rem 1rem; font-size: 0.95rem;
+            font-family: 'Instrument Sans', sans-serif; color: var(--text); outline: none;
+            transition: border-color 0.15s; -webkit-appearance: none; }
+        .field input:focus, .field textarea:focus { border-color: var(--accent); }
+        .field input[type="number"] { font-family: 'JetBrains Mono', monospace; font-size: 1.1rem; }
+        .field textarea { resize: none; height: 70px; }
+
+        /* Botones acción */
+        .btn-accion { width: 100%; padding: 1rem; border: none; border-radius: 0.85rem;
+                      font-size: 0.9rem; font-weight: 800; letter-spacing: 0.05em;
+                      cursor: pointer; transition: all 0.15s; margin-top: 0.5rem; }
+        .btn-inyectar { background: var(--green); color: white; }
+        .btn-inyectar:active { opacity: 0.85; transform: scale(0.98); }
+        .btn-gasto { background: var(--danger); color: white; }
+        .btn-gasto:active { opacity: 0.85; transform: scale(0.98); }
+
+        /* Historial */
+        .historial { margin: 1rem 1.25rem calc(1.5rem + var(--safe-b)); }
+        .hist-title { font-size: 0.6rem; font-weight: 800; letter-spacing: 0.18em;
+                      text-transform: uppercase; color: var(--muted); margin-bottom: 0.6rem; padding: 0 0.25rem; }
+        .hist-list { display: flex; flex-direction: column; gap: 0.5rem; }
+        .hist-item { background: var(--surface); border: 1px solid var(--border);
+                     border-radius: 0.85rem; padding: 0.85rem 1rem;
+                     display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
+        .hist-info { flex: 1; min-width: 0; }
+        .hist-motivo { font-size: 0.85rem; font-weight: 600; color: var(--text);
+                       white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .hist-fecha { font-size: 0.65rem; color: var(--muted); margin-top: 0.15rem; }
+        .hist-tipo { font-size: 0.55rem; font-weight: 800; letter-spacing: 0.1em;
+                     text-transform: uppercase; padding: 0.2rem 0.5rem; border-radius: 2rem; margin-bottom: 0.2rem; display: inline-block; }
+        .hist-tipo.entrada { background: var(--green-dim); color: var(--green); }
+        .hist-tipo.gasto { background: var(--danger-dim); color: var(--danger); }
+        .hist-monto { font-family: 'JetBrains Mono', monospace; font-size: 1rem;
+                      font-weight: 700; white-space: nowrap; }
+        .hist-monto.entrada { color: var(--green); }
+        .hist-monto.gasto { color: var(--danger); }
+        .hist-vacio { text-align: center; padding: 2rem; color: var(--muted); font-size: 0.8rem; }
+
+        /* Toast */
+        #toast { position: fixed; bottom: calc(1.5rem + var(--safe-b)); left: 50%; transform: translateX(-50%) translateY(100px);
+                 background: #1e293b; color: white; padding: 0.7rem 1.5rem; border-radius: 2rem;
+                 font-size: 0.8rem; font-weight: 600; z-index: 9000; transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+                 white-space: nowrap; pointer-events: none; }
+        #toast.show { transform: translateX(-50%) translateY(0); }
+        #toast.error { background: var(--danger); }
+
+        .loading-row { text-align: center; padding: 1.5rem; color: var(--muted); font-size: 0.8rem; }
     </style>
 </head>
-<body class="pb-10">
+<body>
 
-    <div id="bloqueo">
-        <div class="text-center p-8 bg-slate-900 rounded-[2.5rem] shadow-2xl w-80 border border-slate-800">
-            <div class="text-4xl mb-4">🏠</div>
-            <h2 class="font-black text-white uppercase italic mb-2 text-lg">Acceso Cobrador</h2>
-            <div class="relative mb-4 mt-4">
-                <input type="password" id="pin-ruta" inputmode="numeric" placeholder="****" maxlength="4"
-                    class="w-full p-4 bg-slate-800 border-none rounded-2xl text-center text-2xl font-black tracking-[0.5em] text-white outline-none focus:ring-2 focus:ring-sky-500">
+<!-- LOCK -->
+<div id="lock">
+    <div class="lock-logo">Credi<span>Listo</span></div>
+    <div class="lock-box">
+        <span class="lock-label">PIN de acceso</span>
+        <input type="password" id="pin-input" inputmode="numeric" placeholder="••••" maxlength="6"
+               class="lock-input" onkeydown="if(event.key==='Enter')verificar()">
+        <button class="lock-btn" onclick="verificar()">Entrar</button>
+        <div class="lock-err" id="pin-err">PIN incorrecto</div>
+    </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+    <div class="hdr">
+        <div class="hdr-top">
+            <div>
+                <div class="hdr-logo">Credi<span>Listo</span></div>
+                <div class="hdr-sub">💰 Caja Chica</div>
             </div>
-            <button onclick="validarRuta()" class="w-full py-4 btn-cobrar text-white font-black rounded-2xl uppercase shadow-lg">Abrir Ruta</button>
         </div>
     </div>
 
-    <div id="app-cobros" class="hidden">
-        <nav class="p-6 bg-slate-900 border-b border-slate-800 sticky top-0 z-50">
-            <div class="max-w-xl mx-auto flex flex-col gap-4">
-                <div class="flex justify-between items-center">
-                    <div>
-                        <h1 class="font-black text-white italic uppercase tracking-tighter text-xl">Santiago de María</h1>
-                        <p id="fecha-actual" class="text-[10px] font-bold text-slate-500 uppercase"></p>
-                    </div>
-                    <span class="bg-sky-500/10 text-sky-400 text-[10px] font-black px-3 py-1 rounded-full border border-sky-500/20">RUTA ACTIVA</span>
-                </div>
-                <input type="text" id="buscador" onkeyup="filtrarClientes()" placeholder="🔍 Buscar por nombre o DUI..." 
-                    class="input-dark text-sm shadow-2xl">
-            </div>
-        </nav>
-
-        <main class="max-w-xl mx-auto px-6 mt-6">
-            <div id="lista-ruta" class="space-y-3">
-                </div>
-        </main>
+    <!-- Selector de cuenta -->
+    <div class="cuenta-tabs">
+        <div class="tab active-1" id="tab-1" onclick="seleccionarCuenta(1)">📘 Inver 1</div>
+        <div class="tab" id="tab-2" onclick="seleccionarCuenta(2)">📙 Inver 2</div>
     </div>
 
-    <div id="modalCobro" class="fixed inset-0 z-[100] hidden flex items-end sm:items-center justify-center p-4">
-        <div class="absolute inset-0 bg-black/90 backdrop-blur-sm" onclick="cerrarCobro()"></div>
-        <div class="relative bg-slate-900 w-full max-w-lg rounded-[2.5rem] p-8 border border-slate-700 shadow-2xl">
-            
-            <div class="flex justify-between items-start mb-6">
-                <div>
-                    <h2 id="c-nombre" class="text-2xl font-black text-white uppercase italic leading-tight">CLIENTE</h2>
-                    <p id="c-cuota-info" class="text-sky-400 font-bold text-[10px] uppercase mt-1 tracking-widest"></p>
-                </div>
-                <button onclick="cerrarCobro()" class="bg-slate-800 text-slate-400 w-10 h-10 rounded-full flex items-center justify-center">✕</button>
-            </div>
+    <!-- Saldo actual -->
+    <div class="saldo-card">
+        <div class="saldo-label">Caja Chica disponible</div>
+        <div class="saldo-valor c1" id="saldo-display">$0.00</div>
+        <div class="saldo-sub" id="cuenta-label">Inversión 1</div>
+    </div>
 
-            <div class="bg-slate-800/50 border border-slate-700 rounded-2xl p-4 mb-6 grid grid-cols-3 gap-2">
-                <div class="text-center">
-                    <p class="text-[7px] font-black text-slate-500 uppercase">Total</p>
-                    <p id="m-total" class="text-xs font-black text-slate-300">$0.00</p>
-                </div>
-                <div class="text-center border-x border-slate-700">
-                    <p class="text-[7px] font-black text-green-600 uppercase">Abonado</p>
-                    <p id="m-pagado" class="text-xs font-black text-green-500">$0.00</p>
-                </div>
-                <div class="text-center">
-                    <p class="text-[7px] font-black text-red-500 uppercase">Pendiente</p>
-                    <p id="m-saldo" class="text-xs font-black text-red-500">$0.00</p>
-                </div>
-            </div>
+    <!-- Modo: Inyectar / Gasto -->
+    <div class="modo-tabs">
+        <div class="modo-tab active" id="modo-inj" onclick="setModo('inyectar')">➕ Ingresar saldo</div>
+        <div class="modo-tab" id="modo-gas" onclick="setModo('gasto')">➖ Registrar gasto</div>
+    </div>
 
-            <div class="mb-6">
-                <label class="block text-[9px] font-black text-slate-500 uppercase mb-2 ml-2 tracking-tighter text-center">Monto Recibido ($)</label>
-                <input type="number" id="monto-recibido" inputmode="decimal" step="0.01"
-                    class="w-full p-6 bg-slate-950 border-2 border-sky-900/50 rounded-3xl text-5xl font-black text-center text-sky-400 outline-none focus:border-sky-500">
-            </div>
+    <!-- Formulario Inyectar -->
+    <div class="form-card" id="form-inyectar">
+        <div class="form-title">➕ Ingresar saldo a caja chica</div>
+        <div class="field">
+            <label>Monto ($)</label>
+            <input type="number" id="inj-monto" placeholder="0.00" min="0.01" step="0.01" inputmode="decimal">
+        </div>
+        <div class="field">
+            <label>Motivo / Descripción</label>
+            <textarea id="inj-motivo" placeholder="Ej: Cobro semanal, depósito…"></textarea>
+        </div>
+        <button class="btn-accion btn-inyectar" onclick="registrarIngreso()">✓ Confirmar ingreso</button>
+    </div>
 
-            <button onclick="registrarPago()" class="w-full py-6 btn-cobrar text-white font-black rounded-[1.5rem] uppercase text-lg shadow-2xl">
-                Guardar Abono
-            </button>
+    <!-- Formulario Gasto -->
+    <div class="form-card" id="form-gasto" style="display:none">
+        <div class="form-title">➖ Registrar gasto de caja chica</div>
+        <div class="field">
+            <label>Monto a descontar ($)</label>
+            <input type="number" id="gas-monto" placeholder="0.00" min="0.01" step="0.01" inputmode="decimal">
+        </div>
+        <div class="field">
+            <label>Motivo del gasto</label>
+            <textarea id="gas-motivo" placeholder="Ej: Gasolina, papelería…"></textarea>
+        </div>
+        <button class="btn-accion btn-gasto" onclick="registrarGasto()">− Confirmar gasto</button>
+    </div>
+
+    <!-- Historial -->
+    <div class="historial">
+        <div class="hist-title">Últimos movimientos</div>
+        <div class="hist-list" id="hist-list">
+            <div class="loading-row">Cargando…</div>
         </div>
     </div>
+</div>
 
-    <script>
-        const PIN_ACCESO = "2025";
-        const firebaseConfig = { databaseURL: "https://credilistosv-default-rtdb.firebaseio.com" };
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
-        
-        let clienteActualId = null;
-        let indiceCuota = null;
+<div id="toast"></div>
 
-        document.getElementById('fecha-actual').innerText = new Date().toLocaleDateString('es-SV', { weekday: 'long', day: 'numeric', month: 'long' });
+<script>
+    const PIN    = "2025";
+    const DB_URL = "https://credilistosv-default-rtdb.firebaseio.com";
+    const FB_CFG = {
+        apiKey:        "AIzaSyC1GiJitT0QegrVe9o6CHCsvf7sEZELwRk",
+        authDomain:    "credilistosv.firebaseapp.com",
+        databaseURL:   DB_URL,
+        projectId:     "credilistosv",
+        storageBucket: "credilistosv.firebasestorage.app"
+    };
 
-        function validarRuta() {
-            if(document.getElementById('pin-ruta').value === PIN_ACCESO) {
-                sessionStorage.setItem('cobrador_auth', 'true');
-                document.getElementById('bloqueo').style.display = 'none';
-                document.getElementById('app-cobros').classList.remove('hidden');
-                cargarRuta();
-            } else { 
-                alert("PIN Incorrecto"); 
-                document.getElementById('pin-ruta').value = "";
-            }
+    let db, cuentaActual = 1, cajaActual = 0;
+    let unsubCaja = null, unsubHist = null;
+
+    // Rutas según cuenta
+    function cfg()  { return cuentaActual === 1 ? 'config/finanzas'  : 'config/finanzas2'; }
+    function hist() { return cuentaActual === 1 ? 'movimientos_caja' : 'movimientos_caja2'; }
+
+    function fmt(v) {
+        return '$' + parseFloat(v||0).toLocaleString('es-SV', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function verificar() {
+        const val = document.getElementById('pin-input').value;
+        if (val === PIN) {
+            document.getElementById('lock').style.display = 'none';
+            document.getElementById('app').style.display  = 'block';
+            iniciar();
+        } else {
+            document.getElementById('pin-err').style.display = 'block';
+            document.getElementById('pin-input').value = '';
         }
+    }
 
-        window.onload = () => {
-            if(sessionStorage.getItem('cobrador_auth') === 'true') {
-                document.getElementById('bloqueo').style.display = 'none';
-                document.getElementById('app-cobros').classList.remove('hidden');
-                cargarRuta();
-            }
-        };
+    function iniciar() {
+        if (!firebase.apps.length) firebase.initializeApp(FB_CFG);
+        db = firebase.database();
+        escucharCuenta();
+    }
 
-        function cargarRuta() {
-            db.ref('clientes').on('value', snap => {
-                const container = document.getElementById('lista-ruta');
-                container.innerHTML = "";
-                snap.forEach(child => {
-                    const c = child.val();
-                    if(c.tipo === "ACTIVO") {
-                        container.innerHTML += `
-                            <div class="cliente-card p-5 flex justify-between items-center item-ruta" data-search="${c.nombre.toLowerCase()} ${c.dui}">
-                                <div>
-                                    <h3 class="font-black uppercase italic text-sm text-white leading-none">${c.nombre}</h3>
-                                    <p class="text-[10px] font-bold text-slate-500 mt-2 uppercase tracking-tighter">Saldo: <span class="text-red-400">$${parseFloat(c.saldo || 0).toFixed(2)}</span></p>
-                                </div>
-                                <button onclick="abrirCobro('${child.key}')" class="bg-slate-700 hover:bg-sky-600 text-white w-12 h-12 rounded-2xl flex items-center justify-center transition-colors">
-                                    <span class="text-xl">💵</span>
-                                </button>
-                            </div>`;
-                    }
-                });
-            });
+    function seleccionarCuenta(n) {
+        cuentaActual = n;
+        document.getElementById('tab-1').className = 'tab' + (n===1 ? ' active-1' : '');
+        document.getElementById('tab-2').className = 'tab' + (n===2 ? ' active-2' : '');
+        const disp = document.getElementById('saldo-display');
+        disp.className = 'saldo-valor ' + (n===1 ? 'c1' : 'c2');
+        document.getElementById('cuenta-label').textContent = n===1 ? 'Inversión 1' : 'Inversión 2';
+        escucharCuenta();
+    }
+
+    function escucharCuenta() {
+        // Desuscribir listeners anteriores
+        if (unsubCaja) { unsubCaja(); unsubCaja = null; }
+        if (unsubHist) { unsubHist(); unsubHist = null; }
+
+        document.getElementById('saldo-display').textContent = '...';
+        document.getElementById('hist-list').innerHTML = '<div class="loading-row">Cargando…</div>';
+
+        const refCaja = db.ref(cfg());
+        const onCaja = refCaja.on('value', snap => {
+            const data = snap.val() || {};
+            cajaActual = parseFloat(data.cajaChica || 0);
+            document.getElementById('saldo-display').textContent = fmt(cajaActual);
+        });
+        unsubCaja = () => refCaja.off('value', onCaja);
+
+        const refHist = db.ref(hist()).orderByChild('fecha').limitToLast(25);
+        const onHist = refHist.on('value', snap => {
+            const items = [];
+            snap.forEach(h => items.unshift({ key: h.key, ...h.val() }));
+            renderHistorial(items);
+        });
+        unsubHist = () => refHist.off('value', onHist);
+    }
+
+    function renderHistorial(items) {
+        const el = document.getElementById('hist-list');
+        if (!items.length) {
+            el.innerHTML = '<div class="hist-vacio">Sin movimientos registrados</div>';
+            return;
         }
+        el.innerHTML = items.map(m => {
+            const esGasto = m.tipo === 'gasto';
+            return `<div class="hist-item">
+                <div class="hist-info">
+                    <span class="hist-tipo ${esGasto ? 'gasto' : 'entrada'}">${esGasto ? 'Gasto' : 'Ingreso'}</span>
+                    <div class="hist-motivo">${m.motivo || '—'}</div>
+                    <div class="hist-fecha">${m.fechaStr || ''}</div>
+                </div>
+                <div class="hist-monto ${esGasto ? 'gasto' : 'entrada'}">${esGasto ? '-' : '+'}${fmt(m.monto)}</div>
+            </div>`;
+        }).join('');
+    }
 
-        async function abrirCobro(id) {
-            clienteActualId = id;
-            const snap = await db.ref('clientes/' + id).once('value');
-            const c = snap.val();
-            const idx = (c.cuotas || []).findIndex(cuo => !cuo.pagada);
-            
-            if(idx === -1) return alert("Este cliente ya completó sus pagos.");
-            indiceCuota = idx;
+    function setModo(modo) {
+        const esInj = modo === 'inyectar';
+        document.getElementById('form-inyectar').style.display = esInj ? 'block' : 'none';
+        document.getElementById('form-gasto').style.display    = esInj ? 'none'  : 'block';
+        document.getElementById('modo-inj').className = 'modo-tab' + (esInj ? ' active' : '');
+        document.getElementById('modo-gas').className = 'modo-tab' + (!esInj ? ' active' : '');
+    }
 
-            const total = parseFloat(c.total || 0);
-            const saldo = parseFloat(c.saldo || 0);
+    async function registrarIngreso() {
+        const monto  = parseFloat(document.getElementById('inj-monto').value);
+        const motivo = document.getElementById('inj-motivo').value.trim();
+        if (!monto || monto <= 0) { toast('Ingresá un monto válido', true); return; }
+        if (!motivo) { toast('Ingresá el motivo', true); return; }
+        const nuevaCaja = parseFloat((cajaActual + monto).toFixed(2));
+        const fechaStr  = ahoraStr();
+        try {
+            await db.ref(cfg()).update({ cajaChica: nuevaCaja });
+            await db.ref(hist()).push({ tipo: 'ingreso', monto, motivo, fecha: Date.now(), fechaStr });
+            document.getElementById('inj-monto').value  = '';
+            document.getElementById('inj-motivo').value = '';
+            toast('✓ Saldo ingresado correctamente');
+        } catch(e) { toast('Error: ' + e.message, true); }
+    }
 
-            document.getElementById('c-nombre').innerText = c.nombre;
-            document.getElementById('m-total').innerText = `$${total.toFixed(2)}`;
-            document.getElementById('m-pagado').innerText = `$${(total - saldo).toFixed(2)}`;
-            document.getElementById('m-saldo').innerText = `$${saldo.toFixed(2)}`;
-            document.getElementById('c-cuota-info').innerText = `PAGO # ${c.cuotas[idx].n}`;
-            document.getElementById('monto-recibido').value = c.cuotas[idx].valorPagado;
-            
-            document.getElementById('modalCobro').classList.remove('hidden');
-            setTimeout(() => document.getElementById('monto-recibido').select(), 200);
-        }
+    async function registrarGasto() {
+        const monto  = parseFloat(document.getElementById('gas-monto').value);
+        const motivo = document.getElementById('gas-motivo').value.trim();
+        if (!monto || monto <= 0) { toast('Ingresá un monto válido', true); return; }
+        if (!motivo) { toast('Ingresá el motivo del gasto', true); return; }
+        if (monto > cajaActual) { toast('Monto supera la caja disponible (' + fmt(cajaActual) + ')', true); return; }
+        const nuevaCaja = parseFloat((cajaActual - monto).toFixed(2));
+        const fechaStr  = ahoraStr();
+        try {
+            await db.ref(cfg()).update({ cajaChica: nuevaCaja });
+            await db.ref(hist()).push({ tipo: 'gasto', monto, motivo, fecha: Date.now(), fechaStr });
+            document.getElementById('gas-monto').value  = '';
+            document.getElementById('gas-motivo').value = '';
+            toast('Gasto registrado');
+        } catch(e) { toast('Error: ' + e.message, true); }
+    }
 
-        async function registrarPago() {
-            const monto = parseFloat(document.getElementById('monto-recibido').value);
-            if(isNaN(monto) || monto <= 0) return alert("Monto no válido");
+    function ahoraStr() {
+        const a = new Date();
+        return a.toLocaleDateString('es-SV') + ' ' + a.toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit' });
+    }
 
-            try {
-                const snap = await db.ref('clientes/' + clienteActualId).once('value');
-                let s = snap.val();
-                
-                const ahora = new Date();
-                const fechaISO = ahora.toISOString().split('T')[0];
-                const fechaSV = ahora.toLocaleDateString('es-SV');
-
-                // Actualizar la cuota en el objeto
-                s.cuotas[indiceCuota].pagada = true;
-                s.cuotas[indiceCuota].valorPagado = monto;
-                s.cuotas[indiceCuota].fecha_ISO = fechaISO;
-                s.cuotas[indiceCuota].fecha = fechaSV;
-
-                // Actualizar el saldo restando el monto cobrado
-                const saldoActual = parseFloat(s.saldo || s.total || 0);
-                s.saldo = (saldoActual - monto).toFixed(2);
-
-                // Guardar objeto completo para asegurar sincronización
-                await db.ref('clientes/' + clienteActualId).set(s);
-                
-                alert("✅ PAGO REGISTRADO EXITOSAMENTE");
-                cerrarCobro();
-            } catch (e) {
-                alert("Error al guardar. Verifica tu conexión.");
-            }
-        }
-
-        function cerrarCobro() { document.getElementById('modalCobro').classList.add('hidden'); }
-        
-        function filtrarClientes() {
-            const txt = document.getElementById('buscador').value.toLowerCase();
-            document.querySelectorAll('.item-ruta').forEach(card => {
-                card.style.display = card.dataset.search.includes(txt) ? "flex" : "none";
-            });
-        }
-    </script>
+    let toastTimer;
+    function toast(msg, error = false) {
+        const el = document.getElementById('toast');
+        el.textContent = msg;
+        el.className = 'show' + (error ? ' error' : '');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => el.className = '', 2800);
+    }
+</script>
 </body>
 </html>
