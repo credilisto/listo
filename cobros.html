@@ -182,8 +182,8 @@
 
 <!-- ─── MODAL CAJA CHICA (TOKEN SECRETO) ─────────── -->
 <div id="modal-caja">
-    <div style="background:#0f172a;border:1px solid #1e293b;border-radius:2rem;width:min(95vw,360px);padding:2rem">
-        <div style="font-size:1.1rem;font-weight:900;text-transform:uppercase;letter-spacing:-0.02em;color:#fff;margin-bottom:0.2rem">💰 Inyectar Caja Chica</div>
+    <div style="background:#0f172a;border:1px solid #1e293b;border-radius:2rem;width:min(95vw,380px);padding:2rem;max-height:95vh;overflow-y:auto">
+        <div style="font-size:1.1rem;font-weight:900;text-transform:uppercase;letter-spacing:-0.02em;color:#fff;margin-bottom:0.2rem">💰 Caja Chica</div>
         <div style="font-size:0.58rem;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:#475569;margin-bottom:1.75rem">Acceso restringido · Token requerido</div>
 
         <!-- Paso 1: Token -->
@@ -205,17 +205,49 @@
             </button>
         </div>
 
-        <!-- Paso 2: Inyectar monto -->
+        <!-- Paso 2: Selector + Inyectar -->
         <div id="caja-paso-2" style="display:none">
+
+            <!-- Selector de INVER -->
+            <div style="font-size:0.58rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:#64748b;margin-bottom:0.5rem">Seleccionar inversión</div>
+            <div style="display:flex;gap:0.4rem;margin-bottom:1.1rem">
+                <button id="caja-btn-inv1" onclick="seleccionarInver('inver1')"
+                    style="flex:1;padding:0.6rem 0.4rem;border-radius:0.75rem;font-size:0.65rem;font-weight:900;letter-spacing:0.05em;text-transform:uppercase;border:2px solid rgba(14,165,233,0.5);background:rgba(14,165,233,0.2);color:#38bdf8;cursor:pointer;transition:all 0.15s">
+                    🔵 INVER 1
+                </button>
+                <button id="caja-btn-inv2" onclick="seleccionarInver('inver2')"
+                    style="flex:1;padding:0.6rem 0.4rem;border-radius:0.75rem;font-size:0.65rem;font-weight:900;letter-spacing:0.05em;text-transform:uppercase;border:2px solid #334155;background:transparent;color:#64748b;cursor:pointer;transition:all 0.15s">
+                    🟣 INVER 2
+                </button>
+                <button id="caja-btn-inv3" onclick="seleccionarInver('inver3')"
+                    style="flex:1;padding:0.6rem 0.4rem;border-radius:0.75rem;font-size:0.65rem;font-weight:900;letter-spacing:0.05em;text-transform:uppercase;border:2px solid #334155;background:transparent;color:#64748b;cursor:pointer;transition:all 0.15s">
+                    🏛️ INVER 3
+                </button>
+            </div>
+
+            <!-- Saldo actual -->
             <div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);border-radius:1rem;padding:0.85rem;margin-bottom:1rem;text-align:center">
-                <div style="font-size:0.55rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:#10b981;margin-bottom:0.25rem">Caja Chica Actual</div>
+                <div style="font-size:0.55rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:#10b981;margin-bottom:0.25rem">Caja Chica Actual — <span id="caja-inver-label">INVER 1</span></div>
                 <div id="caja-actual" style="font-size:1.6rem;font-weight:900;color:#10b981;font-family:monospace">$0.00</div>
             </div>
-            <div style="font-size:0.58rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:#64748b;margin-bottom:0.5rem">Monto a añadir ($)</div>
-            <input type="number" id="caja-monto-input" inputmode="decimal" step="0.01" min="0.01" placeholder="0.00"
+
+            <!-- Selector de acción -->
+            <div style="display:flex;gap:0.4rem;margin-bottom:0.9rem">
+                <button id="caja-modo-add" onclick="seleccionarModo('add')"
+                    style="flex:1;padding:0.55rem;border-radius:0.75rem;font-size:0.6rem;font-weight:900;text-transform:uppercase;letter-spacing:0.05em;border:2px solid rgba(16,185,129,0.5);background:rgba(16,185,129,0.18);color:#10b981;cursor:pointer;transition:all 0.15s">
+                    ➕ Añadir
+                </button>
+                <button id="caja-modo-set" onclick="seleccionarModo('set')"
+                    style="flex:1;padding:0.55rem;border-radius:0.75rem;font-size:0.6rem;font-weight:900;text-transform:uppercase;letter-spacing:0.05em;border:2px solid #334155;background:transparent;color:#64748b;cursor:pointer;transition:all 0.15s">
+                    ✏️ Establecer
+                </button>
+            </div>
+
+            <div id="caja-modo-label" style="font-size:0.58rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:#64748b;margin-bottom:0.5rem">Monto a añadir ($)</div>
+            <input type="number" id="caja-monto-input" inputmode="decimal" step="0.01" min="0" placeholder="0.00"
                 style="width:100%;background:#1e293b;border:2px solid rgba(16,185,129,0.3);border-radius:1rem;padding:1rem 1.25rem;color:#10b981;font-size:1.6rem;font-weight:900;text-align:center;outline:none;margin-bottom:0.75rem"
                 onkeydown="if(event.key==='Enter') inyectarCaja()">
-            <button onclick="inyectarCaja()"
+            <button onclick="inyectarCaja()" id="caja-btn-confirmar"
                 style="width:100%;background:linear-gradient(to right,#10b981,#059669);color:#fff;border:none;border-radius:1rem;padding:1rem;font-weight:900;font-size:0.75rem;letter-spacing:0.15em;text-transform:uppercase;cursor:pointer;margin-bottom:0.5rem">
                 ✓ Añadir a Caja Chica
             </button>
@@ -608,6 +640,78 @@
     }
 
     // ─── CAJA CHICA (TOKEN) ──────────────────────────────
+    let cajaInverSeleccionado = 'inver1';
+    let cajaModoSeleccionado  = 'add';
+
+    const CAJA_RUTAS = {
+        inver1: 'config/finanzas',
+        inver2: 'config/finanzas2',
+        inver3: 'config/finanzas3'
+    };
+    const CAJA_LABELS = {
+        inver1: 'INVER 1',
+        inver2: 'INVER 2',
+        inver3: 'INVER 3'
+    };
+    const CAJA_COLORES = {
+        inver1: { border: 'rgba(14,165,233,0.5)',  bg: 'rgba(14,165,233,0.2)',  color: '#38bdf8' },
+        inver2: { border: 'rgba(168,85,247,0.5)',  bg: 'rgba(168,85,247,0.2)',  color: '#c084fc' },
+        inver3: { border: 'rgba(14,165,233,0.35)', bg: 'rgba(14,165,233,0.12)', color: '#7dd3fc' }
+    };
+
+    function seleccionarInver(inv) {
+        cajaInverSeleccionado = inv;
+        ['inver1','inver2','inver3'].forEach(k => {
+            const btn = document.getElementById('caja-btn-' + (k === 'inver1' ? 'inv1' : k === 'inver2' ? 'inv2' : 'inv3'));
+            if (!btn) return;
+            if (k === inv) {
+                const c = CAJA_COLORES[k];
+                btn.style.border = '2px solid ' + c.border;
+                btn.style.background = c.bg;
+                btn.style.color = c.color;
+            } else {
+                btn.style.border = '2px solid #334155';
+                btn.style.background = 'transparent';
+                btn.style.color = '#64748b';
+            }
+        });
+        document.getElementById('caja-inver-label').textContent = CAJA_LABELS[inv];
+        // Recargar saldo
+        db.ref(CAJA_RUTAS[inv]).once('value').then(snap => {
+            const cfg = snap.val() || {};
+            document.getElementById('caja-actual').textContent = '$' + parseFloat(cfg.cajaChica||0).toFixed(2);
+        });
+    }
+
+    function seleccionarModo(modo) {
+        cajaModoSeleccionado = modo;
+        const btnAdd = document.getElementById('caja-modo-add');
+        const btnSet = document.getElementById('caja-modo-set');
+        const label  = document.getElementById('caja-modo-label');
+        const btnConf = document.getElementById('caja-btn-confirmar');
+        if (modo === 'add') {
+            btnAdd.style.border = '2px solid rgba(16,185,129,0.5)';
+            btnAdd.style.background = 'rgba(16,185,129,0.18)';
+            btnAdd.style.color = '#10b981';
+            btnSet.style.border = '2px solid #334155';
+            btnSet.style.background = 'transparent';
+            btnSet.style.color = '#64748b';
+            label.textContent = 'Monto a añadir ($)';
+            btnConf.textContent = '✓ Añadir a Caja Chica';
+            btnConf.style.background = 'linear-gradient(to right,#10b981,#059669)';
+        } else {
+            btnSet.style.border = '2px solid rgba(245,158,11,0.5)';
+            btnSet.style.background = 'rgba(245,158,11,0.15)';
+            btnSet.style.color = '#fbbf24';
+            btnAdd.style.border = '2px solid #334155';
+            btnAdd.style.background = 'transparent';
+            btnAdd.style.color = '#64748b';
+            label.textContent = 'Nuevo saldo a establecer ($)';
+            btnConf.textContent = '✏️ Establecer Saldo';
+            btnConf.style.background = 'linear-gradient(to right,#f59e0b,#d97706)';
+        }
+    }
+
     function abrirModalCaja() {
         document.getElementById('caja-token').value       = '';
         document.getElementById('caja-monto-input').value = '';
@@ -631,25 +735,34 @@
         document.getElementById('caja-err').style.display  = 'none';
         document.getElementById('caja-paso-1').style.display = 'none';
         document.getElementById('caja-paso-2').style.display = 'block';
-        db.ref('config/finanzas').once('value').then(snap => {
-            const cfg = snap.val() || {};
-            document.getElementById('caja-actual').textContent = '$' + parseFloat(cfg.cajaChica||0).toFixed(2);
-            document.getElementById('caja-monto-input').focus();
-        });
+        // Reset selección
+        cajaInverSeleccionado = 'inver1';
+        cajaModoSeleccionado  = 'add';
+        seleccionarInver('inver1');
+        seleccionarModo('add');
+        document.getElementById('caja-monto-input').focus();
     }
 
     async function inyectarCaja() {
         const monto = parseFloat(document.getElementById('caja-monto-input').value);
-        if (isNaN(monto) || monto <= 0) { alert('Ingresa un monto válido'); return; }
+        if (isNaN(monto) || monto < 0) { alert('Ingresa un monto válido'); return; }
         const msgEl = document.getElementById('caja-msg');
+        const ruta  = CAJA_RUTAS[cajaInverSeleccionado];
+        const label = CAJA_LABELS[cajaInverSeleccionado];
         try {
-            const snap  = await db.ref('config/finanzas').once('value');
-            const cfg   = snap.val() || {};
-            const nueva = parseFloat((parseFloat(cfg.cajaChica||0) + monto).toFixed(2));
-            await db.ref('config/finanzas').update({ cajaChica: nueva });
+            const snap = await db.ref(ruta).once('value');
+            const cfg  = snap.val() || {};
+            let nueva;
+            if (cajaModoSeleccionado === 'add') {
+                nueva = parseFloat((parseFloat(cfg.cajaChica||0) + monto).toFixed(2));
+            } else {
+                nueva = parseFloat(monto.toFixed(2));
+            }
+            await db.ref(ruta).update({ cajaChica: nueva });
             document.getElementById('caja-actual').textContent = '$' + nueva.toFixed(2);
             document.getElementById('caja-monto-input').value  = '';
-            msgEl.textContent   = `✓ $${monto.toFixed(2)} añadidos · Total: $${nueva.toFixed(2)}`;
+            const accion = cajaModoSeleccionado === 'add' ? `+$${monto.toFixed(2)} añadidos` : `Saldo fijado en $${nueva.toFixed(2)}`;
+            msgEl.textContent   = `✓ ${label} · ${accion}`;
             msgEl.style.color   = '#10b981';
             msgEl.style.display = 'block';
             setTimeout(() => { msgEl.style.display='none'; }, 3500);
@@ -659,6 +772,7 @@
             msgEl.style.display = 'block';
         }
     }
+
 </script>
 </body>
 </html>
