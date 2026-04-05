@@ -85,9 +85,11 @@
         }
         .card-1::before { background: radial-gradient(circle at 50% 0%, rgba(14,165,233,0.18), transparent 70%); }
         .card-2::before { background: radial-gradient(circle at 50% 0%, rgba(139,92,246,0.18), transparent 70%); }
+        .card-3::before { background: radial-gradient(circle at 50% 0%, rgba(16,185,129,0.18), transparent 70%); }
         .card:hover { transform: translateY(-4px); }
         .card-1:hover { border-color: rgba(14,165,233,0.5); box-shadow: 0 8px 40px rgba(14,165,233,0.15); background: rgba(14,165,233,0.06); }
         .card-2:hover { border-color: rgba(139,92,246,0.5); box-shadow: 0 8px 40px rgba(139,92,246,0.15); background: rgba(139,92,246,0.06); }
+        .card-3:hover { border-color: rgba(16,185,129,0.5); box-shadow: 0 8px 40px rgba(16,185,129,0.15); background: rgba(16,185,129,0.06); }
         .card:hover::before { opacity: 1; }
 
         .card-icon {
@@ -103,6 +105,7 @@
         }
         .card-1 .card-icon { background: rgba(14,165,233,0.12); border: 1px solid rgba(14,165,233,0.25); }
         .card-2 .card-icon { background: rgba(139,92,246,0.12); border: 1px solid rgba(139,92,246,0.25); }
+        .card-3 .card-icon { background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.25); }
 
         .card-title {
             font-family: 'Syne', sans-serif;
@@ -114,6 +117,7 @@
         }
         .card-1 .card-title { color: #38bdf8; }
         .card-2 .card-title { color: #a78bfa; }
+        .card-3 .card-title { color: #34d399; }
 
         .card-desc {
             font-size: 0.72rem;
@@ -144,6 +148,7 @@
         }
         .card-1 .card-enter { background: #0ea5e9; color: #fff; }
         .card-2 .card-enter { background: #8b5cf6; color: #fff; }
+        .card-3 .card-enter { background: #10b981; color: #fff; }
         .card-enter:hover { opacity: 0.85; }
 
         .footer {
@@ -163,7 +168,7 @@
 
     <h1>Seleccionar Cuenta</h1>
 
-    <div class="cards">
+    <div class="cards" style="max-width:900px">
         <a href="#" onclick="entrar(1)" class="card card-1">
             <div class="card-icon">💼</div>
             <div class="card-title">INVER 1</div>
@@ -175,6 +180,13 @@
             <div class="card-icon">📂</div>
             <div class="card-title">INVER 2</div>
             <div class="card-desc">Segunda cuenta<br>Cartera independiente</div>
+            <button class="card-enter">Ingresar</button>
+        </a>
+
+        <a href="#" onclick="entrar(3)" class="card card-3">
+            <div class="card-icon">🏛️</div>
+            <div class="card-title">INVER 3</div>
+            <div class="card-desc">Tercera cuenta<br>Cartera independiente</div>
             <button class="card-enter">Ingresar</button>
         </a>
     </div>
@@ -189,8 +201,10 @@
     function entrar(num) {
         if (num === 1) {
             window.location.href = isMobile() ? 'gestionmovil.html' : 'gestionar.html';
-        } else {
+        } else if (num === 2) {
             window.location.href = isMobile() ? 'gestionmovil2.html' : 'gestionar2.html';
+        } else {
+            window.location.href = 'gestionar3.html';
         }
     }
     </script>
