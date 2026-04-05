@@ -3,142 +3,220 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cobros de Campo | CrediListo</title>
+    <title>Cobros | CrediListo</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-database-compat.js"></script>
     <style>
-        :root { --bg: #0f172a; --card: #1e293b; --accent: #0ea5e9; }
+        :root { --bg: #0f172a; --card: #1e293b; }
         body { background-color: var(--bg); font-family: 'Inter', sans-serif; color: white; }
         .input-dark { background: #334155; border: 1px solid #475569; padding: 1rem; border-radius: 1rem; width: 100%; color: white; font-weight: 700; outline: none; }
         .btn-cobrar { background: linear-gradient(to right, #0ea5e9, #2563eb); transition: all 0.3s ease; }
         .btn-cobrar:active { transform: scale(0.95); opacity: 0.9; }
         #bloqueo { background: #050b16; display: flex; align-items: center; justify-content: center; z-index: 9999; position: fixed; inset: 0; }
         .cliente-card { background: var(--card); border: 1px solid #334155; border-radius: 1.2rem; }
-        #modal-caja { display:none; position:fixed; inset:0; z-index:200; background:rgba(5,11,22,0.96);
-            align-items:center; justify-content:center; padding:1rem; }
-        #modal-caja.show { display:flex; }
+        .inver-btn {
+            flex: 1; padding: 0.65rem 0.3rem;
+            border-radius: 0.75rem;
+            font-size: 0.62rem; font-weight: 900;
+            letter-spacing: 0.04em; text-transform: uppercase;
+            border: 2px solid #334155;
+            background: transparent; color: #64748b;
+            cursor: pointer; transition: all 0.15s;
+        }
+        .inver-btn.a1 { border-color:rgba(14,165,233,0.6); background:rgba(14,165,233,0.18); color:#38bdf8; }
+        .inver-btn.a2 { border-color:rgba(168,85,247,0.6); background:rgba(168,85,247,0.18); color:#c084fc; }
+        .inver-btn.a3 { border-color:rgba(16,185,129,0.6); background:rgba(16,185,129,0.18); color:#34d399; }
+        .modo-btn {
+            flex: 1; padding: 0.5rem;
+            border-radius: 0.65rem;
+            font-size: 0.6rem; font-weight: 900;
+            text-transform: uppercase; letter-spacing: 0.04em;
+            border: 2px solid #334155;
+            background: transparent; color: #64748b;
+            cursor: pointer; transition: all 0.15s;
+        }
+        .modo-btn.m-add { border-color:rgba(16,185,129,0.5); background:rgba(16,185,129,0.18); color:#10b981; }
+        .modo-btn.m-set { border-color:rgba(245,158,11,0.5); background:rgba(245,158,11,0.15); color:#fbbf24; }
+        .cobros-body { overflow: hidden; transition: max-height 0.35s ease; }
+        .arrow-icon { transition: transform 0.2s; display:inline-block; }
+        .arrow-open { transform: rotate(90deg); }
     </style>
 </head>
-<body class="pb-16">
+<body class="pb-20">
 
 <!-- ─── LOCK ─────────────────────────────────────── -->
 <div id="bloqueo">
     <div class="text-center p-8 bg-slate-900 rounded-[2.5rem] shadow-2xl w-80 border border-slate-800">
-        <div class="text-4xl mb-4">🏠</div>
-        <h2 class="font-black text-white uppercase italic mb-2 text-lg">Acceso Cobrador</h2>
-        <div class="relative mb-4 mt-4">
-            <input type="password" id="pin-ruta" inputmode="numeric" placeholder="****" maxlength="4"
-                class="w-full p-4 bg-slate-800 border-none rounded-2xl text-center text-2xl font-black tracking-[0.5em] text-white outline-none focus:ring-2 focus:ring-sky-500"
-                onkeydown="if(event.key==='Enter') validarRuta()">
-        </div>
-        <button onclick="validarRuta()" class="w-full py-4 btn-cobrar text-white font-black rounded-2xl uppercase shadow-lg">Abrir Ruta</button>
+        <div class="text-4xl mb-3">💰</div>
+        <h2 class="font-black text-white uppercase italic mb-1 text-lg">CrediListo</h2>
+        <p class="text-slate-500 text-[9px] font-bold uppercase tracking-widest mb-5">Panel de Cobros</p>
+        <input type="password" id="pin-ruta" inputmode="numeric" placeholder="****" maxlength="4"
+            class="w-full p-4 bg-slate-800 border-none rounded-2xl text-center text-2xl font-black tracking-[0.5em] text-white outline-none focus:ring-2 focus:ring-sky-500 mb-3"
+            onkeydown="if(event.key==='Enter') validarRuta()">
+        <button onclick="validarRuta()" class="w-full py-4 btn-cobrar text-white font-black rounded-2xl uppercase shadow-lg">Entrar</button>
     </div>
 </div>
 
 <!-- ─── APP ──────────────────────────────────────── -->
 <div id="app-cobros" class="hidden">
 
-    <nav class="p-5 bg-slate-900 border-b border-slate-800 sticky top-0 z-50">
-        <div class="max-w-xl mx-auto flex flex-col gap-3">
-            <div class="flex justify-between items-center">
-                <div>
-                    <h1 class="font-black text-white italic uppercase tracking-tighter text-xl">Santiago de María</h1>
-                    <p id="fecha-actual" class="text-[10px] font-bold text-slate-500 uppercase"></p>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span class="bg-sky-500/10 text-sky-400 text-[10px] font-black px-3 py-1 rounded-full border border-sky-500/20">RUTA ACTIVA</span>
-                </div>
+    <nav class="px-4 py-3 bg-slate-900 border-b border-slate-800 sticky top-0 z-50">
+        <div class="max-w-xl mx-auto flex justify-between items-center">
+            <div>
+                <span class="font-black text-white italic uppercase tracking-tight text-base">CrediListo</span>
+                <span id="fecha-actual" class="block text-[8px] font-bold text-slate-500 uppercase"></span>
             </div>
-            <!-- Tabs de cuenta -->
-            <div class="flex gap-1.5">
-                <button id="tab-inv1" onclick="cambiarCuenta('inv1')"
-                    class="flex-1 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all"
-                    style="background:rgba(14,165,233,0.2);color:#38bdf8;border-color:rgba(14,165,233,0.4)">
-                    🔵 INVER 1
-                </button>
-                <button id="tab-inv2" onclick="cambiarCuenta('inv2')"
-                    class="flex-1 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all"
-                    style="background:transparent;color:#64748b;border-color:#334155">
-                    🟣 INVER 2
-                </button>
-                <button id="tab-ambos" onclick="cambiarCuenta('ambos')"
-                    class="flex-1 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all"
-                    style="background:transparent;color:#64748b;border-color:#334155">
-                    📋 Ambas
-                </button>
-            </div>
-            <!-- Stats resumen -->
-            <div class="grid grid-cols-3 gap-2">
-                <div class="bg-slate-800/60 rounded-xl p-2.5 text-center">
-                    <div class="text-[8px] font-black text-slate-500 uppercase mb-1">Cobrar hoy</div>
-                    <div id="stat-cobrar-hoy" class="text-base font-black text-sky-400">0</div>
-                </div>
-                <div class="bg-slate-800/60 rounded-xl p-2.5 text-center">
-                    <div class="text-[8px] font-black text-slate-500 uppercase mb-1">Cobrado</div>
-                    <div id="stat-cobrado" class="text-base font-black text-emerald-400">$0</div>
-                </div>
-                <div class="bg-slate-800/60 rounded-xl p-2.5 text-center">
-                    <div class="text-[8px] font-black text-slate-500 uppercase mb-1">En mora</div>
-                    <div id="stat-mora" class="text-base font-black text-red-400">0</div>
-                </div>
-            </div>
-            <input type="text" id="buscador" onkeyup="filtrarClientes()" placeholder="🔍 Buscar por nombre o DUI..."
-                class="input-dark text-sm">
+            <span class="bg-emerald-500/10 text-emerald-400 text-[8px] font-black px-3 py-1 rounded-full border border-emerald-500/20">● EN LÍNEA</span>
         </div>
     </nav>
 
-    <main class="max-w-xl mx-auto px-4 mt-5 space-y-6">
+    <main class="max-w-xl mx-auto px-4 pt-4 space-y-4">
 
-        <!-- BLOQUE: EN MORA -->
-        <div>
-            <div class="flex items-center gap-2 mb-3 px-1">
-                <span class="text-[9px] font-black text-red-400 uppercase tracking-widest">⚠️ En Mora</span>
-                <div class="flex-1 h-px bg-red-900/30"></div>
-                <span id="cnt-mora" class="bg-red-900/40 text-red-400 text-[8px] font-black px-2 py-0.5 rounded-full border border-red-700/30">0</span>
+        <!-- ══════════════════════════════════════════════ -->
+        <!--   CAJA CHICA — PANEL PRINCIPAL               -->
+        <!-- ══════════════════════════════════════════════ -->
+        <div style="background:linear-gradient(135deg,#0a1628,#0a2018);border:1px solid rgba(16,185,129,0.3);border-radius:1.5rem;padding:1.25rem">
+
+            <div class="flex items-center gap-2 mb-4">
+                <span class="text-2xl">💰</span>
+                <div>
+                    <div class="font-black text-white text-sm uppercase tracking-tight">Caja Chica</div>
+                    <div class="text-[8px] font-bold text-emerald-500/60 uppercase tracking-widest">Gestión de saldo por inversión</div>
+                </div>
             </div>
-            <div id="lista-mora" class="space-y-2"></div>
-            <div id="empty-mora" class="text-center py-3">
-                <p class="text-slate-600 text-[10px] font-bold uppercase">Sin clientes en mora 🎉</p>
+
+            <!-- Selector INVER -->
+            <div class="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Inversión</div>
+            <div class="flex gap-1.5 mb-3">
+                <button id="ci-inv1" class="inver-btn a1" onclick="seleccionarInver('inver1')">🔵 INVER 1</button>
+                <button id="ci-inv2" class="inver-btn"    onclick="seleccionarInver('inver2')">🟣 INVER 2</button>
+                <button id="ci-inv3" class="inver-btn"    onclick="seleccionarInver('inver3')">🟢 INVER 3</button>
             </div>
+
+            <!-- Saldo actual -->
+            <div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);border-radius:1.25rem;padding:1rem;text-align:center;margin-bottom:1rem">
+                <div style="font-size:0.55rem;font-weight:800;letter-spacing:0.18em;text-transform:uppercase;color:rgba(52,211,153,0.6);margin-bottom:0.3rem">
+                    Saldo actual · <span id="caja-inver-label">INVER 1</span>
+                </div>
+                <div id="caja-actual" style="font-size:2.8rem;font-weight:900;color:#34d399;font-family:monospace;line-height:1">$0.00</div>
+            </div>
+
+            <!-- Modo -->
+            <div class="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Operación</div>
+            <div class="flex gap-1.5 mb-3">
+                <button id="cm-add" class="modo-btn m-add" onclick="seleccionarModo('add')">➕ Añadir</button>
+                <button id="cm-set" class="modo-btn"       onclick="seleccionarModo('set')">✏️ Establecer</button>
+            </div>
+
+            <!-- Input -->
+            <div id="caja-modo-label" class="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Monto a añadir ($)</div>
+            <input type="number" id="caja-monto-input" inputmode="decimal" step="0.01" min="0" placeholder="0.00"
+                style="width:100%;background:#0f2027;border:2px solid rgba(16,185,129,0.3);border-radius:1rem;padding:1rem;color:#34d399;font-size:2rem;font-weight:900;text-align:center;outline:none;margin-bottom:0.75rem;display:block"
+                onkeydown="if(event.key==='Enter') inyectarCaja()">
+
+            <button id="caja-btn-confirmar" onclick="inyectarCaja()"
+                style="width:100%;background:linear-gradient(to right,#10b981,#059669);color:#fff;border:none;border-radius:1rem;padding:1rem;font-weight:900;font-size:0.75rem;letter-spacing:0.15em;text-transform:uppercase;cursor:pointer;transition:opacity 0.2s"
+                onmousedown="this.style.opacity='0.8'" onmouseup="this.style.opacity='1'">
+                ✓ Confirmar
+            </button>
+
+            <div id="caja-msg" style="font-size:0.6rem;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;text-align:center;margin-top:0.6rem;display:none"></div>
         </div>
 
-        <!-- BLOQUE: COBRAR HOY -->
-        <div>
-            <div class="flex items-center gap-2 mb-3 px-1">
-                <span class="text-[9px] font-black text-sky-400 uppercase tracking-widest">📅 Cobros de Hoy</span>
-                <div class="flex-1 h-px bg-sky-900/30"></div>
-                <span id="cnt-hoy" class="bg-sky-900/40 text-sky-400 text-[8px] font-black px-2 py-0.5 rounded-full border border-sky-700/30">0</span>
-            </div>
-            <div id="lista-hoy" class="space-y-2"></div>
-            <div id="empty-hoy" class="text-center py-3 hidden">
-                <p class="text-slate-600 text-[10px] font-bold uppercase">No hay cobros programados para hoy</p>
-            </div>
-        </div>
+        <!-- ══════════════════════════════════════════════ -->
+        <!--   COBROS — SECCIÓN SECUNDARIA PLEGABLE       -->
+        <!-- ══════════════════════════════════════════════ -->
+        <div style="background:#1e293b;border:1px solid #334155;border-radius:1.25rem;overflow:hidden">
 
-        <!-- BLOQUE: PAGADOS HOY -->
-        <div>
-            <div class="flex items-center gap-2 mb-3 px-1">
-                <span class="text-[9px] font-black text-emerald-400 uppercase tracking-widest">✅ Pagados Hoy</span>
-                <div class="flex-1 h-px bg-emerald-900/30"></div>
-                <span id="cnt-pagados" class="bg-emerald-900/40 text-emerald-400 text-[8px] font-black px-2 py-0.5 rounded-full border border-emerald-700/30">0</span>
+            <!-- Header toggle -->
+            <div onclick="toggleCobros()" style="display:flex;align-items:center;gap:0.75rem;padding:1rem 1.25rem;cursor:pointer;user-select:none">
+                <span style="font-size:0.75rem;font-weight:900;text-transform:uppercase;color:#94a3b8;letter-spacing:-0.01em">📋 Lista de Cobros</span>
+                <div style="flex:1;height:1px;background:#334155"></div>
+                <span id="badge-cobros" style="background:rgba(14,165,233,0.15);color:#38bdf8;font-size:0.6rem;font-weight:900;padding:0.1rem 0.5rem;border-radius:2rem;border:1px solid rgba(14,165,233,0.3)">0</span>
+                <span id="arrow-cobros" class="arrow-icon" style="font-size:0.7rem;color:#475569">▶</span>
             </div>
-            <div id="lista-pagados" class="space-y-2"></div>
-            <div id="empty-pagados" class="text-center py-3">
-                <p class="text-slate-600 text-[10px] font-bold uppercase">Aún sin pagos hoy</p>
-            </div>
-        </div>
 
-        <!-- BLOQUE: PRÓXIMOS -->
-        <div>
-            <div class="flex items-center gap-2 mb-3 px-1">
-                <span class="text-[9px] font-black text-slate-500 uppercase tracking-widest">⏳ Próximos Cobros</span>
-                <div class="flex-1 h-px bg-slate-800"></div>
-                <span id="cnt-proximos" class="bg-slate-800 text-slate-500 text-[8px] font-black px-2 py-0.5 rounded-full">0</span>
+            <!-- Cuerpo -->
+            <div id="cobros-body" class="cobros-body" style="max-height:0">
+                <div style="padding:0 1rem 1rem;display:flex;flex-direction:column;gap:0.75rem">
+
+                    <!-- Sub-tabs -->
+                    <div style="display:flex;gap:0.4rem">
+                        <button id="tab-inv1" onclick="cambiarCuenta('inv1')"
+                            style="flex:1;padding:0.4rem 0.2rem;border-radius:0.6rem;font-size:0.6rem;font-weight:900;text-transform:uppercase;border:2px solid rgba(14,165,233,0.4);background:rgba(14,165,233,0.2);color:#38bdf8;cursor:pointer">🔵 INV1</button>
+                        <button id="tab-inv2" onclick="cambiarCuenta('inv2')"
+                            style="flex:1;padding:0.4rem 0.2rem;border-radius:0.6rem;font-size:0.6rem;font-weight:900;text-transform:uppercase;border:2px solid #334155;background:transparent;color:#64748b;cursor:pointer">🟣 INV2</button>
+                        <button id="tab-inv3" onclick="cambiarCuenta('inv3')"
+                            style="flex:1;padding:0.4rem 0.2rem;border-radius:0.6rem;font-size:0.6rem;font-weight:900;text-transform:uppercase;border:2px solid #334155;background:transparent;color:#64748b;cursor:pointer">🟢 INV3</button>
+                        <button id="tab-ambos" onclick="cambiarCuenta('ambos')"
+                            style="flex:1;padding:0.4rem 0.2rem;border-radius:0.6rem;font-size:0.6rem;font-weight:900;text-transform:uppercase;border:2px solid #334155;background:transparent;color:#64748b;cursor:pointer">📋 Todas</button>
+                    </div>
+
+                    <!-- Stats -->
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.4rem">
+                        <div style="background:rgba(15,23,42,0.6);border-radius:0.75rem;padding:0.5rem;text-align:center">
+                            <div style="font-size:0.55rem;font-weight:900;color:#475569;text-transform:uppercase;margin-bottom:0.2rem">Hoy</div>
+                            <div id="stat-cobrar-hoy" style="font-size:1rem;font-weight:900;color:#38bdf8">0</div>
+                        </div>
+                        <div style="background:rgba(15,23,42,0.6);border-radius:0.75rem;padding:0.5rem;text-align:center">
+                            <div style="font-size:0.55rem;font-weight:900;color:#475569;text-transform:uppercase;margin-bottom:0.2rem">Cobrado</div>
+                            <div id="stat-cobrado" style="font-size:1rem;font-weight:900;color:#34d399">$0</div>
+                        </div>
+                        <div style="background:rgba(15,23,42,0.6);border-radius:0.75rem;padding:0.5rem;text-align:center">
+                            <div style="font-size:0.55rem;font-weight:900;color:#475569;text-transform:uppercase;margin-bottom:0.2rem">Mora</div>
+                            <div id="stat-mora" style="font-size:1rem;font-weight:900;color:#f87171">0</div>
+                        </div>
+                    </div>
+
+                    <input type="text" id="buscador" onkeyup="filtrarClientes()" placeholder="🔍 Buscar nombre o DUI..." class="input-dark text-sm">
+
+                    <!-- MORA -->
+                    <div>
+                        <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.4rem">
+                            <span style="font-size:0.6rem;font-weight:900;color:#f87171;text-transform:uppercase">⚠️ En Mora</span>
+                            <div style="flex:1;height:1px;background:rgba(239,68,68,0.2)"></div>
+                            <span id="cnt-mora" style="background:rgba(239,68,68,0.15);color:#f87171;font-size:0.55rem;font-weight:900;padding:0.1rem 0.4rem;border-radius:2rem;border:1px solid rgba(239,68,68,0.25)">0</span>
+                        </div>
+                        <div id="lista-mora" class="space-y-2"></div>
+                        <div id="empty-mora" class="text-center py-2"><p style="color:#334155;font-size:0.6rem;font-weight:700;text-transform:uppercase">Sin mora 🎉</p></div>
+                    </div>
+
+                    <!-- HOY -->
+                    <div>
+                        <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.4rem">
+                            <span style="font-size:0.6rem;font-weight:900;color:#38bdf8;text-transform:uppercase">📅 Cobros de Hoy</span>
+                            <div style="flex:1;height:1px;background:rgba(14,165,233,0.2)"></div>
+                            <span id="cnt-hoy" style="background:rgba(14,165,233,0.15);color:#38bdf8;font-size:0.55rem;font-weight:900;padding:0.1rem 0.4rem;border-radius:2rem;border:1px solid rgba(14,165,233,0.25)">0</span>
+                        </div>
+                        <div id="lista-hoy" class="space-y-2"></div>
+                        <div id="empty-hoy" style="display:none;text-align:center;padding:0.5rem"><p style="color:#334155;font-size:0.6rem;font-weight:700;text-transform:uppercase">Sin cobros para hoy</p></div>
+                    </div>
+
+                    <!-- PAGADOS -->
+                    <div>
+                        <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.4rem">
+                            <span style="font-size:0.6rem;font-weight:900;color:#34d399;text-transform:uppercase">✅ Pagados Hoy</span>
+                            <div style="flex:1;height:1px;background:rgba(16,185,129,0.2)"></div>
+                            <span id="cnt-pagados" style="background:rgba(16,185,129,0.15);color:#34d399;font-size:0.55rem;font-weight:900;padding:0.1rem 0.4rem;border-radius:2rem;border:1px solid rgba(16,185,129,0.25)">0</span>
+                        </div>
+                        <div id="lista-pagados" class="space-y-2"></div>
+                        <div id="empty-pagados" class="text-center py-2"><p style="color:#334155;font-size:0.6rem;font-weight:700;text-transform:uppercase">Aún sin pagos hoy</p></div>
+                    </div>
+
+                    <!-- PRÓXIMOS -->
+                    <div>
+                        <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.4rem">
+                            <span style="font-size:0.6rem;font-weight:900;color:#475569;text-transform:uppercase">⏳ Próximos</span>
+                            <div style="flex:1;height:1px;background:#334155"></div>
+                            <span id="cnt-proximos" style="background:#1e293b;color:#475569;font-size:0.55rem;font-weight:900;padding:0.1rem 0.4rem;border-radius:2rem">0</span>
+                        </div>
+                        <div id="lista-proximos" class="space-y-2"></div>
+                    </div>
+
+                </div>
             </div>
-            <div id="lista-proximos" class="space-y-2"></div>
         </div>
-        <!-- FIN BLOQUES RENDERIZADOS DINAMICAMENTE -->
 
     </main>
 </div>
@@ -153,7 +231,7 @@
                 <p id="c-cuota-info" class="text-sky-400 font-bold text-[10px] uppercase mt-1 tracking-widest"></p>
                 <p id="c-atraso-info" class="text-red-400 font-bold text-[9px] uppercase mt-0.5 tracking-widest hidden"></p>
             </div>
-            <button onclick="cerrarCobro()" class="bg-slate-800 text-slate-400 w-10 h-10 rounded-full flex items-center justify-center">✕</button>
+            <button onclick="cerrarCobro()" class="bg-slate-800 text-slate-400 w-10 h-10 rounded-full flex items-center justify-center text-lg">✕</button>
         </div>
         <div class="bg-slate-800/50 border border-slate-700 rounded-2xl p-4 mb-6 grid grid-cols-3 gap-2">
             <div class="text-center">
@@ -170,7 +248,7 @@
             </div>
         </div>
         <div class="mb-6">
-            <label class="block text-[9px] font-black text-slate-500 uppercase mb-2 ml-2 tracking-tighter text-center">Monto Recibido ($)</label>
+            <label class="block text-[9px] font-black text-slate-500 uppercase mb-2 text-center">Monto Recibido ($)</label>
             <input type="number" id="monto-recibido" inputmode="decimal" step="0.01"
                 class="w-full p-6 bg-slate-950 border-2 border-sky-900/50 rounded-3xl text-5xl font-black text-center text-sky-400 outline-none focus:border-sky-500">
         </div>
@@ -180,103 +258,21 @@
     </div>
 </div>
 
-<!-- ─── MODAL CAJA CHICA (TOKEN SECRETO) ─────────── -->
-<div id="modal-caja">
-    <div style="background:#0f172a;border:1px solid #1e293b;border-radius:2rem;width:min(95vw,380px);padding:2rem;max-height:95vh;overflow-y:auto">
-        <div style="font-size:1.1rem;font-weight:900;text-transform:uppercase;letter-spacing:-0.02em;color:#fff;margin-bottom:0.2rem">💰 Caja Chica</div>
-        <div style="font-size:0.58rem;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:#475569;margin-bottom:1.75rem">Acceso restringido · Token requerido</div>
-
-        <!-- Paso 1: Token -->
-        <div id="caja-paso-1">
-            <div style="font-size:0.58rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:#64748b;margin-bottom:0.5rem">Token secreto</div>
-            <input type="password" id="caja-token"
-                style="width:100%;background:#1e293b;border:2px solid #334155;border-radius:1rem;padding:1rem 1.25rem;color:#fff;font-size:1.6rem;font-weight:900;text-align:center;outline:none;margin-bottom:0.75rem;transition:border-color 0.2s"
-                placeholder="••••••" maxlength="10" onkeydown="if(event.key==='Enter') validarToken()">
-            <div id="caja-err" style="color:#ef4444;font-size:0.6rem;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;text-align:center;margin-bottom:0.5rem;display:none">
-                ⚠ Token incorrecto
-            </div>
-            <button onclick="validarToken()"
-                style="width:100%;background:linear-gradient(to right,#0ea5e9,#2563eb);color:#fff;border:none;border-radius:1rem;padding:1rem;font-weight:900;font-size:0.75rem;letter-spacing:0.15em;text-transform:uppercase;cursor:pointer;margin-bottom:0.6rem">
-                Verificar
-            </button>
-            <button onclick="cerrarModalCaja()"
-                style="width:100%;background:transparent;border:1px solid #334155;color:#64748b;border-radius:1rem;padding:0.75rem;font-size:0.65rem;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;cursor:pointer">
-                Cancelar
-            </button>
-        </div>
-
-        <!-- Paso 2: Selector + Inyectar -->
-        <div id="caja-paso-2" style="display:none">
-
-            <!-- Selector de INVER -->
-            <div style="font-size:0.58rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:#64748b;margin-bottom:0.5rem">Seleccionar inversión</div>
-            <div style="display:flex;gap:0.4rem;margin-bottom:1.1rem">
-                <button id="caja-btn-inv1" onclick="seleccionarInver('inver1')"
-                    style="flex:1;padding:0.6rem 0.4rem;border-radius:0.75rem;font-size:0.65rem;font-weight:900;letter-spacing:0.05em;text-transform:uppercase;border:2px solid rgba(14,165,233,0.5);background:rgba(14,165,233,0.2);color:#38bdf8;cursor:pointer;transition:all 0.15s">
-                    🔵 INVER 1
-                </button>
-                <button id="caja-btn-inv2" onclick="seleccionarInver('inver2')"
-                    style="flex:1;padding:0.6rem 0.4rem;border-radius:0.75rem;font-size:0.65rem;font-weight:900;letter-spacing:0.05em;text-transform:uppercase;border:2px solid #334155;background:transparent;color:#64748b;cursor:pointer;transition:all 0.15s">
-                    🟣 INVER 2
-                </button>
-                <button id="caja-btn-inv3" onclick="seleccionarInver('inver3')"
-                    style="flex:1;padding:0.6rem 0.4rem;border-radius:0.75rem;font-size:0.65rem;font-weight:900;letter-spacing:0.05em;text-transform:uppercase;border:2px solid #334155;background:transparent;color:#64748b;cursor:pointer;transition:all 0.15s">
-                    🏛️ INVER 3
-                </button>
-            </div>
-
-            <!-- Saldo actual -->
-            <div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);border-radius:1rem;padding:0.85rem;margin-bottom:1rem;text-align:center">
-                <div style="font-size:0.55rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:#10b981;margin-bottom:0.25rem">Caja Chica Actual — <span id="caja-inver-label">INVER 1</span></div>
-                <div id="caja-actual" style="font-size:1.6rem;font-weight:900;color:#10b981;font-family:monospace">$0.00</div>
-            </div>
-
-            <!-- Selector de acción -->
-            <div style="display:flex;gap:0.4rem;margin-bottom:0.9rem">
-                <button id="caja-modo-add" onclick="seleccionarModo('add')"
-                    style="flex:1;padding:0.55rem;border-radius:0.75rem;font-size:0.6rem;font-weight:900;text-transform:uppercase;letter-spacing:0.05em;border:2px solid rgba(16,185,129,0.5);background:rgba(16,185,129,0.18);color:#10b981;cursor:pointer;transition:all 0.15s">
-                    ➕ Añadir
-                </button>
-                <button id="caja-modo-set" onclick="seleccionarModo('set')"
-                    style="flex:1;padding:0.55rem;border-radius:0.75rem;font-size:0.6rem;font-weight:900;text-transform:uppercase;letter-spacing:0.05em;border:2px solid #334155;background:transparent;color:#64748b;cursor:pointer;transition:all 0.15s">
-                    ✏️ Establecer
-                </button>
-            </div>
-
-            <div id="caja-modo-label" style="font-size:0.58rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:#64748b;margin-bottom:0.5rem">Monto a añadir ($)</div>
-            <input type="number" id="caja-monto-input" inputmode="decimal" step="0.01" min="0" placeholder="0.00"
-                style="width:100%;background:#1e293b;border:2px solid rgba(16,185,129,0.3);border-radius:1rem;padding:1rem 1.25rem;color:#10b981;font-size:1.6rem;font-weight:900;text-align:center;outline:none;margin-bottom:0.75rem"
-                onkeydown="if(event.key==='Enter') inyectarCaja()">
-            <button onclick="inyectarCaja()" id="caja-btn-confirmar"
-                style="width:100%;background:linear-gradient(to right,#10b981,#059669);color:#fff;border:none;border-radius:1rem;padding:1rem;font-weight:900;font-size:0.75rem;letter-spacing:0.15em;text-transform:uppercase;cursor:pointer;margin-bottom:0.5rem">
-                ✓ Añadir a Caja Chica
-            </button>
-            <div id="caja-msg" style="font-size:0.6rem;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;text-align:center;display:none;margin-bottom:0.5rem"></div>
-            <button onclick="cerrarModalCaja()"
-                style="width:100%;background:transparent;border:1px solid #334155;color:#64748b;border-radius:1rem;padding:0.75rem;font-size:0.65rem;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;cursor:pointer">
-                Cerrar
-            </button>
-        </div>
-    </div>
-</div>
-
 <script>
-    // ─── CONFIG ─────────────────────────────────────────
     const PIN_ACCESO = "2025";
-    const TOKEN_CAJA = "CAJA2025";   // ← Cambia este token
-
     const firebaseConfig = { databaseURL: "https://credilistosv-default-rtdb.firebaseio.com" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
     let clienteActualId = null;
     let indiceCuota     = null;
-    let origenPago      = 'clientes';  // nodo Firebase del cliente que se está cobrando
-    let cuentaActiva    = 'ambos';     // 'inv1' | 'inv2' | 'ambos'
+    let origenPago      = 'clientes';
+    let cuentaActiva    = 'ambos';
+    let cobrosAbierto   = false;
 
-    // Datos de ambas cuentas
-    let datosInv1 = {};   // nodo clientes
-    let datosInv2 = {};   // nodo clientes2
+    let datosInv1 = {};
+    let datosInv2 = {};
+    let datosInv3 = {};
 
     const HOY = new Date(); HOY.setHours(0,0,0,0);
     const HOY_ISO = HOY.toISOString().split('T')[0];
@@ -287,10 +283,10 @@
     // ─── AUTH ────────────────────────────────────────────
     function validarRuta() {
         if (document.getElementById('pin-ruta').value === PIN_ACCESO) {
-            sessionStorage.setItem('cobrador_auth', 'true');
+            sessionStorage.setItem('cobrador_auth','true');
             document.getElementById('bloqueo').style.display = 'none';
             document.getElementById('app-cobros').classList.remove('hidden');
-            cargarRuta();
+            iniciarApp();
         } else {
             alert("PIN Incorrecto");
             document.getElementById('pin-ruta').value = "";
@@ -300,383 +296,45 @@
         if (sessionStorage.getItem('cobrador_auth') === 'true') {
             document.getElementById('bloqueo').style.display = 'none';
             document.getElementById('app-cobros').classList.remove('hidden');
-            cargarRuta();
+            iniciarApp();
         }
     };
 
-    // ─── TABS DE CUENTA ──────────────────────────────────
-    function cambiarCuenta(cual) {
-        cuentaActiva = cual;
-        const estiloActivo   = 'background:rgba(14,165,233,0.2);color:#38bdf8;border-color:rgba(14,165,233,0.4)';
-        const estiloInv2     = 'background:rgba(168,85,247,0.18);color:#c084fc;border-color:rgba(168,85,247,0.4)';
-        const estiloAmbos    = 'background:rgba(100,116,139,0.18);color:#94a3b8;border-color:rgba(100,116,139,0.35)';
-        const estiloInactivo = 'background:transparent;color:#64748b;border-color:#334155';
-
-        const t1 = document.getElementById('tab-inv1');
-        const t2 = document.getElementById('tab-inv2');
-        const tA = document.getElementById('tab-ambos');
-        t1.style.cssText = cual==='inv1'   ? estiloActivo   : estiloInactivo;
-        t2.style.cssText = cual==='inv2'   ? estiloInv2     : estiloInactivo;
-        tA.style.cssText = cual==='ambos'  ? estiloAmbos    : estiloInactivo;
-
-        renderBloques();
+    function iniciarApp() {
+        seleccionarInver('inver1');
+        cargarRuta();
     }
 
-    // ─── HELPERS FECHA ───────────────────────────────────
-    function parseFechaISO(str) {
-        if (!str) return null;
-        if (str.includes('-') && str.length === 10) {
-            const d = new Date(str + 'T00:00:00'); d.setHours(0,0,0,0); return d;
-        }
-        if (str.includes('/')) {
-            const p = str.split('/');
-            const d = new Date(`${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}T00:00:00`);
-            d.setHours(0,0,0,0);
-            if (!isNaN(d)) return d;
-        }
-        return null;
-    }
-
-    function diasAtrasoCliente(c) {
-        let max = 0;
-        for (const cuo of (c.cuotas||[])) {
-            if (cuo.pagada) continue;
-            const f = parseFechaISO(cuo.fecha_prog || cuo.fecha_prog_sv);
-            if (!f) continue;
-            const diff = Math.floor((HOY - f) / 86400000);
-            if (diff > 0) max = Math.max(max, diff);
-        }
-        return max;
-    }
-    function tocaHoy(c) {
-        for (const cuo of (c.cuotas||[])) {
-            if (cuo.pagada) continue;
-            const f = parseFechaISO(cuo.fecha_prog || cuo.fecha_prog_sv);
-            if (f && f.getTime() === HOY.getTime()) return true;
-        }
-        return false;
-    }
-    function pagoHoy(c) { return (c.cuotas||[]).some(q => q.pagada && q.fecha_ISO === HOY_ISO); }
-    function cuotaPendiente(c) { return (c.cuotas||[]).find(q => !q.pagada) || null; }
-
-    // ─── CLASIFICAR CLIENTES ─────────────────────────────
-    function clasificar(datos, nodo) {
-        const mora=[], hoy=[], pagados=[], proximos=[];
-        Object.entries(datos).forEach(([id, c]) => {
-            if (c.tipo !== 'ACTIVO') return;
-            c._nodo = nodo;   // guardar origen
-            const dias   = diasAtrasoCliente(c);
-            const esHoy  = tocaHoy(c);
-            const yaPago = pagoHoy(c);
-            if (yaPago)       pagados.push({id,c,nodo,dias:0});
-            else if (dias>0)  mora.push({id,c,nodo,dias});
-            else if (esHoy)   hoy.push({id,c,nodo,dias:0});
-            else              proximos.push({id,c,nodo,dias:0});
-        });
-        mora.sort((a,b) => b.dias - a.dias);
-        return { mora, hoy, pagados, proximos };
-    }
-
-    // ─── BADGE DE CUENTA ─────────────────────────────────
-    function badgeCuenta(nodo) {
-        if (nodo === 'clientes') return `<span style="background:rgba(14,165,233,0.18);color:#38bdf8;font-size:0.55rem;font-weight:900;letter-spacing:0.1em;text-transform:uppercase;padding:0.1rem 0.45rem;border-radius:2rem;border:1px solid rgba(14,165,233,0.35);flex-shrink:0">INVER 1</span>`;
-        return                          `<span style="background:rgba(168,85,247,0.18);color:#c084fc;font-size:0.55rem;font-weight:900;letter-spacing:0.1em;text-transform:uppercase;padding:0.1rem 0.45rem;border-radius:2rem;border:1px solid rgba(168,85,247,0.35);flex-shrink:0">INVER 2</span>`;
-    }
-
-    // ─── CARDS ───────────────────────────────────────────
-    function cardMora(x) {
-        const cuo   = cuotaPendiente(x.c);
-        const monto = cuo ? parseFloat(cuo.valorPagado||0).toFixed(2) : '—';
-        const saldo = parseFloat(x.c.saldo||0).toFixed(2);
-        return `
-        <div class="cliente-card p-4 item-ruta" data-search="${(x.c.nombre||'').toLowerCase()} ${x.c.dui||''}">
-            <div class="flex justify-between items-center gap-3">
-                <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-1.5 mb-1 flex-wrap">
-                        <span style="background:rgba(239,68,68,0.15);color:#f87171;font-size:0.6rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;padding:0.15rem 0.5rem;border-radius:2rem;border:1px solid rgba(239,68,68,0.3)">⚠ ${x.dias}d atraso</span>
-                        ${cuentaActiva==='ambos' ? badgeCuenta(x.nodo) : ''}
-                        <span style="font-size:0.58rem;font-weight:600;color:#475569;text-transform:uppercase">${(x.c.frecuencia||'diario')}</span>
-                    </div>
-                    <div style="font-weight:800;font-size:0.9rem;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${x.c.nombre||'—'}</div>
-                    <div style="display:flex;gap:0.75rem;margin-top:0.2rem">
-                        <span style="font-size:0.65rem;color:#64748b">Cuota: <strong style="color:#fff">$${monto}</strong></span>
-                        <span style="font-size:0.65rem;color:#64748b">Saldo: <strong style="color:#f87171">$${saldo}</strong></span>
-                    </div>
-                </div>
-                <button onclick="abrirCobro('${x.id}','${x.nodo}')"
-                    class="text-white w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 transition-colors"
-                    style="background:#dc2626">
-                    <span class="text-xl">💵</span>
-                </button>
-            </div>
-        </div>`;
-    }
-
-    function cardHoy(x) {
-        const cuo   = cuotaPendiente(x.c);
-        const monto = cuo ? parseFloat(cuo.valorPagado||0).toFixed(2) : '—';
-        const saldo = parseFloat(x.c.saldo||0).toFixed(2);
-        const accentColor = x.nodo === 'clientes' ? '#0ea5e9' : '#a855f7';
-        const bgBtn       = x.nodo === 'clientes' ? '#0284c7' : '#7c3aed';
-        return `
-        <div class="cliente-card p-4 item-ruta" data-search="${(x.c.nombre||'').toLowerCase()} ${x.c.dui||''}">
-            <div class="flex justify-between items-center gap-3">
-                <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-1.5 mb-1 flex-wrap">
-                        <span style="background:rgba(14,165,233,0.12);color:${accentColor};font-size:0.6rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;padding:0.15rem 0.5rem;border-radius:2rem;border:1px solid ${accentColor}40">HOY</span>
-                        ${cuentaActiva==='ambos' ? badgeCuenta(x.nodo) : ''}
-                        <span style="font-size:0.58rem;font-weight:600;color:#475569;text-transform:uppercase">${(x.c.frecuencia||'diario')}</span>
-                    </div>
-                    <div style="font-weight:800;font-size:0.9rem;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${x.c.nombre||'—'}</div>
-                    <div style="display:flex;gap:0.75rem;margin-top:0.2rem">
-                        <span style="font-size:0.65rem;color:#64748b">Cuota: <strong style="color:#fff">$${monto}</strong></span>
-                        <span style="font-size:0.65rem;color:#64748b">Saldo: <strong style="color:#f87171">$${saldo}</strong></span>
-                    </div>
-                </div>
-                <button onclick="abrirCobro('${x.id}','${x.nodo}')"
-                    class="text-white w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 transition-colors"
-                    style="background:${bgBtn}">
-                    <span class="text-xl">💵</span>
-                </button>
-            </div>
-        </div>`;
-    }
-
-    function cardPagado(x) {
-        const q = (x.c.cuotas||[]).find(q => q.pagada && q.fecha_ISO === HOY_ISO);
-        const m = q ? parseFloat(q.valorPagado||0).toFixed(2) : '—';
-        return `
-        <div class="cliente-card p-3 item-ruta" data-search="${(x.c.nombre||'').toLowerCase()} ${x.c.dui||''}"
-             style="border-color:#064e3b;background:#022c22">
-            <div class="flex justify-between items-center">
-                <div>
-                    <div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.2rem">
-                        <span style="background:rgba(16,185,129,0.2);color:#34d399;font-size:0.6rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;padding:0.1rem 0.45rem;border-radius:2rem;border:1px solid rgba(16,185,129,0.3)">✓ Pagado</span>
-                        ${cuentaActiva==='ambos' ? badgeCuenta(x.nodo) : ''}
-                    </div>
-                    <div style="font-weight:800;font-size:0.85rem;color:#fff">${x.c.nombre||'—'}</div>
-                    <p style="font-size:0.65rem;color:#475569;margin-top:0.1rem">Cobrado: <strong style="color:#34d399">$${m}</strong></p>
-                </div>
-                <div style="font-size:1.4rem;opacity:0.2">✅</div>
-            </div>
-        </div>`;
-    }
-
-    function cardProximo(x) {
-        const cuo = cuotaPendiente(x.c);
-        if (!cuo) return '';
-        const prog = cuo.fecha_prog || cuo.fecha_prog_sv || '—';
-        let label = prog;
-        if (prog.includes('-') && prog.length===10) { const [y,m,d]=prog.split('-'); label=`${d}/${m}/${y}`; }
-        return `
-        <div class="cliente-card p-3 item-ruta" data-search="${(x.c.nombre||'').toLowerCase()} ${x.c.dui||''}"
-             style="opacity:0.4">
-            <div class="flex justify-between items-center">
-                <div>
-                    <div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.15rem">
-                        ${cuentaActiva==='ambos' ? badgeCuenta(x.nodo) : ''}
-                    </div>
-                    <div style="font-weight:800;font-size:0.82rem;color:#fff">${x.c.nombre||'—'}</div>
-                    <p style="font-size:0.63rem;color:#475569;margin-top:0.1rem">
-                        Próximo: <span style="color:#94a3b8">${label}</span> · $${parseFloat(cuo.valorPagado||0).toFixed(2)}
-                    </p>
-                </div>
-            </div>
-        </div>`;
-    }
-
-    // ─── SEPARADOR DE CUENTA ─────────────────────────────
-    function separador(nodo, lista) {
-        if (!lista.length) return '';
-        const color  = nodo === 'clientes' ? '#0ea5e9' : '#a855f7';
-        const label  = nodo === 'clientes' ? '🔵 INVER 1' : '🟣 INVER 2';
-        return `<div style="display:flex;align-items:center;gap:0.5rem;margin:0.4rem 0 0.2rem">
-            <span style="font-size:0.58rem;font-weight:900;letter-spacing:0.15em;text-transform:uppercase;color:${color}">${label}</span>
-            <div style="flex:1;height:1px;background:${color}22"></div>
-            <span style="font-size:0.58rem;font-weight:800;color:${color}">${lista.length}</span>
-        </div>`;
-    }
-
-    // ─── RENDER PRINCIPAL ────────────────────────────────
-    function renderBloques() {
-        const r1 = clasificar(datosInv1, 'clientes');
-        const r2 = clasificar(datosInv2, 'clientes2');
-
-        // Seleccionar según tab
-        let mora=[], hoy=[], pagados=[], proximos=[];
-
-        if (cuentaActiva === 'inv1') {
-            mora=r1.mora; hoy=r1.hoy; pagados=r1.pagados; proximos=r1.proximos;
-        } else if (cuentaActiva === 'inv2') {
-            mora=r2.mora; hoy=r2.hoy; pagados=r2.pagados; proximos=r2.proximos;
+    // ─── TOGGLE COBROS ───────────────────────────────────
+    function toggleCobros() {
+        cobrosAbierto = !cobrosAbierto;
+        const body  = document.getElementById('cobros-body');
+        const arrow = document.getElementById('arrow-cobros');
+        if (cobrosAbierto) {
+            body.style.maxHeight = '9999px';
+            arrow.classList.add('arrow-open');
         } else {
-            // AMBAS — intercalar con separadores
-            mora     = [...r1.mora,     ...r2.mora];
-            hoy      = [...r1.hoy,      ...r2.hoy];
-            pagados  = [...r1.pagados,  ...r2.pagados];
-            proximos = [...r1.proximos, ...r2.proximos];
-        }
-
-        // En vista AMBAS, los bloques internos están mezclados → separadores inline
-        function renderGrupo(lista, cardFn) {
-            if (cuentaActiva !== 'ambos') return lista.map(cardFn).join('');
-            const g1 = lista.filter(x => x.nodo==='clientes');
-            const g2 = lista.filter(x => x.nodo==='clientes2');
-            return separador('clientes',  g1) + g1.map(cardFn).join('') +
-                   separador('clientes2', g2) + g2.map(cardFn).join('');
-        }
-
-        // Totales para stats
-        let totalCobradoHoy = 0;
-        pagados.forEach(x => {
-            const q = (x.c.cuotas||[]).find(q => q.pagada && q.fecha_ISO===HOY_ISO);
-            if (q) totalCobradoHoy += parseFloat(q.valorPagado||0);
-        });
-
-        document.getElementById('lista-mora').innerHTML     = renderGrupo(mora,     cardMora);
-        document.getElementById('lista-hoy').innerHTML      = renderGrupo(hoy,      cardHoy);
-        document.getElementById('lista-pagados').innerHTML  = renderGrupo(pagados,  cardPagado);
-        document.getElementById('lista-proximos').innerHTML = renderGrupo(proximos, cardProximo);
-
-        document.getElementById('cnt-mora').textContent     = mora.length;
-        document.getElementById('cnt-hoy').textContent      = hoy.length;
-        document.getElementById('cnt-pagados').textContent  = pagados.length;
-        document.getElementById('cnt-proximos').textContent = proximos.length;
-
-        document.getElementById('stat-cobrar-hoy').textContent = hoy.length + mora.length;
-        document.getElementById('stat-cobrado').textContent    = '$' + totalCobradoHoy.toFixed(0);
-        document.getElementById('stat-mora').textContent       = mora.length;
-
-        document.getElementById('empty-mora').style.display    = mora.length    ? 'none' : 'block';
-        document.getElementById('empty-hoy').classList.toggle('hidden', hoy.length > 0);
-        document.getElementById('empty-pagados').style.display = pagados.length ? 'none' : 'block';
-    }
-
-    // ─── CARGAR AMBAS RUTAS ──────────────────────────────
-    function cargarRuta() {
-        db.ref('clientes').on('value', snap => {
-            datosInv1 = {};
-            snap.forEach(child => {
-                const v = child.val();
-                datosInv1[child.key] = v;
-            });
-            renderBloques();
-        });
-        db.ref('clientes2').on('value', snap => {
-            datosInv2 = {};
-            snap.forEach(child => {
-                const v = child.val();
-                datosInv2[child.key] = v;
-            });
-            renderBloques();
-        });
-    }
-
-    // ─── ABRIR COBRO ─────────────────────────────────────
-    async function abrirCobro(id, nodo) {
-        clienteActualId = id;
-        origenPago      = nodo || 'clientes';
-        const snap = await db.ref(origenPago + '/' + id).once('value');
-        const c = snap.val();
-        const idx = (c.cuotas||[]).findIndex(cuo => !cuo.pagada);
-        if (idx === -1) return alert("Este cliente ya completó sus pagos.");
-        indiceCuota = idx;
-
-        const total = parseFloat(c.total||0);
-        const saldo = parseFloat(c.saldo||0);
-        const dias  = diasAtrasoCliente(c);
-        const cuentaLabel = origenPago === 'clientes' ? '🔵 INVER 1' : '🟣 INVER 2';
-
-        document.getElementById('c-nombre').innerText     = c.nombre;
-        document.getElementById('m-total').innerText      = `$${total.toFixed(2)}`;
-        document.getElementById('m-pagado').innerText     = `$${(total-saldo).toFixed(2)}`;
-        document.getElementById('m-saldo').innerText      = `$${saldo.toFixed(2)}`;
-        document.getElementById('c-cuota-info').innerText = `PAGO #${c.cuotas[idx].n} · ${(c.frecuencia||'diario').toUpperCase()} · ${cuentaLabel}`;
-
-        const aEl = document.getElementById('c-atraso-info');
-        if (dias > 0) {
-            aEl.innerText = `⚠️ ${dias} día${dias!==1?'s':''} de atraso`;
-            aEl.classList.remove('hidden');
-        } else {
-            aEl.classList.add('hidden');
-        }
-
-        document.getElementById('monto-recibido').value = c.cuotas[idx].valorPagado;
-        document.getElementById('modalCobro').classList.remove('hidden');
-        setTimeout(() => document.getElementById('monto-recibido').select(), 200);
-    }
-
-    // ─── REGISTRAR PAGO ──────────────────────────────────
-    async function registrarPago() {
-        const monto = parseFloat(document.getElementById('monto-recibido').value);
-        if (isNaN(monto) || monto <= 0) return alert("Monto no válido");
-        try {
-            const snap = await db.ref(origenPago + '/' + clienteActualId).once('value');
-            let s = snap.val();
-            const ahora   = new Date();
-            const fechaISO = ahora.toISOString().split('T')[0];
-            const fechaSV  = ahora.toLocaleDateString('es-SV');
-            s.cuotas[indiceCuota].pagada      = true;
-            s.cuotas[indiceCuota].valorPagado = monto;
-            s.cuotas[indiceCuota].fecha_ISO   = fechaISO;
-            s.cuotas[indiceCuota].fecha       = fechaSV;
-            const saldoActual = parseFloat(s.saldo || s.total || 0);
-            s.saldo = (saldoActual - monto).toFixed(2);
-            await db.ref(origenPago + '/' + clienteActualId).set(s);
-            alert("✅ PAGO REGISTRADO EXITOSAMENTE");
-            cerrarCobro();
-        } catch (e) {
-            alert("Error al guardar. Verifica tu conexión.");
+            body.style.maxHeight = '0';
+            arrow.classList.remove('arrow-open');
         }
     }
 
-    function cerrarCobro() { document.getElementById('modalCobro').classList.add('hidden'); }
-
-    function filtrarClientes() {
-        const txt = document.getElementById('buscador').value.toLowerCase();
-        document.querySelectorAll('.item-ruta').forEach(el => {
-            el.style.display = el.dataset.search.includes(txt) ? '' : 'none';
-        });
-    }
-
-    // ─── CAJA CHICA (TOKEN) ──────────────────────────────
+    // ─── CAJA CHICA ─────────────────────────────────────
     let cajaInverSeleccionado = 'inver1';
     let cajaModoSeleccionado  = 'add';
 
-    const CAJA_RUTAS = {
-        inver1: 'config/finanzas',
-        inver2: 'config/finanzas2',
-        inver3: 'config/finanzas3'
-    };
-    const CAJA_LABELS = {
-        inver1: 'INVER 1',
-        inver2: 'INVER 2',
-        inver3: 'INVER 3'
-    };
-    const CAJA_COLORES = {
-        inver1: { border: 'rgba(14,165,233,0.5)',  bg: 'rgba(14,165,233,0.2)',  color: '#38bdf8' },
-        inver2: { border: 'rgba(168,85,247,0.5)',  bg: 'rgba(168,85,247,0.2)',  color: '#c084fc' },
-        inver3: { border: 'rgba(14,165,233,0.35)', bg: 'rgba(14,165,233,0.12)', color: '#7dd3fc' }
-    };
+    const CAJA_RUTAS  = { inver1:'config/finanzas', inver2:'config/finanzas2', inver3:'config/finanzas3' };
+    const CAJA_LABELS = { inver1:'INVER 1', inver2:'INVER 2', inver3:'INVER 3' };
 
     function seleccionarInver(inv) {
         cajaInverSeleccionado = inv;
-        ['inver1','inver2','inver3'].forEach(k => {
-            const btn = document.getElementById('caja-btn-' + (k === 'inver1' ? 'inv1' : k === 'inver2' ? 'inv2' : 'inv3'));
-            if (!btn) return;
-            if (k === inv) {
-                const c = CAJA_COLORES[k];
-                btn.style.border = '2px solid ' + c.border;
-                btn.style.background = c.bg;
-                btn.style.color = c.color;
-            } else {
-                btn.style.border = '2px solid #334155';
-                btn.style.background = 'transparent';
-                btn.style.color = '#64748b';
-            }
+        const claseMap = { inver1:'a1', inver2:'a2', inver3:'a3' };
+        const ids = { inver1:'ci-inv1', inver2:'ci-inv2', inver3:'ci-inv3' };
+        Object.keys(ids).forEach(k => {
+            const btn = document.getElementById(ids[k]);
+            btn.className = 'inver-btn' + (k===inv ? ' '+claseMap[k] : '');
         });
         document.getElementById('caja-inver-label').textContent = CAJA_LABELS[inv];
-        // Recargar saldo
         db.ref(CAJA_RUTAS[inv]).once('value').then(snap => {
             const cfg = snap.val() || {};
             document.getElementById('caja-actual').textContent = '$' + parseFloat(cfg.cajaChica||0).toFixed(2);
@@ -685,62 +343,21 @@
 
     function seleccionarModo(modo) {
         cajaModoSeleccionado = modo;
-        const btnAdd = document.getElementById('caja-modo-add');
-        const btnSet = document.getElementById('caja-modo-set');
-        const label  = document.getElementById('caja-modo-label');
-        const btnConf = document.getElementById('caja-btn-confirmar');
+        const bA  = document.getElementById('cm-add');
+        const bS  = document.getElementById('cm-set');
+        const lbl = document.getElementById('caja-modo-label');
+        const btn = document.getElementById('caja-btn-confirmar');
         if (modo === 'add') {
-            btnAdd.style.border = '2px solid rgba(16,185,129,0.5)';
-            btnAdd.style.background = 'rgba(16,185,129,0.18)';
-            btnAdd.style.color = '#10b981';
-            btnSet.style.border = '2px solid #334155';
-            btnSet.style.background = 'transparent';
-            btnSet.style.color = '#64748b';
-            label.textContent = 'Monto a añadir ($)';
-            btnConf.textContent = '✓ Añadir a Caja Chica';
-            btnConf.style.background = 'linear-gradient(to right,#10b981,#059669)';
+            bA.className='modo-btn m-add'; bS.className='modo-btn';
+            lbl.textContent='Monto a añadir ($)';
+            btn.style.background='linear-gradient(to right,#10b981,#059669)';
+            btn.textContent='✓ Añadir a Caja Chica';
         } else {
-            btnSet.style.border = '2px solid rgba(245,158,11,0.5)';
-            btnSet.style.background = 'rgba(245,158,11,0.15)';
-            btnSet.style.color = '#fbbf24';
-            btnAdd.style.border = '2px solid #334155';
-            btnAdd.style.background = 'transparent';
-            btnAdd.style.color = '#64748b';
-            label.textContent = 'Nuevo saldo a establecer ($)';
-            btnConf.textContent = '✏️ Establecer Saldo';
-            btnConf.style.background = 'linear-gradient(to right,#f59e0b,#d97706)';
+            bS.className='modo-btn m-set'; bA.className='modo-btn';
+            lbl.textContent='Nuevo saldo a establecer ($)';
+            btn.style.background='linear-gradient(to right,#f59e0b,#d97706)';
+            btn.textContent='✏️ Establecer Saldo';
         }
-    }
-
-    function abrirModalCaja() {
-        document.getElementById('caja-token').value       = '';
-        document.getElementById('caja-monto-input').value = '';
-        document.getElementById('caja-err').style.display = 'none';
-        document.getElementById('caja-msg').style.display = 'none';
-        document.getElementById('caja-paso-1').style.display = 'block';
-        document.getElementById('caja-paso-2').style.display = 'none';
-        document.getElementById('modal-caja').classList.add('show');
-        setTimeout(() => document.getElementById('caja-token').focus(), 200);
-    }
-    function cerrarModalCaja() { document.getElementById('modal-caja').classList.remove('show'); }
-
-    function validarToken() {
-        const val = document.getElementById('caja-token').value.trim().toUpperCase();
-        if (val !== TOKEN_CAJA) {
-            document.getElementById('caja-err').style.display = 'block';
-            document.getElementById('caja-token').value = '';
-            document.getElementById('caja-token').focus();
-            return;
-        }
-        document.getElementById('caja-err').style.display  = 'none';
-        document.getElementById('caja-paso-1').style.display = 'none';
-        document.getElementById('caja-paso-2').style.display = 'block';
-        // Reset selección
-        cajaInverSeleccionado = 'inver1';
-        cajaModoSeleccionado  = 'add';
-        seleccionarInver('inver1');
-        seleccionarModo('add');
-        document.getElementById('caja-monto-input').focus();
     }
 
     async function inyectarCaja() {
@@ -752,27 +369,234 @@
         try {
             const snap = await db.ref(ruta).once('value');
             const cfg  = snap.val() || {};
-            let nueva;
-            if (cajaModoSeleccionado === 'add') {
-                nueva = parseFloat((parseFloat(cfg.cajaChica||0) + monto).toFixed(2));
-            } else {
-                nueva = parseFloat(monto.toFixed(2));
-            }
+            const nueva = cajaModoSeleccionado === 'add'
+                ? parseFloat((parseFloat(cfg.cajaChica||0) + monto).toFixed(2))
+                : parseFloat(monto.toFixed(2));
             await db.ref(ruta).update({ cajaChica: nueva });
             document.getElementById('caja-actual').textContent = '$' + nueva.toFixed(2);
             document.getElementById('caja-monto-input').value  = '';
-            const accion = cajaModoSeleccionado === 'add' ? `+$${monto.toFixed(2)} añadidos` : `Saldo fijado en $${nueva.toFixed(2)}`;
-            msgEl.textContent   = `✓ ${label} · ${accion}`;
-            msgEl.style.color   = '#10b981';
+            const accion = cajaModoSeleccionado==='add' ? `+$${monto.toFixed(2)} añadidos` : `Saldo fijado en $${nueva.toFixed(2)}`;
+            msgEl.textContent = `✓ ${label} · ${accion}`;
+            msgEl.style.color = '#10b981';
             msgEl.style.display = 'block';
             setTimeout(() => { msgEl.style.display='none'; }, 3500);
-        } catch (e) {
-            msgEl.textContent   = 'Error al guardar. Revisa conexión.';
-            msgEl.style.color   = '#ef4444';
+        } catch(e) {
+            msgEl.textContent = 'Error al guardar. Revisa conexión.';
+            msgEl.style.color = '#ef4444';
             msgEl.style.display = 'block';
         }
     }
 
+    // ─── TABS COBROS ─────────────────────────────────────
+    function cambiarCuenta(cual) {
+        cuentaActiva = cual;
+        const E_1 = 'border:2px solid rgba(14,165,233,0.4);background:rgba(14,165,233,0.2);color:#38bdf8;cursor:pointer';
+        const E_2 = 'border:2px solid rgba(168,85,247,0.4);background:rgba(168,85,247,0.18);color:#c084fc;cursor:pointer';
+        const E_3 = 'border:2px solid rgba(16,185,129,0.4);background:rgba(16,185,129,0.18);color:#34d399;cursor:pointer';
+        const E_A = 'border:2px solid rgba(100,116,139,0.35);background:rgba(100,116,139,0.18);color:#94a3b8;cursor:pointer';
+        const E_0 = 'border:2px solid #334155;background:transparent;color:#64748b;cursor:pointer';
+        const base = 'flex:1;padding:0.4rem 0.2rem;border-radius:0.6rem;font-size:0.6rem;font-weight:900;text-transform:uppercase;';
+        document.getElementById('tab-inv1').style.cssText = base + (cual==='inv1'?E_1:E_0);
+        document.getElementById('tab-inv2').style.cssText = base + (cual==='inv2'?E_2:E_0);
+        document.getElementById('tab-inv3').style.cssText = base + (cual==='inv3'?E_3:E_0);
+        document.getElementById('tab-ambos').style.cssText= base + (cual==='ambos'?E_A:E_0);
+        renderBloques();
+    }
+
+    // ─── HELPERS ─────────────────────────────────────────
+    function parseFechaISO(str) {
+        if (!str) return null;
+        if (str.includes('-') && str.length===10) { const d=new Date(str+'T00:00:00'); d.setHours(0,0,0,0); return d; }
+        if (str.includes('/')) { const p=str.split('/'); const d=new Date(`${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}T00:00:00`); d.setHours(0,0,0,0); if(!isNaN(d)) return d; }
+        return null;
+    }
+    function diasAtraso(c) {
+        let max=0;
+        for(const cuo of (c.cuotas||[])) {
+            if(cuo.pagada) continue;
+            const f=parseFechaISO(cuo.fecha_prog||cuo.fecha_prog_sv);
+            if(!f) continue;
+            const d=Math.floor((HOY-f)/86400000);
+            if(d>0) max=Math.max(max,d);
+        }
+        return max;
+    }
+    function tocaHoy(c) { return (c.cuotas||[]).some(q=>{ if(q.pagada) return false; const f=parseFechaISO(q.fecha_prog||q.fecha_prog_sv); return f&&f.getTime()===HOY.getTime(); }); }
+    function pagoHoy(c)  { return (c.cuotas||[]).some(q=>q.pagada&&q.fecha_ISO===HOY_ISO); }
+    function cuotaPend(c){ return (c.cuotas||[]).find(q=>!q.pagada)||null; }
+
+    function clasificar(datos, nodo) {
+        const mora=[],hoy=[],pagados=[],proximos=[];
+        Object.entries(datos).forEach(([id,c]) => {
+            if(c.tipo!=='ACTIVO') return;
+            const dias=diasAtraso(c), esHoy=tocaHoy(c), yaPago=pagoHoy(c);
+            if(yaPago)      pagados.push({id,c,nodo,dias:0});
+            else if(dias>0) mora.push({id,c,nodo,dias});
+            else if(esHoy)  hoy.push({id,c,nodo,dias:0});
+            else            proximos.push({id,c,nodo,dias:0});
+        });
+        mora.sort((a,b)=>b.dias-a.dias);
+        return {mora,hoy,pagados,proximos};
+    }
+
+    function badge(nodo) {
+        if(nodo==='clientes')  return `<span style="background:rgba(14,165,233,0.15);color:#38bdf8;font-size:0.5rem;font-weight:900;padding:0.1rem 0.35rem;border-radius:2rem;border:1px solid rgba(14,165,233,0.3)">INV1</span>`;
+        if(nodo==='clientes2') return `<span style="background:rgba(168,85,247,0.15);color:#c084fc;font-size:0.5rem;font-weight:900;padding:0.1rem 0.35rem;border-radius:2rem;border:1px solid rgba(168,85,247,0.3)">INV2</span>`;
+        return                        `<span style="background:rgba(16,185,129,0.15);color:#34d399;font-size:0.5rem;font-weight:900;padding:0.1rem 0.35rem;border-radius:2rem;border:1px solid rgba(16,185,129,0.3)">INV3</span>`;
+    }
+
+    function cardMora(x) {
+        const cuo=cuotaPend(x.c), monto=cuo?parseFloat(cuo.valorPagado||0).toFixed(2):'—', saldo=parseFloat(x.c.saldo||0).toFixed(2);
+        return `<div class="cliente-card p-3 item-ruta" data-search="${(x.c.nombre||'').toLowerCase()} ${x.c.dui||''}">
+            <div style="display:flex;align-items:center;gap:0.75rem">
+                <div style="flex:1;min-width:0">
+                    <div style="display:flex;gap:0.3rem;align-items:center;flex-wrap:wrap;margin-bottom:0.2rem">
+                        <span style="background:rgba(239,68,68,0.15);color:#f87171;font-size:0.52rem;font-weight:800;padding:0.1rem 0.4rem;border-radius:2rem;border:1px solid rgba(239,68,68,0.3)">⚠ ${x.dias}d atraso</span>
+                        ${cuentaActiva==='ambos'?badge(x.nodo):''}
+                    </div>
+                    <div style="font-weight:800;font-size:0.85rem;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${x.c.nombre||'—'}</div>
+                    <div style="font-size:0.6rem;color:#64748b;margin-top:0.1rem">Cuota: <b style="color:#fff">$${monto}</b> · Saldo: <b style="color:#f87171">$${saldo}</b></div>
+                </div>
+                <button onclick="abrirCobro('${x.id}','${x.nodo}')" style="background:#dc2626;width:2.75rem;height:2.75rem;border-radius:0.875rem;border:none;color:#fff;font-size:1.2rem;cursor:pointer;flex-shrink:0">💵</button>
+            </div>
+        </div>`;
+    }
+
+    function cardHoy(x) {
+        const cuo=cuotaPend(x.c), monto=cuo?parseFloat(cuo.valorPagado||0).toFixed(2):'—', saldo=parseFloat(x.c.saldo||0).toFixed(2);
+        const bgBtn = x.nodo==='clientes'?'#0284c7':x.nodo==='clientes2'?'#7c3aed':'#059669';
+        return `<div class="cliente-card p-3 item-ruta" data-search="${(x.c.nombre||'').toLowerCase()} ${x.c.dui||''}">
+            <div style="display:flex;align-items:center;gap:0.75rem">
+                <div style="flex:1;min-width:0">
+                    <div style="display:flex;gap:0.3rem;align-items:center;margin-bottom:0.2rem">
+                        <span style="font-size:0.52rem;font-weight:700;color:#475569;text-transform:uppercase">${x.c.frecuencia||'diario'}</span>
+                        ${cuentaActiva==='ambos'?badge(x.nodo):''}
+                    </div>
+                    <div style="font-weight:800;font-size:0.85rem;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${x.c.nombre||'—'}</div>
+                    <div style="font-size:0.6rem;color:#64748b;margin-top:0.1rem">Cuota: <b style="color:#fff">$${monto}</b> · Saldo: <b style="color:#94a3b8">$${saldo}</b></div>
+                </div>
+                <button onclick="abrirCobro('${x.id}','${x.nodo}')" style="background:${bgBtn};width:2.75rem;height:2.75rem;border-radius:0.875rem;border:none;color:#fff;font-size:1.2rem;cursor:pointer;flex-shrink:0">💵</button>
+            </div>
+        </div>`;
+    }
+
+    function cardPagado(x) {
+        const saldo=parseFloat(x.c.saldo||0).toFixed(2);
+        return `<div class="cliente-card p-3 item-ruta" style="opacity:0.55" data-search="${(x.c.nombre||'').toLowerCase()} ${x.c.dui||''}">
+            <div style="display:flex;align-items:center;gap:0.75rem">
+                <div style="flex:1;min-width:0">
+                    <div style="display:flex;gap:0.3rem;align-items:center;margin-bottom:0.2rem">
+                        <span style="color:#10b981;font-size:0.55rem;font-weight:900">✓ PAGADO HOY</span>
+                        ${cuentaActiva==='ambos'?badge(x.nodo):''}
+                    </div>
+                    <div style="font-weight:800;font-size:0.85rem;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${x.c.nombre||'—'}</div>
+                    <div style="font-size:0.6rem;color:#64748b">Saldo: <b style="color:#94a3b8">$${saldo}</b></div>
+                </div>
+                <span style="font-size:1.5rem">✅</span>
+            </div>
+        </div>`;
+    }
+
+    function cardProximo(x) {
+        const cuo=cuotaPend(x.c), monto=cuo?parseFloat(cuo.valorPagado||0).toFixed(2):'—', fecha=cuo?(cuo.fecha_prog_sv||cuo.fecha_prog||'—'):'—';
+        return `<div class="cliente-card p-3 item-ruta" style="opacity:0.4" data-search="${(x.c.nombre||'').toLowerCase()} ${x.c.dui||''}">
+            <div style="display:flex;align-items:center;gap:0.75rem">
+                <div style="flex:1;min-width:0">
+                    <div style="display:flex;gap:0.3rem;align-items:center;margin-bottom:0.2rem">
+                        ${cuentaActiva==='ambos'?badge(x.nodo):''}
+                        <span style="font-size:0.52rem;color:#475569">${fecha}</span>
+                    </div>
+                    <div style="font-weight:700;font-size:0.8rem;color:#94a3b8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${x.c.nombre||'—'}</div>
+                </div>
+                <span style="font-size:0.75rem;font-weight:900;color:#475569">$${monto}</span>
+            </div>
+        </div>`;
+    }
+
+    // ─── RENDER ──────────────────────────────────────────
+    function renderBloques() {
+        let mora=[],hoy=[],pagados=[],proximos=[],totalCobradoHoy=0;
+        const i1=cuentaActiva==='inv1'||cuentaActiva==='ambos';
+        const i2=cuentaActiva==='inv2'||cuentaActiva==='ambos';
+        const i3=cuentaActiva==='inv3'||cuentaActiva==='ambos';
+        if(i1){const r=clasificar(datosInv1,'clientes');  mora=[...mora,...r.mora];hoy=[...hoy,...r.hoy];pagados=[...pagados,...r.pagados];proximos=[...proximos,...r.proximos];}
+        if(i2){const r=clasificar(datosInv2,'clientes2'); mora=[...mora,...r.mora];hoy=[...hoy,...r.hoy];pagados=[...pagados,...r.pagados];proximos=[...proximos,...r.proximos];}
+        if(i3){const r=clasificar(datosInv3,'clientes3'); mora=[...mora,...r.mora];hoy=[...hoy,...r.hoy];pagados=[...pagados,...r.pagados];proximos=[...proximos,...r.proximos];}
+        pagados.forEach(x=>(x.c.cuotas||[]).forEach(q=>{if(q.pagada&&q.fecha_ISO===HOY_ISO) totalCobradoHoy+=parseFloat(q.valorPagado||0);}));
+
+        document.getElementById('lista-mora').innerHTML    = mora.map(cardMora).join('');
+        document.getElementById('lista-hoy').innerHTML     = hoy.map(cardHoy).join('');
+        document.getElementById('lista-pagados').innerHTML = pagados.map(cardPagado).join('');
+        document.getElementById('lista-proximos').innerHTML= proximos.map(cardProximo).join('');
+
+        const cobrarHoy=mora.length+hoy.length;
+        document.getElementById('cnt-mora').textContent    = mora.length;
+        document.getElementById('cnt-hoy').textContent     = hoy.length;
+        document.getElementById('cnt-pagados').textContent = pagados.length;
+        document.getElementById('cnt-proximos').textContent= proximos.length;
+        document.getElementById('badge-cobros').textContent= cobrarHoy;
+        document.getElementById('stat-cobrar-hoy').textContent = cobrarHoy;
+        document.getElementById('stat-cobrado').textContent    = '$'+totalCobradoHoy.toFixed(0);
+        document.getElementById('stat-mora').textContent       = mora.length;
+        document.getElementById('empty-mora').style.display    = mora.length    ? 'none':'block';
+        document.getElementById('empty-hoy').style.display     = hoy.length     ? 'none':'block';
+        document.getElementById('empty-pagados').style.display = pagados.length ? 'none':'block';
+    }
+
+    // ─── CARGAR FIREBASE ─────────────────────────────────
+    function cargarRuta() {
+        db.ref('clientes').on('value', snap=>{datosInv1={};snap.forEach(c=>{datosInv1[c.key]=c.val();});renderBloques();});
+        db.ref('clientes2').on('value',snap=>{datosInv2={};snap.forEach(c=>{datosInv2[c.key]=c.val();});renderBloques();});
+        db.ref('clientes3').on('value',snap=>{datosInv3={};snap.forEach(c=>{datosInv3[c.key]=c.val();});renderBloques();});
+    }
+
+    // ─── COBRO ───────────────────────────────────────────
+    async function abrirCobro(id, nodo) {
+        clienteActualId=id; origenPago=nodo||'clientes';
+        const snap=await db.ref(origenPago+'/'+id).once('value');
+        const c=snap.val();
+        const idx=(c.cuotas||[]).findIndex(q=>!q.pagada);
+        if(idx===-1) return alert("Este cliente ya completó sus pagos.");
+        indiceCuota=idx;
+        const total=parseFloat(c.total||0), saldo=parseFloat(c.saldo||0), dias=diasAtraso(c);
+        const lbl=nodo==='clientes'?'🔵 INVER 1':nodo==='clientes2'?'🟣 INVER 2':'🟢 INVER 3';
+        document.getElementById('c-nombre').innerText    =c.nombre;
+        document.getElementById('m-total').innerText     =`$${total.toFixed(2)}`;
+        document.getElementById('m-pagado').innerText    =`$${(total-saldo).toFixed(2)}`;
+        document.getElementById('m-saldo').innerText     =`$${saldo.toFixed(2)}`;
+        document.getElementById('c-cuota-info').innerText=`PAGO #${c.cuotas[idx].n} · ${(c.frecuencia||'diario').toUpperCase()} · ${lbl}`;
+        const aEl=document.getElementById('c-atraso-info');
+        if(dias>0){aEl.innerText=`⚠️ ${dias} día${dias!==1?'s':''} de atraso`;aEl.classList.remove('hidden');}
+        else aEl.classList.add('hidden');
+        document.getElementById('monto-recibido').value=c.cuotas[idx].valorPagado;
+        document.getElementById('modalCobro').classList.remove('hidden');
+        setTimeout(()=>document.getElementById('monto-recibido').select(),200);
+    }
+
+    async function registrarPago() {
+        const monto=parseFloat(document.getElementById('monto-recibido').value);
+        if(isNaN(monto)||monto<=0) return alert("Monto no válido");
+        try {
+            const snap=await db.ref(origenPago+'/'+clienteActualId).once('value');
+            let s=snap.val();
+            const ahora=new Date(), fechaISO=ahora.toISOString().split('T')[0], fechaSV=ahora.toLocaleDateString('es-SV');
+            s.cuotas[indiceCuota].pagada=true;
+            s.cuotas[indiceCuota].valorPagado=monto;
+            s.cuotas[indiceCuota].fecha_ISO=fechaISO;
+            s.cuotas[indiceCuota].fecha=fechaSV;
+            s.saldo=(parseFloat(s.saldo||s.total||0)-monto).toFixed(2);
+            await db.ref(origenPago+'/'+clienteActualId).set(s);
+            alert("✅ PAGO REGISTRADO EXITOSAMENTE");
+            cerrarCobro();
+        } catch(e) { alert("Error al guardar. Verifica tu conexión."); }
+    }
+
+    function cerrarCobro() { document.getElementById('modalCobro').classList.add('hidden'); }
+
+    function filtrarClientes() {
+        const txt=document.getElementById('buscador').value.toLowerCase();
+        document.querySelectorAll('.item-ruta').forEach(el=>{el.style.display=el.dataset.search.includes(txt)?'':'none';});
+    }
 </script>
 </body>
 </html>
