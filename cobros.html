@@ -54,6 +54,24 @@
                     <span class="bg-sky-500/10 text-sky-400 text-[10px] font-black px-3 py-1 rounded-full border border-sky-500/20">RUTA ACTIVA</span>
                 </div>
             </div>
+            <!-- Tabs de cuenta -->
+            <div class="flex gap-1.5">
+                <button id="tab-inv1" onclick="cambiarCuenta('inv1')"
+                    class="flex-1 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all"
+                    style="background:rgba(14,165,233,0.2);color:#38bdf8;border-color:rgba(14,165,233,0.4)">
+                    🔵 INVER 1
+                </button>
+                <button id="tab-inv2" onclick="cambiarCuenta('inv2')"
+                    class="flex-1 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all"
+                    style="background:transparent;color:#64748b;border-color:#334155">
+                    🟣 INVER 2
+                </button>
+                <button id="tab-ambos" onclick="cambiarCuenta('ambos')"
+                    class="flex-1 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all"
+                    style="background:transparent;color:#64748b;border-color:#334155">
+                    📋 Ambas
+                </button>
+            </div>
             <!-- Stats resumen -->
             <div class="grid grid-cols-3 gap-2">
                 <div class="bg-slate-800/60 rounded-xl p-2.5 text-center">
@@ -124,6 +142,7 @@
             </div>
             <div id="lista-proximos" class="space-y-2"></div>
         </div>
+        <!-- FIN BLOQUES RENDERIZADOS DINAMICAMENTE -->
 
     </main>
 </div>
@@ -216,14 +235,20 @@
 <script>
     // ─── CONFIG ─────────────────────────────────────────
     const PIN_ACCESO = "2025";
-    const TOKEN_CAJA = "CAJA2025";   // ← Cambia este token para mayor seguridad
+    const TOKEN_CAJA = "CAJA2025";   // ← Cambia este token
 
     const firebaseConfig = { databaseURL: "https://credilistosv-default-rtdb.firebaseio.com" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    let clienteActualId  = null;
-    let indiceCuota      = null;
+    let clienteActualId = null;
+    let indiceCuota     = null;
+    let origenPago      = 'clientes';  // nodo Firebase del cliente que se está cobrando
+    let cuentaActiva    = 'ambos';     // 'inv1' | 'inv2' | 'ambos'
+
+    // Datos de ambas cuentas
+    let datosInv1 = {};   // nodo clientes
+    let datosInv2 = {};   // nodo clientes2
 
     const HOY = new Date(); HOY.setHours(0,0,0,0);
     const HOY_ISO = HOY.toISOString().split('T')[0];
@@ -251,6 +276,24 @@
         }
     };
 
+    // ─── TABS DE CUENTA ──────────────────────────────────
+    function cambiarCuenta(cual) {
+        cuentaActiva = cual;
+        const estiloActivo   = 'background:rgba(14,165,233,0.2);color:#38bdf8;border-color:rgba(14,165,233,0.4)';
+        const estiloInv2     = 'background:rgba(168,85,247,0.18);color:#c084fc;border-color:rgba(168,85,247,0.4)';
+        const estiloAmbos    = 'background:rgba(100,116,139,0.18);color:#94a3b8;border-color:rgba(100,116,139,0.35)';
+        const estiloInactivo = 'background:transparent;color:#64748b;border-color:#334155';
+
+        const t1 = document.getElementById('tab-inv1');
+        const t2 = document.getElementById('tab-inv2');
+        const tA = document.getElementById('tab-ambos');
+        t1.style.cssText = cual==='inv1'   ? estiloActivo   : estiloInactivo;
+        t2.style.cssText = cual==='inv2'   ? estiloInv2     : estiloInactivo;
+        tA.style.cssText = cual==='ambos'  ? estiloAmbos    : estiloInactivo;
+
+        renderBloques();
+    }
+
     // ─── HELPERS FECHA ───────────────────────────────────
     function parseFechaISO(str) {
         if (!str) return null;
@@ -259,8 +302,7 @@
         }
         if (str.includes('/')) {
             const p = str.split('/');
-            // dd/mm/yyyy  o  m/d/yyyy  — intentar ambos
-            let d = new Date(`${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}T00:00:00`);
+            const d = new Date(`${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}T00:00:00`);
             d.setHours(0,0,0,0);
             if (!isNaN(d)) return d;
         }
@@ -278,7 +320,6 @@
         }
         return max;
     }
-
     function tocaHoy(c) {
         for (const cuo of (c.cuotas||[])) {
             if (cuo.pagada) continue;
@@ -287,173 +328,227 @@
         }
         return false;
     }
+    function pagoHoy(c) { return (c.cuotas||[]).some(q => q.pagada && q.fecha_ISO === HOY_ISO); }
+    function cuotaPendiente(c) { return (c.cuotas||[]).find(q => !q.pagada) || null; }
 
-    function pagoHoy(c) {
-        return (c.cuotas||[]).some(q => q.pagada && q.fecha_ISO === HOY_ISO);
+    // ─── CLASIFICAR CLIENTES ─────────────────────────────
+    function clasificar(datos, nodo) {
+        const mora=[], hoy=[], pagados=[], proximos=[];
+        Object.entries(datos).forEach(([id, c]) => {
+            if (c.tipo !== 'ACTIVO') return;
+            c._nodo = nodo;   // guardar origen
+            const dias   = diasAtrasoCliente(c);
+            const esHoy  = tocaHoy(c);
+            const yaPago = pagoHoy(c);
+            if (yaPago)       pagados.push({id,c,nodo,dias:0});
+            else if (dias>0)  mora.push({id,c,nodo,dias});
+            else if (esHoy)   hoy.push({id,c,nodo,dias:0});
+            else              proximos.push({id,c,nodo,dias:0});
+        });
+        mora.sort((a,b) => b.dias - a.dias);
+        return { mora, hoy, pagados, proximos };
     }
 
-    function cuotaPendiente(c) {
-        return (c.cuotas||[]).find(q => !q.pagada) || null;
+    // ─── BADGE DE CUENTA ─────────────────────────────────
+    function badgeCuenta(nodo) {
+        if (nodo === 'clientes') return `<span style="background:rgba(14,165,233,0.18);color:#38bdf8;font-size:0.55rem;font-weight:900;letter-spacing:0.1em;text-transform:uppercase;padding:0.1rem 0.45rem;border-radius:2rem;border:1px solid rgba(14,165,233,0.35);flex-shrink:0">INVER 1</span>`;
+        return                          `<span style="background:rgba(168,85,247,0.18);color:#c084fc;font-size:0.55rem;font-weight:900;letter-spacing:0.1em;text-transform:uppercase;padding:0.1rem 0.45rem;border-radius:2rem;border:1px solid rgba(168,85,247,0.35);flex-shrink:0">INVER 2</span>`;
     }
 
     // ─── CARDS ───────────────────────────────────────────
-    function cardMora(id, c, dias) {
-        const cuo   = cuotaPendiente(c);
+    function cardMora(x) {
+        const cuo   = cuotaPendiente(x.c);
         const monto = cuo ? parseFloat(cuo.valorPagado||0).toFixed(2) : '—';
-        const saldo = parseFloat(c.saldo||0).toFixed(2);
+        const saldo = parseFloat(x.c.saldo||0).toFixed(2);
         return `
-        <div class="cliente-card p-4 item-ruta" data-search="${(c.nombre||'').toLowerCase()} ${c.dui||''}">
+        <div class="cliente-card p-4 item-ruta" data-search="${(x.c.nombre||'').toLowerCase()} ${x.c.dui||''}">
             <div class="flex justify-between items-center gap-3">
                 <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-2 mb-1">
-                        <span class="text-[8px] font-black px-2 py-0.5 rounded-lg bg-red-900/50 text-red-400 border border-red-700/40 uppercase">${dias} día${dias!==1?'s':''} atraso</span>
-                        <span class="text-[7px] font-bold text-slate-500 uppercase">${(c.frecuencia||'diario').toUpperCase()}</span>
+                    <div class="flex items-center gap-1.5 mb-1 flex-wrap">
+                        <span style="background:rgba(239,68,68,0.15);color:#f87171;font-size:0.6rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;padding:0.15rem 0.5rem;border-radius:2rem;border:1px solid rgba(239,68,68,0.3)">⚠ ${x.dias}d atraso</span>
+                        ${cuentaActiva==='ambos' ? badgeCuenta(x.nodo) : ''}
+                        <span style="font-size:0.58rem;font-weight:600;color:#475569;text-transform:uppercase">${(x.c.frecuencia||'diario')}</span>
                     </div>
-                    <h3 class="font-black uppercase italic text-sm text-white truncate">${c.nombre||'—'}</h3>
-                    <div class="flex gap-3 mt-1">
-                        <span class="text-[9px] font-bold text-slate-500">Cuota: <span class="text-white">$${monto}</span></span>
-                        <span class="text-[9px] font-bold text-slate-500">Saldo: <span class="text-red-400">$${saldo}</span></span>
+                    <div style="font-weight:800;font-size:0.9rem;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${x.c.nombre||'—'}</div>
+                    <div style="display:flex;gap:0.75rem;margin-top:0.2rem">
+                        <span style="font-size:0.65rem;color:#64748b">Cuota: <strong style="color:#fff">$${monto}</strong></span>
+                        <span style="font-size:0.65rem;color:#64748b">Saldo: <strong style="color:#f87171">$${saldo}</strong></span>
                     </div>
                 </div>
-                <button onclick="abrirCobro('${id}')"
-                    class="bg-red-700 hover:bg-red-600 text-white w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 transition-colors">
+                <button onclick="abrirCobro('${x.id}','${x.nodo}')"
+                    class="text-white w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 transition-colors"
+                    style="background:#dc2626">
                     <span class="text-xl">💵</span>
                 </button>
             </div>
         </div>`;
     }
 
-    function cardHoy(id, c) {
-        const cuo   = cuotaPendiente(c);
+    function cardHoy(x) {
+        const cuo   = cuotaPendiente(x.c);
         const monto = cuo ? parseFloat(cuo.valorPagado||0).toFixed(2) : '—';
-        const saldo = parseFloat(c.saldo||0).toFixed(2);
+        const saldo = parseFloat(x.c.saldo||0).toFixed(2);
+        const accentColor = x.nodo === 'clientes' ? '#0ea5e9' : '#a855f7';
+        const bgBtn       = x.nodo === 'clientes' ? '#0284c7' : '#7c3aed';
         return `
-        <div class="cliente-card p-4 item-ruta" data-search="${(c.nombre||'').toLowerCase()} ${c.dui||''}">
+        <div class="cliente-card p-4 item-ruta" data-search="${(x.c.nombre||'').toLowerCase()} ${x.c.dui||''}">
             <div class="flex justify-between items-center gap-3">
                 <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-2 mb-1">
-                        <span class="text-[8px] font-black px-2 py-0.5 rounded-lg bg-sky-900/50 text-sky-400 border border-sky-700/40 uppercase">HOY</span>
-                        <span class="text-[7px] font-bold text-slate-500 uppercase">${(c.frecuencia||'diario').toUpperCase()}</span>
+                    <div class="flex items-center gap-1.5 mb-1 flex-wrap">
+                        <span style="background:rgba(14,165,233,0.12);color:${accentColor};font-size:0.6rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;padding:0.15rem 0.5rem;border-radius:2rem;border:1px solid ${accentColor}40">HOY</span>
+                        ${cuentaActiva==='ambos' ? badgeCuenta(x.nodo) : ''}
+                        <span style="font-size:0.58rem;font-weight:600;color:#475569;text-transform:uppercase">${(x.c.frecuencia||'diario')}</span>
                     </div>
-                    <h3 class="font-black uppercase italic text-sm text-white truncate">${c.nombre||'—'}</h3>
-                    <div class="flex gap-3 mt-1">
-                        <span class="text-[9px] font-bold text-slate-500">Cuota: <span class="text-white">$${monto}</span></span>
-                        <span class="text-[9px] font-bold text-slate-500">Saldo: <span class="text-red-400">$${saldo}</span></span>
+                    <div style="font-weight:800;font-size:0.9rem;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${x.c.nombre||'—'}</div>
+                    <div style="display:flex;gap:0.75rem;margin-top:0.2rem">
+                        <span style="font-size:0.65rem;color:#64748b">Cuota: <strong style="color:#fff">$${monto}</strong></span>
+                        <span style="font-size:0.65rem;color:#64748b">Saldo: <strong style="color:#f87171">$${saldo}</strong></span>
                     </div>
                 </div>
-                <button onclick="abrirCobro('${id}')"
-                    class="bg-sky-600 hover:bg-sky-500 text-white w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 transition-colors">
+                <button onclick="abrirCobro('${x.id}','${x.nodo}')"
+                    class="text-white w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 transition-colors"
+                    style="background:${bgBtn}">
                     <span class="text-xl">💵</span>
                 </button>
             </div>
         </div>`;
     }
 
-    function cardPagado(id, c) {
-        const cuo = (c.cuotas||[]).find(q => q.pagada && q.fecha_ISO === HOY_ISO);
-        const monto = cuo ? parseFloat(cuo.valorPagado||0).toFixed(2) : '—';
+    function cardPagado(x) {
+        const q = (x.c.cuotas||[]).find(q => q.pagada && q.fecha_ISO === HOY_ISO);
+        const m = q ? parseFloat(q.valorPagado||0).toFixed(2) : '—';
         return `
-        <div class="cliente-card p-3 item-ruta" data-search="${(c.nombre||'').toLowerCase()} ${c.dui||''}"
+        <div class="cliente-card p-3 item-ruta" data-search="${(x.c.nombre||'').toLowerCase()} ${x.c.dui||''}"
              style="border-color:#064e3b;background:#022c22">
             <div class="flex justify-between items-center">
                 <div>
-                    <div class="flex items-center gap-2 mb-1">
-                        <span class="text-[8px] font-black px-2 py-0.5 rounded-lg bg-emerald-900/50 text-emerald-400 border border-emerald-700/40 uppercase">✓ Pagado</span>
+                    <div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.2rem">
+                        <span style="background:rgba(16,185,129,0.2);color:#34d399;font-size:0.6rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;padding:0.1rem 0.45rem;border-radius:2rem;border:1px solid rgba(16,185,129,0.3)">✓ Pagado</span>
+                        ${cuentaActiva==='ambos' ? badgeCuenta(x.nodo) : ''}
                     </div>
-                    <h3 class="font-black uppercase italic text-sm text-white">${c.nombre||'—'}</h3>
-                    <p class="text-[9px] font-bold text-slate-500 mt-0.5">Cobrado: <span class="text-emerald-400">$${monto}</span></p>
+                    <div style="font-weight:800;font-size:0.85rem;color:#fff">${x.c.nombre||'—'}</div>
+                    <p style="font-size:0.65rem;color:#475569;margin-top:0.1rem">Cobrado: <strong style="color:#34d399">$${m}</strong></p>
                 </div>
-                <div class="text-xl opacity-30">✅</div>
+                <div style="font-size:1.4rem;opacity:0.2">✅</div>
             </div>
         </div>`;
     }
 
-    function cardProximo(id, c) {
-        const cuo = cuotaPendiente(c);
+    function cardProximo(x) {
+        const cuo = cuotaPendiente(x.c);
         if (!cuo) return '';
         const prog = cuo.fecha_prog || cuo.fecha_prog_sv || '—';
         let label = prog;
-        if (prog.includes('-') && prog.length===10) {
-            const [y,m,d]=prog.split('-'); label=`${d}/${m}/${y}`;
-        }
-        const monto = parseFloat(cuo.valorPagado||0).toFixed(2);
+        if (prog.includes('-') && prog.length===10) { const [y,m,d]=prog.split('-'); label=`${d}/${m}/${y}`; }
         return `
-        <div class="cliente-card p-3 item-ruta opacity-40" data-search="${(c.nombre||'').toLowerCase()} ${c.dui||''}">
+        <div class="cliente-card p-3 item-ruta" data-search="${(x.c.nombre||'').toLowerCase()} ${x.c.dui||''}"
+             style="opacity:0.4">
             <div class="flex justify-between items-center">
                 <div>
-                    <h3 class="font-black uppercase italic text-xs text-white">${c.nombre||'—'}</h3>
-                    <p class="text-[9px] font-bold text-slate-500 mt-0.5">
-                        Pago el <span class="text-slate-400">${label}</span> · $${monto}
+                    <div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.15rem">
+                        ${cuentaActiva==='ambos' ? badgeCuenta(x.nodo) : ''}
+                    </div>
+                    <div style="font-weight:800;font-size:0.82rem;color:#fff">${x.c.nombre||'—'}</div>
+                    <p style="font-size:0.63rem;color:#475569;margin-top:0.1rem">
+                        Próximo: <span style="color:#94a3b8">${label}</span> · $${parseFloat(cuo.valorPagado||0).toFixed(2)}
                     </p>
                 </div>
             </div>
         </div>`;
     }
 
-    // ─── CARGAR RUTA ─────────────────────────────────────
+    // ─── SEPARADOR DE CUENTA ─────────────────────────────
+    function separador(nodo, lista) {
+        if (!lista.length) return '';
+        const color  = nodo === 'clientes' ? '#0ea5e9' : '#a855f7';
+        const label  = nodo === 'clientes' ? '🔵 INVER 1' : '🟣 INVER 2';
+        return `<div style="display:flex;align-items:center;gap:0.5rem;margin:0.4rem 0 0.2rem">
+            <span style="font-size:0.58rem;font-weight:900;letter-spacing:0.15em;text-transform:uppercase;color:${color}">${label}</span>
+            <div style="flex:1;height:1px;background:${color}22"></div>
+            <span style="font-size:0.58rem;font-weight:800;color:${color}">${lista.length}</span>
+        </div>`;
+    }
+
+    // ─── RENDER PRINCIPAL ────────────────────────────────
+    function renderBloques() {
+        const r1 = clasificar(datosInv1, 'clientes');
+        const r2 = clasificar(datosInv2, 'clientes2');
+
+        // Seleccionar según tab
+        let mora=[], hoy=[], pagados=[], proximos=[];
+
+        if (cuentaActiva === 'inv1') {
+            mora=r1.mora; hoy=r1.hoy; pagados=r1.pagados; proximos=r1.proximos;
+        } else if (cuentaActiva === 'inv2') {
+            mora=r2.mora; hoy=r2.hoy; pagados=r2.pagados; proximos=r2.proximos;
+        } else {
+            // AMBAS — intercalar con separadores
+            mora     = [...r1.mora,     ...r2.mora];
+            hoy      = [...r1.hoy,      ...r2.hoy];
+            pagados  = [...r1.pagados,  ...r2.pagados];
+            proximos = [...r1.proximos, ...r2.proximos];
+        }
+
+        // En vista AMBAS, los bloques internos están mezclados → separadores inline
+        function renderGrupo(lista, cardFn) {
+            if (cuentaActiva !== 'ambos') return lista.map(cardFn).join('');
+            const g1 = lista.filter(x => x.nodo==='clientes');
+            const g2 = lista.filter(x => x.nodo==='clientes2');
+            return separador('clientes',  g1) + g1.map(cardFn).join('') +
+                   separador('clientes2', g2) + g2.map(cardFn).join('');
+        }
+
+        // Totales para stats
+        let totalCobradoHoy = 0;
+        pagados.forEach(x => {
+            const q = (x.c.cuotas||[]).find(q => q.pagada && q.fecha_ISO===HOY_ISO);
+            if (q) totalCobradoHoy += parseFloat(q.valorPagado||0);
+        });
+
+        document.getElementById('lista-mora').innerHTML     = renderGrupo(mora,     cardMora);
+        document.getElementById('lista-hoy').innerHTML      = renderGrupo(hoy,      cardHoy);
+        document.getElementById('lista-pagados').innerHTML  = renderGrupo(pagados,  cardPagado);
+        document.getElementById('lista-proximos').innerHTML = renderGrupo(proximos, cardProximo);
+
+        document.getElementById('cnt-mora').textContent     = mora.length;
+        document.getElementById('cnt-hoy').textContent      = hoy.length;
+        document.getElementById('cnt-pagados').textContent  = pagados.length;
+        document.getElementById('cnt-proximos').textContent = proximos.length;
+
+        document.getElementById('stat-cobrar-hoy').textContent = hoy.length + mora.length;
+        document.getElementById('stat-cobrado').textContent    = '$' + totalCobradoHoy.toFixed(0);
+        document.getElementById('stat-mora').textContent       = mora.length;
+
+        document.getElementById('empty-mora').style.display    = mora.length    ? 'none' : 'block';
+        document.getElementById('empty-hoy').classList.toggle('hidden', hoy.length > 0);
+        document.getElementById('empty-pagados').style.display = pagados.length ? 'none' : 'block';
+    }
+
+    // ─── CARGAR AMBAS RUTAS ──────────────────────────────
     function cargarRuta() {
         db.ref('clientes').on('value', snap => {
-            let mora=[], hoy=[], pagados=[], proximos=[];
-            let totalCobrado=0;
-
+            datosInv1 = {};
             snap.forEach(child => {
-                const c = child.val();
-                const id = child.key;
-                if (c.tipo !== 'ACTIVO') return;
-
-                const dias = diasAtrasoCliente(c);
-                const esHoy = tocaHoy(c);
-                const yaPago = pagoHoy(c);
-
-                if (yaPago) {
-                    const q = (c.cuotas||[]).find(q => q.pagada && q.fecha_ISO===HOY_ISO);
-                    if (q) totalCobrado += parseFloat(q.valorPagado||0);
-                    pagados.push({ id, c });
-                } else if (dias > 0) {
-                    mora.push({ id, c, dias });
-                } else if (esHoy) {
-                    hoy.push({ id, c });
-                } else {
-                    proximos.push({ id, c });
-                }
+                const v = child.val();
+                datosInv1[child.key] = v;
             });
-
-            // Ordenar mora por más días de atraso primero
-            mora.sort((a,b) => b.dias - a.dias);
-
-            // Renderizar
-            const lMora = document.getElementById('lista-mora');
-            const lHoy  = document.getElementById('lista-hoy');
-            const lPag  = document.getElementById('lista-pagados');
-            const lProx = document.getElementById('lista-proximos');
-
-            lMora.innerHTML = mora.map(x => cardMora(x.id, x.c, x.dias)).join('');
-            lHoy.innerHTML  = hoy.map(x => cardHoy(x.id, x.c)).join('');
-            lPag.innerHTML  = pagados.map(x => cardPagado(x.id, x.c)).join('');
-            lProx.innerHTML = proximos.map(x => cardProximo(x.id, x.c)).join('');
-
-            // Contadores badge
-            document.getElementById('cnt-mora').textContent     = mora.length;
-            document.getElementById('cnt-hoy').textContent      = hoy.length;
-            document.getElementById('cnt-pagados').textContent  = pagados.length;
-            document.getElementById('cnt-proximos').textContent = proximos.length;
-
-            // Stats barra
-            document.getElementById('stat-cobrar-hoy').textContent = hoy.length + mora.length;
-            document.getElementById('stat-cobrado').textContent     = '$' + totalCobrado.toFixed(0);
-            document.getElementById('stat-mora').textContent        = mora.length;
-
-            // Vacíos
-            document.getElementById('empty-mora').style.display    = mora.length    ? 'none' : 'block';
-            document.getElementById('empty-hoy').classList.toggle('hidden', hoy.length > 0);
-            document.getElementById('empty-pagados').style.display = pagados.length ? 'none' : 'block';
+            renderBloques();
+        });
+        db.ref('clientes2').on('value', snap => {
+            datosInv2 = {};
+            snap.forEach(child => {
+                const v = child.val();
+                datosInv2[child.key] = v;
+            });
+            renderBloques();
         });
     }
 
     // ─── ABRIR COBRO ─────────────────────────────────────
-    async function abrirCobro(id) {
+    async function abrirCobro(id, nodo) {
         clienteActualId = id;
-        const snap = await db.ref('clientes/' + id).once('value');
+        origenPago      = nodo || 'clientes';
+        const snap = await db.ref(origenPago + '/' + id).once('value');
         const c = snap.val();
         const idx = (c.cuotas||[]).findIndex(cuo => !cuo.pagada);
         if (idx === -1) return alert("Este cliente ya completó sus pagos.");
@@ -462,12 +557,13 @@
         const total = parseFloat(c.total||0);
         const saldo = parseFloat(c.saldo||0);
         const dias  = diasAtrasoCliente(c);
+        const cuentaLabel = origenPago === 'clientes' ? '🔵 INVER 1' : '🟣 INVER 2';
 
         document.getElementById('c-nombre').innerText     = c.nombre;
         document.getElementById('m-total').innerText      = `$${total.toFixed(2)}`;
         document.getElementById('m-pagado').innerText     = `$${(total-saldo).toFixed(2)}`;
         document.getElementById('m-saldo').innerText      = `$${saldo.toFixed(2)}`;
-        document.getElementById('c-cuota-info').innerText = `PAGO #${c.cuotas[idx].n} · ${(c.frecuencia||'diario').toUpperCase()}`;
+        document.getElementById('c-cuota-info').innerText = `PAGO #${c.cuotas[idx].n} · ${(c.frecuencia||'diario').toUpperCase()} · ${cuentaLabel}`;
 
         const aEl = document.getElementById('c-atraso-info');
         if (dias > 0) {
@@ -487,7 +583,7 @@
         const monto = parseFloat(document.getElementById('monto-recibido').value);
         if (isNaN(monto) || monto <= 0) return alert("Monto no válido");
         try {
-            const snap = await db.ref('clientes/' + clienteActualId).once('value');
+            const snap = await db.ref(origenPago + '/' + clienteActualId).once('value');
             let s = snap.val();
             const ahora   = new Date();
             const fechaISO = ahora.toISOString().split('T')[0];
@@ -498,7 +594,7 @@
             s.cuotas[indiceCuota].fecha       = fechaSV;
             const saldoActual = parseFloat(s.saldo || s.total || 0);
             s.saldo = (saldoActual - monto).toFixed(2);
-            await db.ref('clientes/' + clienteActualId).set(s);
+            await db.ref(origenPago + '/' + clienteActualId).set(s);
             alert("✅ PAGO REGISTRADO EXITOSAMENTE");
             cerrarCobro();
         } catch (e) {
@@ -526,10 +622,7 @@
         document.getElementById('modal-caja').classList.add('show');
         setTimeout(() => document.getElementById('caja-token').focus(), 200);
     }
-
-    function cerrarModalCaja() {
-        document.getElementById('modal-caja').classList.remove('show');
-    }
+    function cerrarModalCaja() { document.getElementById('modal-caja').classList.remove('show'); }
 
     function validarToken() {
         const val = document.getElementById('caja-token').value.trim().toUpperCase();
