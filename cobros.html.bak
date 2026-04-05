@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cobros de Campo | CrediListo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-database-compat.js"></script>
+    <style>
+        :root { --bg: #0f172a; --card: #1e293b; --accent: #0ea5e9; }
+        body { background-color: var(--bg); font-family: 'Inter', sans-serif; color: white; }
+        .input-dark { background: #334155; border: 1px solid #475569; padding: 1rem; border-radius: 1rem; width: 100%; color: white; font-weight: 700; outline: none; }
+        .btn-cobrar { background: linear-gradient(to right, #0ea5e9, #2563eb); transition: all 0.3s ease; }
+        .btn-cobrar:active { transform: scale(0.95); opacity: 0.9; }
+        #bloqueo { background: #050b16; display: flex; align-items: center; justify-content: center; z-index: 9999; position: fixed; inset: 0; }
+        .cliente-card { background: var(--card); border: 1px solid #334155; border-radius: 1.2rem; margin-bottom: 0.8rem; }
+    </style>
+</head>
+<body class="pb-10">
+
+    <div id="bloqueo">
+        <div class="text-center p-8 bg-slate-900 rounded-[2.5rem] shadow-2xl w-80 border border-slate-800">
+            <div class="text-4xl mb-4">🏠</div>
+            <h2 class="font-black text-white uppercase italic mb-2 text-lg">Acceso Cobrador</h2>
+            <div class="relative mb-4 mt-4">
+                <input type="password" id="pin-ruta" inputmode="numeric" placeholder="****" maxlength="4"
+                    class="w-full p-4 bg-slate-800 border-none rounded-2xl text-center text-2xl font-black tracking-[0.5em] text-white outline-none focus:ring-2 focus:ring-sky-500">
+            </div>
+            <button onclick="validarRuta()" class="w-full py-4 btn-cobrar text-white font-black rounded-2xl uppercase shadow-lg">Abrir Ruta</button>
+        </div>
+    </div>
+
+    <div id="app-cobros" class="hidden">
+        <nav class="p-6 bg-slate-900 border-b border-slate-800 sticky top-0 z-50">
+            <div class="max-w-xl mx-auto flex flex-col gap-4">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h1 class="font-black text-white italic uppercase tracking-tighter text-xl">Santiago de María</h1>
+                        <p id="fecha-actual" class="text-[10px] font-bold text-slate-500 uppercase"></p>
+                    </div>
+                    <span class="bg-sky-500/10 text-sky-400 text-[10px] font-black px-3 py-1 rounded-full border border-sky-500/20">RUTA ACTIVA</span>
+                </div>
+                <input type="text" id="buscador" onkeyup="filtrarClientes()" placeholder="🔍 Buscar por nombre o DUI..." 
+                    class="input-dark text-sm shadow-2xl">
+            </div>
+        </nav>
+
+        <main class="max-w-xl mx-auto px-6 mt-6">
+            <div id="lista-ruta" class="space-y-3">
+                </div>
+        </main>
+    </div>
+
+    <div id="modalCobro" class="fixed inset-0 z-[100] hidden flex items-end sm:items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/90 backdrop-blur-sm" onclick="cerrarCobro()"></div>
+        <div class="relative bg-slate-900 w-full max-w-lg rounded-[2.5rem] p-8 border border-slate-700 shadow-2xl">
+            
+            <div class="flex justify-between items-start mb-6">
+                <div>
+                    <h2 id="c-nombre" class="text-2xl font-black text-white uppercase italic leading-tight">CLIENTE</h2>
+                    <p id="c-cuota-info" class="text-sky-400 font-bold text-[10px] uppercase mt-1 tracking-widest"></p>
+                </div>
+                <button onclick="cerrarCobro()" class="bg-slate-800 text-slate-400 w-10 h-10 rounded-full flex items-center justify-center">✕</button>
+            </div>
+
+            <div class="bg-slate-800/50 border border-slate-700 rounded-2xl p-4 mb-6 grid grid-cols-3 gap-2">
+                <div class="text-center">
+                    <p class="text-[7px] font-black text-slate-500 uppercase">Total</p>
+                    <p id="m-total" class="text-xs font-black text-slate-300">$0.00</p>
+                </div>
+                <div class="text-center border-x border-slate-700">
+                    <p class="text-[7px] font-black text-green-600 uppercase">Abonado</p>
+                    <p id="m-pagado" class="text-xs font-black text-green-500">$0.00</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-[7px] font-black text-red-500 uppercase">Pendiente</p>
+                    <p id="m-saldo" class="text-xs font-black text-red-500">$0.00</p>
+                </div>
+            </div>
+
+            <div class="mb-6">
+                <label class="block text-[9px] font-black text-slate-500 uppercase mb-2 ml-2 tracking-tighter text-center">Monto Recibido ($)</label>
+                <input type="number" id="monto-recibido" inputmode="decimal" step="0.01"
+                    class="w-full p-6 bg-slate-950 border-2 border-sky-900/50 rounded-3xl text-5xl font-black text-center text-sky-400 outline-none focus:border-sky-500">
+            </div>
+
+            <button onclick="registrarPago()" class="w-full py-6 btn-cobrar text-white font-black rounded-[1.5rem] uppercase text-lg shadow-2xl">
+                Guardar Abono
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const PIN_ACCESO = "2025";
+        const firebaseConfig = { databaseURL: "https://credilistosv-default-rtdb.firebaseio.com" };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        
+        let clienteActualId = null;
+        let indiceCuota = null;
+
+        document.getElementById('fecha-actual').innerText = new Date().toLocaleDateString('es-SV', { weekday: 'long', day: 'numeric', month: 'long' });
+
+        function validarRuta() {
+            if(document.getElementById('pin-ruta').value === PIN_ACCESO) {
+                sessionStorage.setItem('cobrador_auth', 'true');
+                document.getElementById('bloqueo').style.display = 'none';
+                document.getElementById('app-cobros').classList.remove('hidden');
+                cargarRuta();
+            } else { 
+                alert("PIN Incorrecto"); 
+                document.getElementById('pin-ruta').value = "";
+            }
+        }
+
+        window.onload = () => {
+            if(sessionStorage.getItem('cobrador_auth') === 'true') {
+                document.getElementById('bloqueo').style.display = 'none';
+                document.getElementById('app-cobros').classList.remove('hidden');
+                cargarRuta();
+            }
+        };
+
+        function cargarRuta() {
+            db.ref('clientes').on('value', snap => {
+                const container = document.getElementById('lista-ruta');
+                container.innerHTML = "";
+                snap.forEach(child => {
+                    const c = child.val();
+                    if(c.tipo === "ACTIVO") {
+                        container.innerHTML += `
+                            <div class="cliente-card p-5 flex justify-between items-center item-ruta" data-search="${c.nombre.toLowerCase()} ${c.dui}">
+                                <div>
+                                    <h3 class="font-black uppercase italic text-sm text-white leading-none">${c.nombre}</h3>
+                                    <p class="text-[10px] font-bold text-slate-500 mt-2 uppercase tracking-tighter">Saldo: <span class="text-red-400">$${parseFloat(c.saldo || 0).toFixed(2)}</span></p>
+                                </div>
+                                <button onclick="abrirCobro('${child.key}')" class="bg-slate-700 hover:bg-sky-600 text-white w-12 h-12 rounded-2xl flex items-center justify-center transition-colors">
+                                    <span class="text-xl">💵</span>
+                                </button>
+                            </div>`;
+                    }
+                });
+            });
+        }
+
+        async function abrirCobro(id) {
+            clienteActualId = id;
+            const snap = await db.ref('clientes/' + id).once('value');
+            const c = snap.val();
+            const idx = (c.cuotas || []).findIndex(cuo => !cuo.pagada);
+            
+            if(idx === -1) return alert("Este cliente ya completó sus pagos.");
+            indiceCuota = idx;
+
+            const total = parseFloat(c.total || 0);
+            const saldo = parseFloat(c.saldo || 0);
+
+            document.getElementById('c-nombre').innerText = c.nombre;
+            document.getElementById('m-total').innerText = `$${total.toFixed(2)}`;
+            document.getElementById('m-pagado').innerText = `$${(total - saldo).toFixed(2)}`;
+            document.getElementById('m-saldo').innerText = `$${saldo.toFixed(2)}`;
+            document.getElementById('c-cuota-info').innerText = `PAGO # ${c.cuotas[idx].n}`;
+            document.getElementById('monto-recibido').value = c.cuotas[idx].valorPagado;
+            
+            document.getElementById('modalCobro').classList.remove('hidden');
+            setTimeout(() => document.getElementById('monto-recibido').select(), 200);
+        }
+
+        async function registrarPago() {
+            const monto = parseFloat(document.getElementById('monto-recibido').value);
+            if(isNaN(monto) || monto <= 0) return alert("Monto no válido");
+
+            try {
+                const snap = await db.ref('clientes/' + clienteActualId).once('value');
+                let s = snap.val();
+                
+                const ahora = new Date();
+                const fechaISO = ahora.toISOString().split('T')[0];
+                const fechaSV = ahora.toLocaleDateString('es-SV');
+
+                // Actualizar la cuota en el objeto
+                s.cuotas[indiceCuota].pagada = true;
+                s.cuotas[indiceCuota].valorPagado = monto;
+                s.cuotas[indiceCuota].fecha_ISO = fechaISO;
+                s.cuotas[indiceCuota].fecha = fechaSV;
+
+                // Actualizar el saldo restando el monto cobrado
+                const saldoActual = parseFloat(s.saldo || s.total || 0);
+                s.saldo = (saldoActual - monto).toFixed(2);
+
+                // Guardar objeto completo para asegurar sincronización
+                await db.ref('clientes/' + clienteActualId).set(s);
+                
+                alert("✅ PAGO REGISTRADO EXITOSAMENTE");
+                cerrarCobro();
+            } catch (e) {
+                alert("Error al guardar. Verifica tu conexión.");
+            }
+        }
+
+        function cerrarCobro() { document.getElementById('modalCobro').classList.add('hidden'); }
+        
+        function filtrarClientes() {
+            const txt = document.getElementById('buscador').value.toLowerCase();
+            document.querySelectorAll('.item-ruta').forEach(card => {
+                card.style.display = card.dataset.search.includes(txt) ? "flex" : "none";
+            });
+        }
+    </script>
+</body>
+</html>

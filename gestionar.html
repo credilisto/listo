@@ -319,7 +319,7 @@
             background: var(--surface2);
             transition: opacity 0.2s;
         }
-        .cuota-row.pagada { opacity: 0.4; }
+        .cuota-row.pagada { opacity: 0.75; background: rgba(22,163,74,0.04); border-color: rgba(22,163,74,0.2); }
         .cuota-n {
             font-family: 'JetBrains Mono', monospace;
             font-size: 0.65rem; font-weight: 700; color: var(--muted);
@@ -342,7 +342,7 @@
             transition: border-color 0.2s;
         }
         .cuota-input:focus { border-color: var(--accent); }
-        .cuota-input:disabled { opacity: 0.4; cursor: not-allowed; }
+        .cuota-input:disabled { opacity: 1; cursor: default; color: #16a34a; font-weight: 800; border-color: rgba(22,163,74,0.25); background: rgba(22,163,74,0.05); }
         .cuota-date {
             background: var(--bg);
             border: 1px solid var(--border2);
@@ -355,7 +355,7 @@
             transition: border-color 0.2s;
         }
         .cuota-date:focus { border-color: var(--accent); }
-        .cuota-date:disabled { opacity: 0.4; cursor: not-allowed; }
+        .cuota-date:disabled { opacity: 0.85; cursor: default; color: var(--muted2); }
         .cuota-btn {
             font-size: 0.6rem; font-weight: 800; letter-spacing: 0.05em;
             text-transform: uppercase; padding: 0.35rem 0.6rem;
@@ -551,6 +551,15 @@
                     <span class="stat-val" id="saldo-caja" style="color:#10b981">$0.00</span>
                 </div>
                 <div style="display:flex;flex-direction:column;gap:0.4rem;padding-top:0.5rem;border-top:1px solid var(--border)">
+                    <!-- COBROS DEL DÍA — nuevo módulo -->
+                    <button class="btn btn-sm" style="justify-content:space-between;width:100%;
+                            background:rgba(14,165,233,0.12);color:var(--accent);
+                            border:1px solid rgba(14,165,233,0.35);font-weight:800"
+                            onclick="mostrarCobrosDelDia()">
+                        <span>📅 Cobros del Día</span>
+                        <span class="client-badge" id="badge-cobros-dia"
+                              style="background:var(--accent);color:#fff;display:none">0</span>
+                    </button>
                     <button class="btn btn-ghost btn-sm" style="justify-content:space-between;width:100%"
                             onclick="mostrarSolicitudes()">
                         <span>📋 Solicitudes pendientes</span>
@@ -692,9 +701,58 @@ function escucharClientes() {
         } else {
             badge.style.display = 'none';
         }
+
+        // Badge Cobros del Día
+        const _cd = calcularCobrosHoy();
+        const badgeCD = document.getElementById('badge-cobros-dia');
+        const totalCD = _cd.cobrarHoy + _cd.enMora;
+        if (badgeCD) {
+            if (totalCD > 0) { badgeCD.textContent = totalCD; badgeCD.style.display = 'inline'; }
+            else badgeCD.style.display = 'none';
+        }
+
         renderSidebar();
         if (currentId && allClients[currentId]) renderPanel(currentId);
     });
+}
+
+// ─── HELPERS COBROS DEL DÍA ───────────────────────────────────────────────
+function parseFechaProgr(str) {
+    if (!str) return null;
+    if (str.includes('-') && str.length === 10) {
+        const d = new Date(str + 'T00:00:00'); d.setHours(0,0,0,0); return d;
+    }
+    if (str.includes('/')) {
+        const p = str.split('/');
+        const d = new Date(`${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}T00:00:00`);
+        d.setHours(0,0,0,0);
+        if (!isNaN(d)) return d;
+    }
+    return null;
+}
+
+function calcularCobrosHoy() {
+    const HOY = new Date(); HOY.setHours(0,0,0,0);
+    const HOY_ISO = HOY.toISOString().split('T')[0];
+    let cobrarHoy = 0, enMora = 0, pagadosHoy = 0;
+    Object.values(allClients).forEach(c => {
+        if (c.tipo !== 'ACTIVO') return;
+        const cuotas = c.cuotas || [];
+        const yaPago = cuotas.some(q => q.pagada && q.fecha_ISO === HOY_ISO);
+        if (yaPago) { pagadosHoy++; return; }
+        let maxAtraso = 0, tocaHoyFlag = false;
+        for (const cuo of cuotas) {
+            if (cuo.pagada) continue;
+            const f = parseFechaProgr(cuo.fecha_prog || cuo.fecha_prog_sv);
+            if (!f) continue;
+            const diff = Math.floor((HOY - f) / 86400000);
+            if (diff > 0) maxAtraso = Math.max(maxAtraso, diff);
+            if (diff === 0) tocaHoyFlag = true;
+        }
+        if (maxAtraso > 0)    enMora++;
+        else if (tocaHoyFlag) cobrarHoy++;
+    });
+    return { cobrarHoy, enMora, pagadosHoy };
 }
 
 // ─── TABS ─────────────────────────────────────────────────────────────────
@@ -1696,6 +1754,172 @@ async function subirDoc(input, tipo) {
 }
 
 // ─── SOLICITUDES PENDIENTES ───────────────────────────────────────────────
+// ─── COBROS DEL DÍA ──────────────────────────────────────────────────────────
+function mostrarCobrosDelDia() {
+    currentId = null;
+    document.querySelectorAll('.client-item').forEach(el => el.classList.remove('active'));
+    document.getElementById('welcome').style.display = 'none';
+    const panel = document.getElementById('panel');
+    panel.style.display = 'flex';
+
+    const HOY = new Date(); HOY.setHours(0,0,0,0);
+    const HOY_ISO = HOY.toISOString().split('T')[0];
+    const fechaLabel = HOY.toLocaleDateString('es-SV', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+
+    // Clasificar clientes
+    const mora=[], hoy=[], pagados=[];
+    Object.entries(allClients).forEach(([id, c]) => {
+        if (c.tipo !== 'ACTIVO') return;
+        const cuotas = c.cuotas || [];
+        const yaPago = cuotas.some(q => q.pagada && q.fecha_ISO === HOY_ISO);
+        if (yaPago) { pagados.push({id,c}); return; }
+
+        let maxAtraso = 0, tocaHoyFlag = false, cuotaPend = null;
+        for (const cuo of cuotas) {
+            if (cuo.pagada) continue;
+            if (!cuotaPend) cuotaPend = cuo;
+            const f = parseFechaProgr(cuo.fecha_prog || cuo.fecha_prog_sv);
+            if (!f) continue;
+            const diff = Math.floor((HOY - f) / 86400000);
+            if (diff > 0) maxAtraso = Math.max(maxAtraso, diff);
+            if (diff === 0) tocaHoyFlag = true;
+        }
+        if (maxAtraso > 0)    mora.push({id,c,dias:maxAtraso,cuotaPend});
+        else if (tocaHoyFlag) hoy.push({id,c,cuotaPend});
+    });
+
+    mora.sort((a,b) => b.dias - a.dias);
+
+    function rowMora(x) {
+        const m = x.cuotaPend ? parseFloat(x.cuotaPend.valorPagado||0).toFixed(2) : '—';
+        const s = parseFloat(x.c.saldo||0).toFixed(2);
+        return `
+        <div style="background:var(--surface2);border:1px solid var(--border);border-left:3px solid var(--danger);
+                    border-radius:0.6rem;padding:0.75rem 1rem;display:flex;justify-content:space-between;align-items:center;gap:0.75rem">
+            <div style="flex:1;min-width:0">
+                <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.2rem">
+                    <span style="background:rgba(239,68,68,0.15);color:var(--danger);font-size:0.6rem;font-weight:800;
+                                 letter-spacing:0.08em;text-transform:uppercase;padding:0.15rem 0.5rem;border-radius:2rem;
+                                 border:1px solid rgba(239,68,68,0.25)">⚠ ${x.dias} día${x.dias!==1?'s':''} atraso</span>
+                    <span style="font-size:0.58rem;font-weight:600;color:var(--muted);text-transform:uppercase">${(x.c.frecuencia||'diario')}</span>
+                </div>
+                <div style="font-weight:800;font-size:0.9rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${x.c.nombre||'—'}</div>
+                <div style="display:flex;gap:0.75rem;margin-top:0.2rem">
+                    <span style="font-size:0.65rem;color:var(--muted2)">Cuota: <strong style="color:var(--text)">$${m}</strong></span>
+                    <span style="font-size:0.65rem;color:var(--muted2)">Saldo: <strong style="color:var(--danger)">$${s}</strong></span>
+                </div>
+            </div>
+            <button onclick="renderPanel('${x.id}')" class="btn btn-danger btn-sm">Ver ficha</button>
+        </div>`;
+    }
+
+    function rowHoy(x) {
+        const m = x.cuotaPend ? parseFloat(x.cuotaPend.valorPagado||0).toFixed(2) : '—';
+        const s = parseFloat(x.c.saldo||0).toFixed(2);
+        return `
+        <div style="background:var(--surface2);border:1px solid var(--border);border-left:3px solid var(--accent);
+                    border-radius:0.6rem;padding:0.75rem 1rem;display:flex;justify-content:space-between;align-items:center;gap:0.75rem">
+            <div style="flex:1;min-width:0">
+                <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.2rem">
+                    <span style="background:var(--accent-dim);color:var(--accent);font-size:0.6rem;font-weight:800;
+                                 letter-spacing:0.08em;text-transform:uppercase;padding:0.15rem 0.5rem;border-radius:2rem;
+                                 border:1px solid var(--accent-border)">HOY</span>
+                    <span style="font-size:0.58rem;font-weight:600;color:var(--muted);text-transform:uppercase">${(x.c.frecuencia||'diario')}</span>
+                </div>
+                <div style="font-weight:800;font-size:0.9rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${x.c.nombre||'—'}</div>
+                <div style="display:flex;gap:0.75rem;margin-top:0.2rem">
+                    <span style="font-size:0.65rem;color:var(--muted2)">Cuota: <strong style="color:var(--text)">$${m}</strong></span>
+                    <span style="font-size:0.65rem;color:var(--muted2)">Saldo: <strong style="color:var(--danger)">$${s}</strong></span>
+                </div>
+            </div>
+            <button onclick="renderPanel('${x.id}')" class="btn btn-accent btn-sm">Ver ficha</button>
+        </div>`;
+    }
+
+    function rowPagado(x) {
+        const q = (x.c.cuotas||[]).find(q => q.pagada && q.fecha_ISO === HOY_ISO);
+        const m = q ? parseFloat(q.valorPagado||0).toFixed(2) : '—';
+        return `
+        <div style="background:rgba(16,185,129,0.04);border:1px solid rgba(16,185,129,0.2);border-left:3px solid #10b981;
+                    border-radius:0.6rem;padding:0.65rem 1rem;display:flex;justify-content:space-between;align-items:center;gap:0.75rem;opacity:0.7">
+            <div style="flex:1;min-width:0">
+                <div style="font-weight:800;font-size:0.85rem;color:var(--text)">${x.c.nombre||'—'}</div>
+                <div style="font-size:0.65rem;color:var(--muted2);margin-top:0.1rem">Cobrado: <strong style="color:#10b981">$${m}</strong></div>
+            </div>
+            <span style="font-size:0.7rem;color:#10b981;font-weight:800">✓ Pagado</span>
+        </div>`;
+    }
+
+    const totalPendiente = mora.length + hoy.length;
+
+    panel.innerHTML = `
+    <div class="client-header">
+        <div>
+            <div class="ch-name">📅 Cobros del Día</div>
+            <div class="ch-meta" style="text-transform:capitalize">${fechaLabel}</div>
+        </div>
+        <div class="ch-actions">
+            <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+                <div style="background:var(--accent-dim);border:1px solid var(--accent-border);border-radius:0.6rem;
+                            padding:0.4rem 0.85rem;text-align:center">
+                    <div style="font-size:0.55rem;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:var(--accent);margin-bottom:0.1rem">Por cobrar</div>
+                    <div style="font-family:'JetBrains Mono',monospace;font-weight:800;font-size:1.1rem;color:var(--accent)">${totalPendiente}</div>
+                </div>
+                <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:0.6rem;
+                            padding:0.4rem 0.85rem;text-align:center">
+                    <div style="font-size:0.55rem;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:var(--danger);margin-bottom:0.1rem">En mora</div>
+                    <div style="font-family:'JetBrains Mono',monospace;font-weight:800;font-size:1.1rem;color:var(--danger)">${mora.length}</div>
+                </div>
+                <div style="background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.2);border-radius:0.6rem;
+                            padding:0.4rem 0.85rem;text-align:center">
+                    <div style="font-size:0.55rem;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:#10b981;margin-bottom:0.1rem">Pagados</div>
+                    <div style="font-family:'JetBrains Mono',monospace;font-weight:800;font-size:1.1rem;color:#10b981">${pagados.length}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    ${mora.length > 0 ? `
+    <!-- MORA -->
+    <div class="section-card">
+        <div class="section-head">
+            <div class="section-title" style="color:var(--danger)">⚠️ En Mora — ${mora.length} cliente${mora.length!==1?'s':''}</div>
+            <span style="font-size:0.6rem;font-weight:600;color:var(--muted2)">ordenados por más días de atraso</span>
+        </div>
+        <div class="section-body" style="display:flex;flex-direction:column;gap:0.5rem">
+            ${mora.map(rowMora).join('')}
+        </div>
+    </div>` : ''}
+
+    ${hoy.length > 0 ? `
+    <!-- HOY -->
+    <div class="section-card">
+        <div class="section-head">
+            <div class="section-title" style="color:var(--accent)">📅 Cobros de Hoy — ${hoy.length} cliente${hoy.length!==1?'s':''}</div>
+        </div>
+        <div class="section-body" style="display:flex;flex-direction:column;gap:0.5rem">
+            ${hoy.map(rowHoy).join('')}
+        </div>
+    </div>` : ''}
+
+    ${hoy.length === 0 && mora.length === 0 ? `
+    <div style="text-align:center;padding:2rem;color:var(--muted2)">
+        <div style="font-size:2.5rem;margin-bottom:0.75rem">🎉</div>
+        <p style="font-size:0.85rem;font-weight:600">¡No hay cobros pendientes para hoy!</p>
+    </div>` : ''}
+
+    ${pagados.length > 0 ? `
+    <!-- PAGADOS HOY -->
+    <div class="section-card">
+        <div class="section-head">
+            <div class="section-title" style="color:#10b981">✅ Pagados Hoy — ${pagados.length} cliente${pagados.length!==1?'s':''}</div>
+        </div>
+        <div class="section-body" style="display:flex;flex-direction:column;gap:0.4rem">
+            ${pagados.map(rowPagado).join('')}
+        </div>
+    </div>` : ''}`;
+}
+
 function mostrarSolicitudes() {
     currentId = null;
     document.querySelectorAll('.client-item').forEach(el => el.classList.remove('active'));

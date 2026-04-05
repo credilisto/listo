@@ -14,199 +14,562 @@
         .btn-cobrar { background: linear-gradient(to right, #0ea5e9, #2563eb); transition: all 0.3s ease; }
         .btn-cobrar:active { transform: scale(0.95); opacity: 0.9; }
         #bloqueo { background: #050b16; display: flex; align-items: center; justify-content: center; z-index: 9999; position: fixed; inset: 0; }
-        .cliente-card { background: var(--card); border: 1px solid #334155; border-radius: 1.2rem; margin-bottom: 0.8rem; }
+        .cliente-card { background: var(--card); border: 1px solid #334155; border-radius: 1.2rem; }
+        #modal-caja { display:none; position:fixed; inset:0; z-index:200; background:rgba(5,11,22,0.96);
+            align-items:center; justify-content:center; padding:1rem; }
+        #modal-caja.show { display:flex; }
     </style>
 </head>
-<body class="pb-10">
+<body class="pb-16">
 
-    <div id="bloqueo">
-        <div class="text-center p-8 bg-slate-900 rounded-[2.5rem] shadow-2xl w-80 border border-slate-800">
-            <div class="text-4xl mb-4">🏠</div>
-            <h2 class="font-black text-white uppercase italic mb-2 text-lg">Acceso Cobrador</h2>
-            <div class="relative mb-4 mt-4">
-                <input type="password" id="pin-ruta" inputmode="numeric" placeholder="****" maxlength="4"
-                    class="w-full p-4 bg-slate-800 border-none rounded-2xl text-center text-2xl font-black tracking-[0.5em] text-white outline-none focus:ring-2 focus:ring-sky-500">
-            </div>
-            <button onclick="validarRuta()" class="w-full py-4 btn-cobrar text-white font-black rounded-2xl uppercase shadow-lg">Abrir Ruta</button>
+<!-- ─── LOCK ─────────────────────────────────────── -->
+<div id="bloqueo">
+    <div class="text-center p-8 bg-slate-900 rounded-[2.5rem] shadow-2xl w-80 border border-slate-800">
+        <div class="text-4xl mb-4">🏠</div>
+        <h2 class="font-black text-white uppercase italic mb-2 text-lg">Acceso Cobrador</h2>
+        <div class="relative mb-4 mt-4">
+            <input type="password" id="pin-ruta" inputmode="numeric" placeholder="****" maxlength="4"
+                class="w-full p-4 bg-slate-800 border-none rounded-2xl text-center text-2xl font-black tracking-[0.5em] text-white outline-none focus:ring-2 focus:ring-sky-500"
+                onkeydown="if(event.key==='Enter') validarRuta()">
         </div>
+        <button onclick="validarRuta()" class="w-full py-4 btn-cobrar text-white font-black rounded-2xl uppercase shadow-lg">Abrir Ruta</button>
     </div>
+</div>
 
-    <div id="app-cobros" class="hidden">
-        <nav class="p-6 bg-slate-900 border-b border-slate-800 sticky top-0 z-50">
-            <div class="max-w-xl mx-auto flex flex-col gap-4">
-                <div class="flex justify-between items-center">
-                    <div>
-                        <h1 class="font-black text-white italic uppercase tracking-tighter text-xl">Santiago de María</h1>
-                        <p id="fecha-actual" class="text-[10px] font-bold text-slate-500 uppercase"></p>
-                    </div>
+<!-- ─── APP ──────────────────────────────────────── -->
+<div id="app-cobros" class="hidden">
+
+    <nav class="p-5 bg-slate-900 border-b border-slate-800 sticky top-0 z-50">
+        <div class="max-w-xl mx-auto flex flex-col gap-3">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="font-black text-white italic uppercase tracking-tighter text-xl">Santiago de María</h1>
+                    <p id="fecha-actual" class="text-[10px] font-bold text-slate-500 uppercase"></p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="abrirModalCaja()"
+                        class="bg-emerald-900/40 border border-emerald-700/40 text-emerald-400 text-[9px] font-black px-3 py-2 rounded-xl uppercase tracking-widest">
+                        💰 Caja
+                    </button>
                     <span class="bg-sky-500/10 text-sky-400 text-[10px] font-black px-3 py-1 rounded-full border border-sky-500/20">RUTA ACTIVA</span>
                 </div>
-                <input type="text" id="buscador" onkeyup="filtrarClientes()" placeholder="🔍 Buscar por nombre o DUI..." 
-                    class="input-dark text-sm shadow-2xl">
             </div>
-        </nav>
-
-        <main class="max-w-xl mx-auto px-6 mt-6">
-            <div id="lista-ruta" class="space-y-3">
+            <!-- Stats resumen -->
+            <div class="grid grid-cols-3 gap-2">
+                <div class="bg-slate-800/60 rounded-xl p-2.5 text-center">
+                    <div class="text-[8px] font-black text-slate-500 uppercase mb-1">Cobrar hoy</div>
+                    <div id="stat-cobrar-hoy" class="text-base font-black text-sky-400">0</div>
                 </div>
-        </main>
+                <div class="bg-slate-800/60 rounded-xl p-2.5 text-center">
+                    <div class="text-[8px] font-black text-slate-500 uppercase mb-1">Cobrado</div>
+                    <div id="stat-cobrado" class="text-base font-black text-emerald-400">$0</div>
+                </div>
+                <div class="bg-slate-800/60 rounded-xl p-2.5 text-center">
+                    <div class="text-[8px] font-black text-slate-500 uppercase mb-1">En mora</div>
+                    <div id="stat-mora" class="text-base font-black text-red-400">0</div>
+                </div>
+            </div>
+            <input type="text" id="buscador" onkeyup="filtrarClientes()" placeholder="🔍 Buscar por nombre o DUI..."
+                class="input-dark text-sm">
+        </div>
+    </nav>
+
+    <main class="max-w-xl mx-auto px-4 mt-5 space-y-6">
+
+        <!-- BLOQUE: EN MORA -->
+        <div>
+            <div class="flex items-center gap-2 mb-3 px-1">
+                <span class="text-[9px] font-black text-red-400 uppercase tracking-widest">⚠️ En Mora</span>
+                <div class="flex-1 h-px bg-red-900/30"></div>
+                <span id="cnt-mora" class="bg-red-900/40 text-red-400 text-[8px] font-black px-2 py-0.5 rounded-full border border-red-700/30">0</span>
+            </div>
+            <div id="lista-mora" class="space-y-2"></div>
+            <div id="empty-mora" class="text-center py-3">
+                <p class="text-slate-600 text-[10px] font-bold uppercase">Sin clientes en mora 🎉</p>
+            </div>
+        </div>
+
+        <!-- BLOQUE: COBRAR HOY -->
+        <div>
+            <div class="flex items-center gap-2 mb-3 px-1">
+                <span class="text-[9px] font-black text-sky-400 uppercase tracking-widest">📅 Cobros de Hoy</span>
+                <div class="flex-1 h-px bg-sky-900/30"></div>
+                <span id="cnt-hoy" class="bg-sky-900/40 text-sky-400 text-[8px] font-black px-2 py-0.5 rounded-full border border-sky-700/30">0</span>
+            </div>
+            <div id="lista-hoy" class="space-y-2"></div>
+            <div id="empty-hoy" class="text-center py-3 hidden">
+                <p class="text-slate-600 text-[10px] font-bold uppercase">No hay cobros programados para hoy</p>
+            </div>
+        </div>
+
+        <!-- BLOQUE: PAGADOS HOY -->
+        <div>
+            <div class="flex items-center gap-2 mb-3 px-1">
+                <span class="text-[9px] font-black text-emerald-400 uppercase tracking-widest">✅ Pagados Hoy</span>
+                <div class="flex-1 h-px bg-emerald-900/30"></div>
+                <span id="cnt-pagados" class="bg-emerald-900/40 text-emerald-400 text-[8px] font-black px-2 py-0.5 rounded-full border border-emerald-700/30">0</span>
+            </div>
+            <div id="lista-pagados" class="space-y-2"></div>
+            <div id="empty-pagados" class="text-center py-3">
+                <p class="text-slate-600 text-[10px] font-bold uppercase">Aún sin pagos hoy</p>
+            </div>
+        </div>
+
+        <!-- BLOQUE: PRÓXIMOS -->
+        <div>
+            <div class="flex items-center gap-2 mb-3 px-1">
+                <span class="text-[9px] font-black text-slate-500 uppercase tracking-widest">⏳ Próximos Cobros</span>
+                <div class="flex-1 h-px bg-slate-800"></div>
+                <span id="cnt-proximos" class="bg-slate-800 text-slate-500 text-[8px] font-black px-2 py-0.5 rounded-full">0</span>
+            </div>
+            <div id="lista-proximos" class="space-y-2"></div>
+        </div>
+
+    </main>
+</div>
+
+<!-- ─── MODAL COBRO ───────────────────────────────── -->
+<div id="modalCobro" class="fixed inset-0 z-[100] hidden flex items-end sm:items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/90 backdrop-blur-sm" onclick="cerrarCobro()"></div>
+    <div class="relative bg-slate-900 w-full max-w-lg rounded-[2.5rem] p-8 border border-slate-700 shadow-2xl">
+        <div class="flex justify-between items-start mb-6">
+            <div>
+                <h2 id="c-nombre" class="text-2xl font-black text-white uppercase italic leading-tight">CLIENTE</h2>
+                <p id="c-cuota-info" class="text-sky-400 font-bold text-[10px] uppercase mt-1 tracking-widest"></p>
+                <p id="c-atraso-info" class="text-red-400 font-bold text-[9px] uppercase mt-0.5 tracking-widest hidden"></p>
+            </div>
+            <button onclick="cerrarCobro()" class="bg-slate-800 text-slate-400 w-10 h-10 rounded-full flex items-center justify-center">✕</button>
+        </div>
+        <div class="bg-slate-800/50 border border-slate-700 rounded-2xl p-4 mb-6 grid grid-cols-3 gap-2">
+            <div class="text-center">
+                <p class="text-[7px] font-black text-slate-500 uppercase">Total</p>
+                <p id="m-total" class="text-xs font-black text-slate-300">$0.00</p>
+            </div>
+            <div class="text-center border-x border-slate-700">
+                <p class="text-[7px] font-black text-green-600 uppercase">Abonado</p>
+                <p id="m-pagado" class="text-xs font-black text-green-500">$0.00</p>
+            </div>
+            <div class="text-center">
+                <p class="text-[7px] font-black text-red-500 uppercase">Pendiente</p>
+                <p id="m-saldo" class="text-xs font-black text-red-500">$0.00</p>
+            </div>
+        </div>
+        <div class="mb-6">
+            <label class="block text-[9px] font-black text-slate-500 uppercase mb-2 ml-2 tracking-tighter text-center">Monto Recibido ($)</label>
+            <input type="number" id="monto-recibido" inputmode="decimal" step="0.01"
+                class="w-full p-6 bg-slate-950 border-2 border-sky-900/50 rounded-3xl text-5xl font-black text-center text-sky-400 outline-none focus:border-sky-500">
+        </div>
+        <button onclick="registrarPago()" class="w-full py-6 btn-cobrar text-white font-black rounded-[1.5rem] uppercase text-lg shadow-2xl">
+            Guardar Abono
+        </button>
     </div>
+</div>
 
-    <div id="modalCobro" class="fixed inset-0 z-[100] hidden flex items-end sm:items-center justify-center p-4">
-        <div class="absolute inset-0 bg-black/90 backdrop-blur-sm" onclick="cerrarCobro()"></div>
-        <div class="relative bg-slate-900 w-full max-w-lg rounded-[2.5rem] p-8 border border-slate-700 shadow-2xl">
-            
-            <div class="flex justify-between items-start mb-6">
-                <div>
-                    <h2 id="c-nombre" class="text-2xl font-black text-white uppercase italic leading-tight">CLIENTE</h2>
-                    <p id="c-cuota-info" class="text-sky-400 font-bold text-[10px] uppercase mt-1 tracking-widest"></p>
-                </div>
-                <button onclick="cerrarCobro()" class="bg-slate-800 text-slate-400 w-10 h-10 rounded-full flex items-center justify-center">✕</button>
+<!-- ─── MODAL CAJA CHICA (TOKEN SECRETO) ─────────── -->
+<div id="modal-caja">
+    <div style="background:#0f172a;border:1px solid #1e293b;border-radius:2rem;width:min(95vw,360px);padding:2rem">
+        <div style="font-size:1.1rem;font-weight:900;text-transform:uppercase;letter-spacing:-0.02em;color:#fff;margin-bottom:0.2rem">💰 Inyectar Caja Chica</div>
+        <div style="font-size:0.58rem;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:#475569;margin-bottom:1.75rem">Acceso restringido · Token requerido</div>
+
+        <!-- Paso 1: Token -->
+        <div id="caja-paso-1">
+            <div style="font-size:0.58rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:#64748b;margin-bottom:0.5rem">Token secreto</div>
+            <input type="password" id="caja-token"
+                style="width:100%;background:#1e293b;border:2px solid #334155;border-radius:1rem;padding:1rem 1.25rem;color:#fff;font-size:1.6rem;font-weight:900;text-align:center;outline:none;margin-bottom:0.75rem;transition:border-color 0.2s"
+                placeholder="••••••" maxlength="10" onkeydown="if(event.key==='Enter') validarToken()">
+            <div id="caja-err" style="color:#ef4444;font-size:0.6rem;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;text-align:center;margin-bottom:0.5rem;display:none">
+                ⚠ Token incorrecto
             </div>
+            <button onclick="validarToken()"
+                style="width:100%;background:linear-gradient(to right,#0ea5e9,#2563eb);color:#fff;border:none;border-radius:1rem;padding:1rem;font-weight:900;font-size:0.75rem;letter-spacing:0.15em;text-transform:uppercase;cursor:pointer;margin-bottom:0.6rem">
+                Verificar
+            </button>
+            <button onclick="cerrarModalCaja()"
+                style="width:100%;background:transparent;border:1px solid #334155;color:#64748b;border-radius:1rem;padding:0.75rem;font-size:0.65rem;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;cursor:pointer">
+                Cancelar
+            </button>
+        </div>
 
-            <div class="bg-slate-800/50 border border-slate-700 rounded-2xl p-4 mb-6 grid grid-cols-3 gap-2">
-                <div class="text-center">
-                    <p class="text-[7px] font-black text-slate-500 uppercase">Total</p>
-                    <p id="m-total" class="text-xs font-black text-slate-300">$0.00</p>
-                </div>
-                <div class="text-center border-x border-slate-700">
-                    <p class="text-[7px] font-black text-green-600 uppercase">Abonado</p>
-                    <p id="m-pagado" class="text-xs font-black text-green-500">$0.00</p>
-                </div>
-                <div class="text-center">
-                    <p class="text-[7px] font-black text-red-500 uppercase">Pendiente</p>
-                    <p id="m-saldo" class="text-xs font-black text-red-500">$0.00</p>
-                </div>
+        <!-- Paso 2: Inyectar monto -->
+        <div id="caja-paso-2" style="display:none">
+            <div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);border-radius:1rem;padding:0.85rem;margin-bottom:1rem;text-align:center">
+                <div style="font-size:0.55rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:#10b981;margin-bottom:0.25rem">Caja Chica Actual</div>
+                <div id="caja-actual" style="font-size:1.6rem;font-weight:900;color:#10b981;font-family:monospace">$0.00</div>
             </div>
-
-            <div class="mb-6">
-                <label class="block text-[9px] font-black text-slate-500 uppercase mb-2 ml-2 tracking-tighter text-center">Monto Recibido ($)</label>
-                <input type="number" id="monto-recibido" inputmode="decimal" step="0.01"
-                    class="w-full p-6 bg-slate-950 border-2 border-sky-900/50 rounded-3xl text-5xl font-black text-center text-sky-400 outline-none focus:border-sky-500">
-            </div>
-
-            <button onclick="registrarPago()" class="w-full py-6 btn-cobrar text-white font-black rounded-[1.5rem] uppercase text-lg shadow-2xl">
-                Guardar Abono
+            <div style="font-size:0.58rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:#64748b;margin-bottom:0.5rem">Monto a añadir ($)</div>
+            <input type="number" id="caja-monto-input" inputmode="decimal" step="0.01" min="0.01" placeholder="0.00"
+                style="width:100%;background:#1e293b;border:2px solid rgba(16,185,129,0.3);border-radius:1rem;padding:1rem 1.25rem;color:#10b981;font-size:1.6rem;font-weight:900;text-align:center;outline:none;margin-bottom:0.75rem"
+                onkeydown="if(event.key==='Enter') inyectarCaja()">
+            <button onclick="inyectarCaja()"
+                style="width:100%;background:linear-gradient(to right,#10b981,#059669);color:#fff;border:none;border-radius:1rem;padding:1rem;font-weight:900;font-size:0.75rem;letter-spacing:0.15em;text-transform:uppercase;cursor:pointer;margin-bottom:0.5rem">
+                ✓ Añadir a Caja Chica
+            </button>
+            <div id="caja-msg" style="font-size:0.6rem;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;text-align:center;display:none;margin-bottom:0.5rem"></div>
+            <button onclick="cerrarModalCaja()"
+                style="width:100%;background:transparent;border:1px solid #334155;color:#64748b;border-radius:1rem;padding:0.75rem;font-size:0.65rem;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;cursor:pointer">
+                Cerrar
             </button>
         </div>
     </div>
+</div>
 
-    <script>
-        const PIN_ACCESO = "2025";
-        const firebaseConfig = { databaseURL: "https://credilistosv-default-rtdb.firebaseio.com" };
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
-        
-        let clienteActualId = null;
-        let indiceCuota = null;
+<script>
+    // ─── CONFIG ─────────────────────────────────────────
+    const PIN_ACCESO = "2025";
+    const TOKEN_CAJA = "CAJA2025";   // ← Cambia este token para mayor seguridad
 
-        document.getElementById('fecha-actual').innerText = new Date().toLocaleDateString('es-SV', { weekday: 'long', day: 'numeric', month: 'long' });
+    const firebaseConfig = { databaseURL: "https://credilistosv-default-rtdb.firebaseio.com" };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
-        function validarRuta() {
-            if(document.getElementById('pin-ruta').value === PIN_ACCESO) {
-                sessionStorage.setItem('cobrador_auth', 'true');
-                document.getElementById('bloqueo').style.display = 'none';
-                document.getElementById('app-cobros').classList.remove('hidden');
-                cargarRuta();
-            } else { 
-                alert("PIN Incorrecto"); 
-                document.getElementById('pin-ruta').value = "";
-            }
+    let clienteActualId  = null;
+    let indiceCuota      = null;
+
+    const HOY = new Date(); HOY.setHours(0,0,0,0);
+    const HOY_ISO = HOY.toISOString().split('T')[0];
+
+    document.getElementById('fecha-actual').innerText =
+        new Date().toLocaleDateString('es-SV', { weekday:'long', day:'numeric', month:'long' });
+
+    // ─── AUTH ────────────────────────────────────────────
+    function validarRuta() {
+        if (document.getElementById('pin-ruta').value === PIN_ACCESO) {
+            sessionStorage.setItem('cobrador_auth', 'true');
+            document.getElementById('bloqueo').style.display = 'none';
+            document.getElementById('app-cobros').classList.remove('hidden');
+            cargarRuta();
+        } else {
+            alert("PIN Incorrecto");
+            document.getElementById('pin-ruta').value = "";
         }
+    }
+    window.onload = () => {
+        if (sessionStorage.getItem('cobrador_auth') === 'true') {
+            document.getElementById('bloqueo').style.display = 'none';
+            document.getElementById('app-cobros').classList.remove('hidden');
+            cargarRuta();
+        }
+    };
 
-        window.onload = () => {
-            if(sessionStorage.getItem('cobrador_auth') === 'true') {
-                document.getElementById('bloqueo').style.display = 'none';
-                document.getElementById('app-cobros').classList.remove('hidden');
-                cargarRuta();
-            }
-        };
+    // ─── HELPERS FECHA ───────────────────────────────────
+    function parseFechaISO(str) {
+        if (!str) return null;
+        if (str.includes('-') && str.length === 10) {
+            const d = new Date(str + 'T00:00:00'); d.setHours(0,0,0,0); return d;
+        }
+        if (str.includes('/')) {
+            const p = str.split('/');
+            // dd/mm/yyyy  o  m/d/yyyy  — intentar ambos
+            let d = new Date(`${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}T00:00:00`);
+            d.setHours(0,0,0,0);
+            if (!isNaN(d)) return d;
+        }
+        return null;
+    }
 
-        function cargarRuta() {
-            db.ref('clientes').on('value', snap => {
-                const container = document.getElementById('lista-ruta');
-                container.innerHTML = "";
-                snap.forEach(child => {
-                    const c = child.val();
-                    if(c.tipo === "ACTIVO") {
-                        container.innerHTML += `
-                            <div class="cliente-card p-5 flex justify-between items-center item-ruta" data-search="${c.nombre.toLowerCase()} ${c.dui}">
-                                <div>
-                                    <h3 class="font-black uppercase italic text-sm text-white leading-none">${c.nombre}</h3>
-                                    <p class="text-[10px] font-bold text-slate-500 mt-2 uppercase tracking-tighter">Saldo: <span class="text-red-400">$${parseFloat(c.saldo || 0).toFixed(2)}</span></p>
-                                </div>
-                                <button onclick="abrirCobro('${child.key}')" class="bg-slate-700 hover:bg-sky-600 text-white w-12 h-12 rounded-2xl flex items-center justify-center transition-colors">
-                                    <span class="text-xl">💵</span>
-                                </button>
-                            </div>`;
-                    }
-                });
+    function diasAtrasoCliente(c) {
+        let max = 0;
+        for (const cuo of (c.cuotas||[])) {
+            if (cuo.pagada) continue;
+            const f = parseFechaISO(cuo.fecha_prog || cuo.fecha_prog_sv);
+            if (!f) continue;
+            const diff = Math.floor((HOY - f) / 86400000);
+            if (diff > 0) max = Math.max(max, diff);
+        }
+        return max;
+    }
+
+    function tocaHoy(c) {
+        for (const cuo of (c.cuotas||[])) {
+            if (cuo.pagada) continue;
+            const f = parseFechaISO(cuo.fecha_prog || cuo.fecha_prog_sv);
+            if (f && f.getTime() === HOY.getTime()) return true;
+        }
+        return false;
+    }
+
+    function pagoHoy(c) {
+        return (c.cuotas||[]).some(q => q.pagada && q.fecha_ISO === HOY_ISO);
+    }
+
+    function cuotaPendiente(c) {
+        return (c.cuotas||[]).find(q => !q.pagada) || null;
+    }
+
+    // ─── CARDS ───────────────────────────────────────────
+    function cardMora(id, c, dias) {
+        const cuo   = cuotaPendiente(c);
+        const monto = cuo ? parseFloat(cuo.valorPagado||0).toFixed(2) : '—';
+        const saldo = parseFloat(c.saldo||0).toFixed(2);
+        return `
+        <div class="cliente-card p-4 item-ruta" data-search="${(c.nombre||'').toLowerCase()} ${c.dui||''}">
+            <div class="flex justify-between items-center gap-3">
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="text-[8px] font-black px-2 py-0.5 rounded-lg bg-red-900/50 text-red-400 border border-red-700/40 uppercase">${dias} día${dias!==1?'s':''} atraso</span>
+                        <span class="text-[7px] font-bold text-slate-500 uppercase">${(c.frecuencia||'diario').toUpperCase()}</span>
+                    </div>
+                    <h3 class="font-black uppercase italic text-sm text-white truncate">${c.nombre||'—'}</h3>
+                    <div class="flex gap-3 mt-1">
+                        <span class="text-[9px] font-bold text-slate-500">Cuota: <span class="text-white">$${monto}</span></span>
+                        <span class="text-[9px] font-bold text-slate-500">Saldo: <span class="text-red-400">$${saldo}</span></span>
+                    </div>
+                </div>
+                <button onclick="abrirCobro('${id}')"
+                    class="bg-red-700 hover:bg-red-600 text-white w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 transition-colors">
+                    <span class="text-xl">💵</span>
+                </button>
+            </div>
+        </div>`;
+    }
+
+    function cardHoy(id, c) {
+        const cuo   = cuotaPendiente(c);
+        const monto = cuo ? parseFloat(cuo.valorPagado||0).toFixed(2) : '—';
+        const saldo = parseFloat(c.saldo||0).toFixed(2);
+        return `
+        <div class="cliente-card p-4 item-ruta" data-search="${(c.nombre||'').toLowerCase()} ${c.dui||''}">
+            <div class="flex justify-between items-center gap-3">
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="text-[8px] font-black px-2 py-0.5 rounded-lg bg-sky-900/50 text-sky-400 border border-sky-700/40 uppercase">HOY</span>
+                        <span class="text-[7px] font-bold text-slate-500 uppercase">${(c.frecuencia||'diario').toUpperCase()}</span>
+                    </div>
+                    <h3 class="font-black uppercase italic text-sm text-white truncate">${c.nombre||'—'}</h3>
+                    <div class="flex gap-3 mt-1">
+                        <span class="text-[9px] font-bold text-slate-500">Cuota: <span class="text-white">$${monto}</span></span>
+                        <span class="text-[9px] font-bold text-slate-500">Saldo: <span class="text-red-400">$${saldo}</span></span>
+                    </div>
+                </div>
+                <button onclick="abrirCobro('${id}')"
+                    class="bg-sky-600 hover:bg-sky-500 text-white w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 transition-colors">
+                    <span class="text-xl">💵</span>
+                </button>
+            </div>
+        </div>`;
+    }
+
+    function cardPagado(id, c) {
+        const cuo = (c.cuotas||[]).find(q => q.pagada && q.fecha_ISO === HOY_ISO);
+        const monto = cuo ? parseFloat(cuo.valorPagado||0).toFixed(2) : '—';
+        return `
+        <div class="cliente-card p-3 item-ruta" data-search="${(c.nombre||'').toLowerCase()} ${c.dui||''}"
+             style="border-color:#064e3b;background:#022c22">
+            <div class="flex justify-between items-center">
+                <div>
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="text-[8px] font-black px-2 py-0.5 rounded-lg bg-emerald-900/50 text-emerald-400 border border-emerald-700/40 uppercase">✓ Pagado</span>
+                    </div>
+                    <h3 class="font-black uppercase italic text-sm text-white">${c.nombre||'—'}</h3>
+                    <p class="text-[9px] font-bold text-slate-500 mt-0.5">Cobrado: <span class="text-emerald-400">$${monto}</span></p>
+                </div>
+                <div class="text-xl opacity-30">✅</div>
+            </div>
+        </div>`;
+    }
+
+    function cardProximo(id, c) {
+        const cuo = cuotaPendiente(c);
+        if (!cuo) return '';
+        const prog = cuo.fecha_prog || cuo.fecha_prog_sv || '—';
+        let label = prog;
+        if (prog.includes('-') && prog.length===10) {
+            const [y,m,d]=prog.split('-'); label=`${d}/${m}/${y}`;
+        }
+        const monto = parseFloat(cuo.valorPagado||0).toFixed(2);
+        return `
+        <div class="cliente-card p-3 item-ruta opacity-40" data-search="${(c.nombre||'').toLowerCase()} ${c.dui||''}">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h3 class="font-black uppercase italic text-xs text-white">${c.nombre||'—'}</h3>
+                    <p class="text-[9px] font-bold text-slate-500 mt-0.5">
+                        Pago el <span class="text-slate-400">${label}</span> · $${monto}
+                    </p>
+                </div>
+            </div>
+        </div>`;
+    }
+
+    // ─── CARGAR RUTA ─────────────────────────────────────
+    function cargarRuta() {
+        db.ref('clientes').on('value', snap => {
+            let mora=[], hoy=[], pagados=[], proximos=[];
+            let totalCobrado=0;
+
+            snap.forEach(child => {
+                const c = child.val();
+                const id = child.key;
+                if (c.tipo !== 'ACTIVO') return;
+
+                const dias = diasAtrasoCliente(c);
+                const esHoy = tocaHoy(c);
+                const yaPago = pagoHoy(c);
+
+                if (yaPago) {
+                    const q = (c.cuotas||[]).find(q => q.pagada && q.fecha_ISO===HOY_ISO);
+                    if (q) totalCobrado += parseFloat(q.valorPagado||0);
+                    pagados.push({ id, c });
+                } else if (dias > 0) {
+                    mora.push({ id, c, dias });
+                } else if (esHoy) {
+                    hoy.push({ id, c });
+                } else {
+                    proximos.push({ id, c });
+                }
             });
+
+            // Ordenar mora por más días de atraso primero
+            mora.sort((a,b) => b.dias - a.dias);
+
+            // Renderizar
+            const lMora = document.getElementById('lista-mora');
+            const lHoy  = document.getElementById('lista-hoy');
+            const lPag  = document.getElementById('lista-pagados');
+            const lProx = document.getElementById('lista-proximos');
+
+            lMora.innerHTML = mora.map(x => cardMora(x.id, x.c, x.dias)).join('');
+            lHoy.innerHTML  = hoy.map(x => cardHoy(x.id, x.c)).join('');
+            lPag.innerHTML  = pagados.map(x => cardPagado(x.id, x.c)).join('');
+            lProx.innerHTML = proximos.map(x => cardProximo(x.id, x.c)).join('');
+
+            // Contadores badge
+            document.getElementById('cnt-mora').textContent     = mora.length;
+            document.getElementById('cnt-hoy').textContent      = hoy.length;
+            document.getElementById('cnt-pagados').textContent  = pagados.length;
+            document.getElementById('cnt-proximos').textContent = proximos.length;
+
+            // Stats barra
+            document.getElementById('stat-cobrar-hoy').textContent = hoy.length + mora.length;
+            document.getElementById('stat-cobrado').textContent     = '$' + totalCobrado.toFixed(0);
+            document.getElementById('stat-mora').textContent        = mora.length;
+
+            // Vacíos
+            document.getElementById('empty-mora').style.display    = mora.length    ? 'none' : 'block';
+            document.getElementById('empty-hoy').classList.toggle('hidden', hoy.length > 0);
+            document.getElementById('empty-pagados').style.display = pagados.length ? 'none' : 'block';
+        });
+    }
+
+    // ─── ABRIR COBRO ─────────────────────────────────────
+    async function abrirCobro(id) {
+        clienteActualId = id;
+        const snap = await db.ref('clientes/' + id).once('value');
+        const c = snap.val();
+        const idx = (c.cuotas||[]).findIndex(cuo => !cuo.pagada);
+        if (idx === -1) return alert("Este cliente ya completó sus pagos.");
+        indiceCuota = idx;
+
+        const total = parseFloat(c.total||0);
+        const saldo = parseFloat(c.saldo||0);
+        const dias  = diasAtrasoCliente(c);
+
+        document.getElementById('c-nombre').innerText     = c.nombre;
+        document.getElementById('m-total').innerText      = `$${total.toFixed(2)}`;
+        document.getElementById('m-pagado').innerText     = `$${(total-saldo).toFixed(2)}`;
+        document.getElementById('m-saldo').innerText      = `$${saldo.toFixed(2)}`;
+        document.getElementById('c-cuota-info').innerText = `PAGO #${c.cuotas[idx].n} · ${(c.frecuencia||'diario').toUpperCase()}`;
+
+        const aEl = document.getElementById('c-atraso-info');
+        if (dias > 0) {
+            aEl.innerText = `⚠️ ${dias} día${dias!==1?'s':''} de atraso`;
+            aEl.classList.remove('hidden');
+        } else {
+            aEl.classList.add('hidden');
         }
 
-        async function abrirCobro(id) {
-            clienteActualId = id;
-            const snap = await db.ref('clientes/' + id).once('value');
-            const c = snap.val();
-            const idx = (c.cuotas || []).findIndex(cuo => !cuo.pagada);
-            
-            if(idx === -1) return alert("Este cliente ya completó sus pagos.");
-            indiceCuota = idx;
+        document.getElementById('monto-recibido').value = c.cuotas[idx].valorPagado;
+        document.getElementById('modalCobro').classList.remove('hidden');
+        setTimeout(() => document.getElementById('monto-recibido').select(), 200);
+    }
 
-            const total = parseFloat(c.total || 0);
-            const saldo = parseFloat(c.saldo || 0);
-
-            document.getElementById('c-nombre').innerText = c.nombre;
-            document.getElementById('m-total').innerText = `$${total.toFixed(2)}`;
-            document.getElementById('m-pagado').innerText = `$${(total - saldo).toFixed(2)}`;
-            document.getElementById('m-saldo').innerText = `$${saldo.toFixed(2)}`;
-            document.getElementById('c-cuota-info').innerText = `PAGO # ${c.cuotas[idx].n}`;
-            document.getElementById('monto-recibido').value = c.cuotas[idx].valorPagado;
-            
-            document.getElementById('modalCobro').classList.remove('hidden');
-            setTimeout(() => document.getElementById('monto-recibido').select(), 200);
+    // ─── REGISTRAR PAGO ──────────────────────────────────
+    async function registrarPago() {
+        const monto = parseFloat(document.getElementById('monto-recibido').value);
+        if (isNaN(monto) || monto <= 0) return alert("Monto no válido");
+        try {
+            const snap = await db.ref('clientes/' + clienteActualId).once('value');
+            let s = snap.val();
+            const ahora   = new Date();
+            const fechaISO = ahora.toISOString().split('T')[0];
+            const fechaSV  = ahora.toLocaleDateString('es-SV');
+            s.cuotas[indiceCuota].pagada      = true;
+            s.cuotas[indiceCuota].valorPagado = monto;
+            s.cuotas[indiceCuota].fecha_ISO   = fechaISO;
+            s.cuotas[indiceCuota].fecha       = fechaSV;
+            const saldoActual = parseFloat(s.saldo || s.total || 0);
+            s.saldo = (saldoActual - monto).toFixed(2);
+            await db.ref('clientes/' + clienteActualId).set(s);
+            alert("✅ PAGO REGISTRADO EXITOSAMENTE");
+            cerrarCobro();
+        } catch (e) {
+            alert("Error al guardar. Verifica tu conexión.");
         }
+    }
 
-        async function registrarPago() {
-            const monto = parseFloat(document.getElementById('monto-recibido').value);
-            if(isNaN(monto) || monto <= 0) return alert("Monto no válido");
+    function cerrarCobro() { document.getElementById('modalCobro').classList.add('hidden'); }
 
-            try {
-                const snap = await db.ref('clientes/' + clienteActualId).once('value');
-                let s = snap.val();
-                
-                const ahora = new Date();
-                const fechaISO = ahora.toISOString().split('T')[0];
-                const fechaSV = ahora.toLocaleDateString('es-SV');
+    function filtrarClientes() {
+        const txt = document.getElementById('buscador').value.toLowerCase();
+        document.querySelectorAll('.item-ruta').forEach(el => {
+            el.style.display = el.dataset.search.includes(txt) ? '' : 'none';
+        });
+    }
 
-                // Actualizar la cuota en el objeto
-                s.cuotas[indiceCuota].pagada = true;
-                s.cuotas[indiceCuota].valorPagado = monto;
-                s.cuotas[indiceCuota].fecha_ISO = fechaISO;
-                s.cuotas[indiceCuota].fecha = fechaSV;
+    // ─── CAJA CHICA (TOKEN) ──────────────────────────────
+    function abrirModalCaja() {
+        document.getElementById('caja-token').value       = '';
+        document.getElementById('caja-monto-input').value = '';
+        document.getElementById('caja-err').style.display = 'none';
+        document.getElementById('caja-msg').style.display = 'none';
+        document.getElementById('caja-paso-1').style.display = 'block';
+        document.getElementById('caja-paso-2').style.display = 'none';
+        document.getElementById('modal-caja').classList.add('show');
+        setTimeout(() => document.getElementById('caja-token').focus(), 200);
+    }
 
-                // Actualizar el saldo restando el monto cobrado
-                const saldoActual = parseFloat(s.saldo || s.total || 0);
-                s.saldo = (saldoActual - monto).toFixed(2);
+    function cerrarModalCaja() {
+        document.getElementById('modal-caja').classList.remove('show');
+    }
 
-                // Guardar objeto completo para asegurar sincronización
-                await db.ref('clientes/' + clienteActualId).set(s);
-                
-                alert("✅ PAGO REGISTRADO EXITOSAMENTE");
-                cerrarCobro();
-            } catch (e) {
-                alert("Error al guardar. Verifica tu conexión.");
-            }
+    function validarToken() {
+        const val = document.getElementById('caja-token').value.trim().toUpperCase();
+        if (val !== TOKEN_CAJA) {
+            document.getElementById('caja-err').style.display = 'block';
+            document.getElementById('caja-token').value = '';
+            document.getElementById('caja-token').focus();
+            return;
         }
+        document.getElementById('caja-err').style.display  = 'none';
+        document.getElementById('caja-paso-1').style.display = 'none';
+        document.getElementById('caja-paso-2').style.display = 'block';
+        db.ref('config/finanzas').once('value').then(snap => {
+            const cfg = snap.val() || {};
+            document.getElementById('caja-actual').textContent = '$' + parseFloat(cfg.cajaChica||0).toFixed(2);
+            document.getElementById('caja-monto-input').focus();
+        });
+    }
 
-        function cerrarCobro() { document.getElementById('modalCobro').classList.add('hidden'); }
-        
-        function filtrarClientes() {
-            const txt = document.getElementById('buscador').value.toLowerCase();
-            document.querySelectorAll('.item-ruta').forEach(card => {
-                card.style.display = card.dataset.search.includes(txt) ? "flex" : "none";
-            });
+    async function inyectarCaja() {
+        const monto = parseFloat(document.getElementById('caja-monto-input').value);
+        if (isNaN(monto) || monto <= 0) { alert('Ingresa un monto válido'); return; }
+        const msgEl = document.getElementById('caja-msg');
+        try {
+            const snap  = await db.ref('config/finanzas').once('value');
+            const cfg   = snap.val() || {};
+            const nueva = parseFloat((parseFloat(cfg.cajaChica||0) + monto).toFixed(2));
+            await db.ref('config/finanzas').update({ cajaChica: nueva });
+            document.getElementById('caja-actual').textContent = '$' + nueva.toFixed(2);
+            document.getElementById('caja-monto-input').value  = '';
+            msgEl.textContent   = `✓ $${monto.toFixed(2)} añadidos · Total: $${nueva.toFixed(2)}`;
+            msgEl.style.color   = '#10b981';
+            msgEl.style.display = 'block';
+            setTimeout(() => { msgEl.style.display='none'; }, 3500);
+        } catch (e) {
+            msgEl.textContent   = 'Error al guardar. Revisa conexión.';
+            msgEl.style.color   = '#ef4444';
+            msgEl.style.display = 'block';
         }
-    </script>
+    }
+</script>
 </body>
 </html>
