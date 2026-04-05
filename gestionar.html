@@ -1760,17 +1760,77 @@ function mostrarCobrosDelDia() {
     panel.style.display = 'flex';
 
     const HOY = new Date(); HOY.setHours(0,0,0,0);
-    const HOY_ISO = HOY.toISOString().split('T')[0];
     const fechaLabel = HOY.toLocaleDateString('es-SV', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
 
-    // Clasificar clientes
+    // Armazón del panel con pestañas INVER1 / INVER2
+    panel.innerHTML = `
+    <div class="client-header">
+        <div>
+            <div class="ch-name">📅 Cobros del Día</div>
+            <div class="ch-meta" style="text-transform:capitalize">${fechaLabel}</div>
+        </div>
+        <div class="ch-actions">
+            <div style="display:flex;gap:0.35rem;background:var(--surface2);border:1px solid var(--border);
+                        border-radius:0.6rem;padding:0.25rem">
+                <button id="tab-cd-inver1" onclick="switchTabCobros('inver1')"
+                        style="padding:0.35rem 0.9rem;border-radius:0.4rem;font-size:0.7rem;font-weight:800;
+                               border:none;cursor:pointer;transition:all 0.15s;
+                               background:var(--accent);color:#fff">
+                    🏠 INVER1
+                </button>
+                <button id="tab-cd-inver2" onclick="switchTabCobros('inver2')"
+                        style="padding:0.35rem 0.9rem;border-radius:0.4rem;font-size:0.7rem;font-weight:800;
+                               border:none;cursor:pointer;transition:all 0.15s;
+                               background:transparent;color:var(--muted2)">
+                    🏦 INVER2
+                </button>
+            </div>
+        </div>
+    </div>
+    <div id="cobros-tab-content" style="display:contents"></div>`;
+
+    // Renderizar INVER1 por defecto
+    renderCobrosContent(allClients, 'inver1');
+}
+
+function switchTabCobros(rama) {
+    const t1 = document.getElementById('tab-cd-inver1');
+    const t2 = document.getElementById('tab-cd-inver2');
+    if (!t1 || !t2) return;
+    if (rama === 'inver1') {
+        t1.style.background = 'var(--accent)'; t1.style.color = '#fff';
+        t2.style.background = 'transparent';   t2.style.color = 'var(--muted2)';
+        renderCobrosContent(allClients, 'inver1');
+    } else {
+        t2.style.background = '#7c3aed'; t2.style.color = '#fff';
+        t1.style.background = 'transparent'; t1.style.color = 'var(--muted2)';
+        document.getElementById('cobros-tab-content').innerHTML =
+            '<div style="text-align:center;padding:2rem;color:var(--muted2)"><div style="font-size:1.5rem;margin-bottom:0.5rem">⏳</div><p style="font-size:0.8rem">Cargando INVER2…</p></div>';
+        db.ref('clientes2').once('value').then(snap => {
+            const clients2 = {};
+            snap.forEach(c => { clients2[c.key] = { ...c.val(), _key: c.key }; });
+            renderCobrosContent(clients2, 'inver2');
+        }).catch(() => {
+            document.getElementById('cobros-tab-content').innerHTML =
+                '<div style="text-align:center;padding:2rem;color:var(--danger)"><p style="font-size:0.8rem;font-weight:700">❌ No se pudo cargar INVER2</p></div>';
+        });
+    }
+}
+
+function renderCobrosContent(clientsObj, rama) {
+    const HOY = new Date(); HOY.setHours(0,0,0,0);
+    const HOY_ISO = HOY.toISOString().split('T')[0];
+    const esInver2 = rama === 'inver2';
+    const accentColor = esInver2 ? '#7c3aed' : 'var(--accent)';
+    const accentDim   = esInver2 ? 'rgba(124,58,237,0.12)' : 'var(--accent-dim)';
+    const accentBorder= esInver2 ? 'rgba(124,58,237,0.3)'  : 'var(--accent-border)';
+
     const mora=[], hoy=[], pagados=[];
-    Object.entries(allClients).forEach(([id, c]) => {
+    Object.entries(clientsObj).forEach(([id, c]) => {
         if (c.tipo !== 'ACTIVO') return;
         const cuotas = c.cuotas || [];
         const yaPago = cuotas.some(q => q.pagada && q.fecha_ISO === HOY_ISO);
         if (yaPago) { pagados.push({id,c}); return; }
-
         let maxAtraso = 0, tocaHoyFlag = false, cuotaPend = null;
         for (const cuo of cuotas) {
             if (cuo.pagada) continue;
@@ -1784,14 +1844,20 @@ function mostrarCobrosDelDia() {
         if (maxAtraso > 0)    mora.push({id,c,dias:maxAtraso,cuotaPend});
         else if (tocaHoyFlag) hoy.push({id,c,cuotaPend});
     });
-
     mora.sort((a,b) => b.dias - a.dias);
 
-    function rowMora(x) {
+    const btnVer = esInver2
+        ? (id) => `<button onclick="location.href='gestionar2.html'" style="background:rgba(124,58,237,0.15);color:#7c3aed;border:1px solid rgba(124,58,237,0.3);border-radius:0.4rem;padding:0.35rem 0.7rem;font-size:0.7rem;font-weight:800;cursor:pointer">Ir a INVER2</button>`
+        : (id) => `<button onclick="renderPanel('${id}')" class="btn btn-accent btn-sm">Ver ficha</button>`;
+
+    const btnVerMora = esInver2
+        ? (id) => `<button onclick="location.href='gestionar2.html'" style="background:rgba(239,68,68,0.15);color:var(--danger);border:1px solid rgba(239,68,68,0.3);border-radius:0.4rem;padding:0.35rem 0.7rem;font-size:0.7rem;font-weight:800;cursor:pointer">Ir a INVER2</button>`
+        : (id) => `<button onclick="renderPanel('${id}')" class="btn btn-danger btn-sm">Ver ficha</button>`;
+
+    const rowMora = x => {
         const m = x.cuotaPend ? parseFloat(x.cuotaPend.valorPagado||0).toFixed(2) : '—';
         const s = parseFloat(x.c.saldo||0).toFixed(2);
-        return `
-        <div style="background:var(--surface2);border:1px solid var(--border);border-left:3px solid var(--danger);
+        return `<div style="background:var(--surface2);border:1px solid var(--border);border-left:3px solid var(--danger);
                     border-radius:0.6rem;padding:0.75rem 1rem;display:flex;justify-content:space-between;align-items:center;gap:0.75rem">
             <div style="flex:1;min-width:0">
                 <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.2rem">
@@ -1806,21 +1872,20 @@ function mostrarCobrosDelDia() {
                     <span style="font-size:0.65rem;color:var(--muted2)">Saldo: <strong style="color:var(--danger)">$${s}</strong></span>
                 </div>
             </div>
-            <button onclick="renderPanel('${x.id}')" class="btn btn-danger btn-sm">Ver ficha</button>
+            ${btnVerMora(x.id)}
         </div>`;
-    }
+    };
 
-    function rowHoy(x) {
+    const rowHoy = x => {
         const m = x.cuotaPend ? parseFloat(x.cuotaPend.valorPagado||0).toFixed(2) : '—';
         const s = parseFloat(x.c.saldo||0).toFixed(2);
-        return `
-        <div style="background:var(--surface2);border:1px solid var(--border);border-left:3px solid var(--accent);
+        return `<div style="background:var(--surface2);border:1px solid var(--border);border-left:3px solid ${accentColor};
                     border-radius:0.6rem;padding:0.75rem 1rem;display:flex;justify-content:space-between;align-items:center;gap:0.75rem">
             <div style="flex:1;min-width:0">
                 <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.2rem">
-                    <span style="background:var(--accent-dim);color:var(--accent);font-size:0.6rem;font-weight:800;
+                    <span style="background:${accentDim};color:${accentColor};font-size:0.6rem;font-weight:800;
                                  letter-spacing:0.08em;text-transform:uppercase;padding:0.15rem 0.5rem;border-radius:2rem;
-                                 border:1px solid var(--accent-border)">HOY</span>
+                                 border:1px solid ${accentBorder}">HOY</span>
                     <span style="font-size:0.58rem;font-weight:600;color:var(--muted);text-transform:uppercase">${(x.c.frecuencia||'diario')}</span>
                 </div>
                 <div style="font-weight:800;font-size:0.9rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${x.c.nombre||'—'}</div>
@@ -1829,15 +1894,14 @@ function mostrarCobrosDelDia() {
                     <span style="font-size:0.65rem;color:var(--muted2)">Saldo: <strong style="color:var(--danger)">$${s}</strong></span>
                 </div>
             </div>
-            <button onclick="renderPanel('${x.id}')" class="btn btn-accent btn-sm">Ver ficha</button>
+            ${btnVer(x.id)}
         </div>`;
-    }
+    };
 
-    function rowPagado(x) {
+    const rowPagado = x => {
         const q = (x.c.cuotas||[]).find(q => q.pagada && q.fecha_ISO === HOY_ISO);
         const m = q ? parseFloat(q.valorPagado||0).toFixed(2) : '—';
-        return `
-        <div style="background:rgba(16,185,129,0.04);border:1px solid rgba(16,185,129,0.2);border-left:3px solid #10b981;
+        return `<div style="background:rgba(16,185,129,0.04);border:1px solid rgba(16,185,129,0.2);border-left:3px solid #10b981;
                     border-radius:0.6rem;padding:0.65rem 1rem;display:flex;justify-content:space-between;align-items:center;gap:0.75rem;opacity:0.7">
             <div style="flex:1;min-width:0">
                 <div style="font-weight:800;font-size:0.85rem;color:var(--text)">${x.c.nombre||'—'}</div>
@@ -1845,39 +1909,27 @@ function mostrarCobrosDelDia() {
             </div>
             <span style="font-size:0.7rem;color:#10b981;font-weight:800">✓ Pagado</span>
         </div>`;
-    }
+    };
 
     const totalPendiente = mora.length + hoy.length;
 
-    panel.innerHTML = `
-    <div class="client-header">
-        <div>
-            <div class="ch-name">📅 Cobros del Día</div>
-            <div class="ch-meta" style="text-transform:capitalize">${fechaLabel}</div>
+    document.getElementById('cobros-tab-content').innerHTML = `
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;padding:0 0 0.25rem 0">
+        <div style="background:${accentDim};border:1px solid ${accentBorder};border-radius:0.6rem;padding:0.4rem 0.85rem;text-align:center">
+            <div style="font-size:0.55rem;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:${accentColor};margin-bottom:0.1rem">Por cobrar</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-weight:800;font-size:1.1rem;color:${accentColor}">${totalPendiente}</div>
         </div>
-        <div class="ch-actions">
-            <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
-                <div style="background:var(--accent-dim);border:1px solid var(--accent-border);border-radius:0.6rem;
-                            padding:0.4rem 0.85rem;text-align:center">
-                    <div style="font-size:0.55rem;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:var(--accent);margin-bottom:0.1rem">Por cobrar</div>
-                    <div style="font-family:'JetBrains Mono',monospace;font-weight:800;font-size:1.1rem;color:var(--accent)">${totalPendiente}</div>
-                </div>
-                <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:0.6rem;
-                            padding:0.4rem 0.85rem;text-align:center">
-                    <div style="font-size:0.55rem;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:var(--danger);margin-bottom:0.1rem">En mora</div>
-                    <div style="font-family:'JetBrains Mono',monospace;font-weight:800;font-size:1.1rem;color:var(--danger)">${mora.length}</div>
-                </div>
-                <div style="background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.2);border-radius:0.6rem;
-                            padding:0.4rem 0.85rem;text-align:center">
-                    <div style="font-size:0.55rem;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:#10b981;margin-bottom:0.1rem">Pagados</div>
-                    <div style="font-family:'JetBrains Mono',monospace;font-weight:800;font-size:1.1rem;color:#10b981">${pagados.length}</div>
-                </div>
-            </div>
+        <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:0.6rem;padding:0.4rem 0.85rem;text-align:center">
+            <div style="font-size:0.55rem;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:var(--danger);margin-bottom:0.1rem">En mora</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-weight:800;font-size:1.1rem;color:var(--danger)">${mora.length}</div>
+        </div>
+        <div style="background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.2);border-radius:0.6rem;padding:0.4rem 0.85rem;text-align:center">
+            <div style="font-size:0.55rem;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:#10b981;margin-bottom:0.1rem">Pagados</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-weight:800;font-size:1.1rem;color:#10b981">${pagados.length}</div>
         </div>
     </div>
 
     ${mora.length > 0 ? `
-    <!-- MORA -->
     <div class="section-card">
         <div class="section-head">
             <div class="section-title" style="color:var(--danger)">⚠️ En Mora — ${mora.length} cliente${mora.length!==1?'s':''}</div>
@@ -1889,10 +1941,9 @@ function mostrarCobrosDelDia() {
     </div>` : ''}
 
     ${hoy.length > 0 ? `
-    <!-- HOY -->
     <div class="section-card">
         <div class="section-head">
-            <div class="section-title" style="color:var(--accent)">📅 Cobros de Hoy — ${hoy.length} cliente${hoy.length!==1?'s':''}</div>
+            <div class="section-title" style="color:${accentColor}">📅 Cobros de Hoy — ${hoy.length} cliente${hoy.length!==1?'s':''}</div>
         </div>
         <div class="section-body" style="display:flex;flex-direction:column;gap:0.5rem">
             ${hoy.map(rowHoy).join('')}
@@ -1902,11 +1953,10 @@ function mostrarCobrosDelDia() {
     ${hoy.length === 0 && mora.length === 0 ? `
     <div style="text-align:center;padding:2rem;color:var(--muted2)">
         <div style="font-size:2.5rem;margin-bottom:0.75rem">🎉</div>
-        <p style="font-size:0.85rem;font-weight:600">¡No hay cobros pendientes para hoy!</p>
+        <p style="font-size:0.85rem;font-weight:600">¡No hay cobros pendientes para hoy${esInver2?' en INVER2':''}!</p>
     </div>` : ''}
 
     ${pagados.length > 0 ? `
-    <!-- PAGADOS HOY -->
     <div class="section-card">
         <div class="section-head">
             <div class="section-title" style="color:#10b981">✅ Pagados Hoy — ${pagados.length} cliente${pagados.length!==1?'s':''}</div>
