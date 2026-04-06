@@ -539,7 +539,19 @@ let dataStore = { inver1: {}, inver2: {}, inver3: {}, cfg1: {}, cfg2: {}, cfg3: 
 let loaded = { inver1: false, inver2: false, inver3: false };
 let currentView = 'total';
 
-/* Profit splits */
+/*
+ * Profit splits — los % se aplican siempre sobre el CAPITAL INVERTIDO (monto),
+ * no sobre la ganancia.  La suma de los % de cada módulo = 20% = la ganancia total,
+ * por eso los números cuadran:
+ *   INVER 1: Lázaro 17% + Emanuel 3%  = 20% ✓
+ *   INVER 2: Magda 12% + Lázaro 4% + Emanuel 4% = 20% ✓
+ *   INVER 3: Walter 12% + Lázaro 4% + Emanuel 4% = 20% ✓
+ *
+ *  Magda  → solo INVER 2
+ *  Walter → solo INVER 3
+ *  Lázaro → INVER 1 (17%) + INVER 2 (4%) + INVER 3 (4%)
+ *  Emanuel→ INVER 1 ( 3%) + INVER 2 (4%) + INVER 3 (4%)
+ */
 const SPLITS = {
     inver1: [
         { name: 'Lázaro',  pct: 17, color: 'var(--lazaro)'  },
@@ -697,27 +709,29 @@ function getGanancia(cliente) {
     return total - monto;
 }
 
-function getSplitForMod(mod, gananciaTotal) {
-    return SPLITS[mod].map(s => ({
-        name: s.name,
-        pct: s.pct,
-        color: s.color,
-        amount: gananciaTotal * s.pct / 100
-    }));
-}
-
-/* Aggregate all partners across all visible modules */
+/*
+ * Calcula la parte de cada socio para un grupo de clientes de un módulo.
+ * BASE = monto invertido (capital), NO la ganancia.
+ * Cada socio recibe pct% del monto, y la suma de pcts = 20% = ganancia exacta.
+ *   Ej INVER 1: monto=$2550 → Lázaro=17%×2550=$433.50, Emanuel=3%×2550=$76.50
+ *   Suma = $510 = ganancia de INVER 1. ✓
+ */
 function aggregatePartners(clientsByMod) {
     const partners = {};
     for (const [mod, clientes] of Object.entries(clientsByMod)) {
-        const splits = SPLITS[mod];
-        const gananciaTotal = clientes.reduce((a, c) => a + getGanancia(c), 0);
-        splits.forEach(s => {
-            if (!partners[s.name]) partners[s.name] = { name: s.name, color: s.color, total: 0, detail: [] };
-            const amt = gananciaTotal * s.pct / 100;
-            partners[s.name].total += amt;
-            partners[s.name].detail.push({ mod, pct: s.pct, amount: amt });
-        });
+        for (const c of clientes) {
+            const monto = $$(c.monto);
+            SPLITS[mod].forEach(s => {
+                if (!partners[s.name]) {
+                    partners[s.name] = { name: s.name, color: s.color, total: 0, detail: [] };
+                }
+                const amt = monto * s.pct / 100;   // ← base = monto invertido
+                partners[s.name].total += amt;
+                const det = partners[s.name].detail.find(d => d.mod === mod);
+                if (det) { det.amount += amt; }
+                else { partners[s.name].detail.push({ mod, pct: s.pct, amount: amt }); }
+            });
+        }
     }
     return Object.values(partners);
 }
@@ -804,8 +818,9 @@ function render() {
         html += `<div class="partners-row">`;
         for (const p of partners) {
             const slug = p.name.toLowerCase().replace('á','a').replace('é','e').replace('ó','o');
+            // Detalle: "INVER X: pct% de $monto = $amt"
             const detailTxt = p.detail.map(d =>
-                `${MODULE_LABEL[d.mod]}: ${d.pct}% = ${fmt$(d.amount)}`
+                `${MODULE_LABEL[d.mod]}: ${d.pct}% × inversión = ${fmt$(d.amount)}`
             ).join(' · ');
             html += `<div class="partner-card pc-${slug}">
                 <div class="partner-name" style="color:${p.color}">${p.name}</div>
@@ -871,20 +886,14 @@ function render() {
             mGan   += tot - mon;
         });
 
-        // Per-module split for this month
-        const modGans = {};
-        for (const mod of modsToShow) {
-            const mc = clients.filter(c => c._mod === mod);
-            modGans[mod] = mc.reduce((a, c) => a + getGanancia(c), 0);
-        }
-
-        // Partner breakdown for month
+        // Partner breakdown para este mes:
+        // amt = pct% × monto de cada cliente (base = capital invertido)
         const monthPartners = {};
-        for (const mod of modsToShow) {
-            if (!modGans[mod]) continue;
-            SPLITS[mod].forEach(s => {
+        for (const c of clients) {
+            const monto = $$(c.monto);
+            SPLITS[c._mod].forEach(s => {
                 if (!monthPartners[s.name]) monthPartners[s.name] = { name: s.name, color: s.color, total: 0 };
-                monthPartners[s.name].total += modGans[mod] * s.pct / 100;
+                monthPartners[s.name].total += monto * s.pct / 100;
             });
         }
         const mpArr = Object.values(monthPartners);
