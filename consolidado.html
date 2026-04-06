@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consolidado | CrediListo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&display=swap" rel="stylesheet">
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-database-compat.js"></script>
+
+    <style>
+        :root {
+            --bg: #0a0f1e;
+            --surface: #111827;
+            --surface2: #1a2235;
+            --surface3: #1f2d45;
+            --border: rgba(255,255,255,0.07);
+            --border2: rgba(255,255,255,0.12);
+            --text: #f1f5f9;
+            --muted: #64748b;
+            --muted2: #94a3b8;
+            --accent: #38bdf8;
+            --accent-dim: rgba(56,189,248,0.1);
+            --accent-border: rgba(56,189,248,0.25);
+            --green: #4ade80;
+            --green-dim: rgba(74,222,128,0.08);
+            --amber: #fbbf24;
+            --amber-dim: rgba(251,191,36,0.08);
+            --rose: #fb7185;
+            --rose-dim: rgba(251,113,133,0.08);
+            --purple: #a78bfa;
+            --purple-dim: rgba(167,139,250,0.08);
+            --teal: #2dd4bf;
+            --orange: #fb923c;
+
+            /* Partner colors */
+            --lazaro: #38bdf8;
+            --emanuel: #4ade80;
+            --magda: #f472b6;
+            --walter: #fb923c;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Instrument Sans', sans-serif;
+            min-height: 100vh;
+        }
+
+        /* ── LOCK SCREEN ─────────────────────────────── */
+        #lock {
+            position: fixed; inset: 0; z-index: 9999;
+            background: linear-gradient(135deg, #0a0f1e 0%, #0f1f3a 50%, #0a0f1e 100%);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .lock-glow {
+            position: absolute; inset: 0; overflow: hidden; pointer-events: none;
+        }
+        .lock-glow::before {
+            content: '';
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 500px; height: 500px;
+            background: radial-gradient(circle, rgba(56,189,248,0.12) 0%, transparent 70%);
+            border-radius: 50%;
+        }
+        .lock-card {
+            position: relative;
+            width: min(90vw, 360px);
+            text-align: center;
+        }
+        .lock-icon {
+            width: 64px; height: 64px;
+            background: var(--accent-dim);
+            border: 1px solid var(--accent-border);
+            border-radius: 1.25rem;
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 1.5rem;
+            font-size: 1.75rem;
+        }
+        .lock-logo {
+            font-family: 'Syne', sans-serif;
+            font-weight: 800; font-size: 1.6rem;
+            letter-spacing: -0.04em; color: var(--text);
+            margin-bottom: 0.25rem;
+        }
+        .lock-logo em { color: var(--accent); font-style: normal; }
+        .lock-sub {
+            font-size: 0.6rem; font-weight: 600;
+            letter-spacing: 0.2em; text-transform: uppercase;
+            color: var(--muted); margin-bottom: 0.5rem;
+        }
+        .lock-badge {
+            display: inline-block;
+            background: var(--accent-dim); border: 1px solid var(--accent-border);
+            color: var(--accent);
+            font-size: 0.55rem; font-weight: 800; letter-spacing: 0.15em;
+            text-transform: uppercase; padding: 0.2rem 0.6rem;
+            border-radius: 2rem; margin-bottom: 2rem;
+        }
+        .lock-input {
+            width: 100%;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 0.75rem;
+            padding: 1rem;
+            color: var(--text);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.8rem; font-weight: 700;
+            text-align: center; letter-spacing: 0.5em;
+            outline: none; transition: border-color 0.2s, background 0.2s;
+            margin-bottom: 0.75rem;
+        }
+        .lock-input::placeholder { color: rgba(255,255,255,0.2); letter-spacing: 0.3em; font-size: 1.2rem; }
+        .lock-input:focus { border-color: var(--accent); background: rgba(56,189,248,0.05); }
+        .lock-btn {
+            width: 100%;
+            background: var(--accent); color: #0a0f1e;
+            border: none; border-radius: 0.75rem;
+            padding: 0.9rem;
+            font-family: 'Syne', sans-serif;
+            font-weight: 800; font-size: 0.7rem;
+            letter-spacing: 0.15em; text-transform: uppercase;
+            cursor: pointer; transition: opacity 0.2s;
+        }
+        .lock-btn:hover { opacity: 0.85; }
+        #lock-err {
+            color: var(--rose); font-size: 0.65rem; font-weight: 600;
+            letter-spacing: 0.1em; text-transform: uppercase;
+            margin-top: 0.5rem; display: none;
+        }
+
+        /* ── APP ─────────────────────────────────────── */
+        #app { display: none; }
+
+        /* HEADER */
+        .header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 0 1.5rem;
+            display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; z-index: 200;
+            height: 56px;
+        }
+        .header-brand {
+            font-family: 'Syne', sans-serif;
+            font-weight: 800; font-size: 1.05rem;
+            letter-spacing: -0.03em; color: var(--text);
+        }
+        .header-brand em { color: var(--accent); font-style: normal; }
+        .header-right { display: flex; align-items: center; gap: 0.75rem; }
+        .header-tag {
+            font-size: 0.55rem; font-weight: 800; letter-spacing: 0.15em;
+            text-transform: uppercase; padding: 0.2rem 0.6rem;
+            border-radius: 2rem;
+            background: var(--accent-dim); color: var(--accent);
+            border: 1px solid var(--accent-border);
+        }
+
+        /* MODULE TABS */
+        .tabs-wrap {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 0 1.5rem;
+            display: flex; gap: 0.25rem;
+        }
+        .tab {
+            padding: 0.85rem 1.25rem;
+            font-size: 0.7rem; font-weight: 700;
+            letter-spacing: 0.08em; text-transform: uppercase;
+            color: var(--muted); cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.15s; white-space: nowrap;
+        }
+        .tab:hover { color: var(--text); }
+        .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+        .tab-dot {
+            display: inline-block; width: 6px; height: 6px;
+            border-radius: 50%; margin-right: 0.4rem; vertical-align: middle;
+        }
+
+        /* MAIN */
+        .main { padding: 1.5rem; max-width: 1100px; margin: 0 auto; }
+
+        /* SUMMARY CARDS ROW */
+        .summary-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 0.75rem; margin-bottom: 1.5rem;
+        }
+        .sum-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 1rem; padding: 1.1rem 1.25rem;
+            transition: border-color 0.2s;
+        }
+        .sum-card:hover { border-color: var(--border2); }
+        .sum-label {
+            font-size: 0.58rem; font-weight: 700; letter-spacing: 0.15em;
+            text-transform: uppercase; color: var(--muted);
+            margin-bottom: 0.5rem;
+        }
+        .sum-val {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.5rem; font-weight: 700;
+        }
+        .sum-sub {
+            font-size: 0.65rem; color: var(--muted); margin-top: 0.25rem;
+        }
+
+        /* PARTNER CARDS */
+        .partners-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 0.75rem; margin-bottom: 1.5rem;
+        }
+        .partner-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 1rem; padding: 1rem 1.25rem;
+            position: relative; overflow: hidden;
+        }
+        .partner-card::before {
+            content: '';
+            position: absolute; top: 0; left: 0; right: 0;
+            height: 3px;
+        }
+        .pc-lazaro::before { background: var(--lazaro); }
+        .pc-emanuel::before { background: var(--emanuel); }
+        .pc-magda::before { background: var(--magda); }
+        .pc-walter::before { background: var(--walter); }
+        .partner-name {
+            font-family: 'Syne', sans-serif;
+            font-weight: 800; font-size: 0.8rem;
+            margin-bottom: 0.1rem;
+        }
+        .partner-role {
+            font-size: 0.55rem; font-weight: 600; letter-spacing: 0.12em;
+            text-transform: uppercase; color: var(--muted);
+            margin-bottom: 0.75rem;
+        }
+        .partner-val {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.35rem; font-weight: 700;
+        }
+        .partner-detail {
+            font-size: 0.6rem; color: var(--muted); margin-top: 0.25rem;
+        }
+
+        /* MONTH SECTIONS */
+        .month-section {
+            margin-bottom: 1.25rem;
+        }
+        .month-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0.85rem 1.25rem;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 0.875rem 0.875rem 0 0;
+            cursor: pointer;
+        }
+        .month-header.collapsed { border-radius: 0.875rem; }
+        .month-title {
+            font-family: 'Syne', sans-serif;
+            font-weight: 800; font-size: 0.9rem;
+            display: flex; align-items: center; gap: 0.75rem;
+        }
+        .month-badge {
+            font-size: 0.55rem; font-weight: 800; letter-spacing: 0.12em;
+            text-transform: uppercase; padding: 0.2rem 0.55rem;
+            border-radius: 2rem; border: 1px solid;
+        }
+        .month-stats {
+            display: flex; gap: 1.5rem; align-items: center;
+        }
+        .mstat { text-align: right; }
+        .mstat-label { font-size: 0.55rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+        .mstat-val { font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; font-weight: 700; }
+        .chevron { font-size: 0.8rem; color: var(--muted); transition: transform 0.2s; }
+        .chevron.open { transform: rotate(90deg); }
+
+        /* CLIENT TABLE */
+        .clients-body {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-top: none;
+            border-radius: 0 0 0.875rem 0.875rem;
+            overflow: hidden;
+        }
+        .clients-body.hidden { display: none; }
+
+        .client-row {
+            display: grid;
+            grid-template-columns: 1fr 80px 80px 80px 80px auto;
+            gap: 0.75rem;
+            padding: 0.65rem 1.25rem;
+            border-bottom: 1px solid var(--border);
+            align-items: center;
+            transition: background 0.12s;
+            font-size: 0.75rem;
+        }
+        .client-row:last-child { border-bottom: none; }
+        .client-row:hover { background: var(--surface2); }
+        .client-row.header-row {
+            font-size: 0.58rem; font-weight: 700; letter-spacing: 0.1em;
+            text-transform: uppercase; color: var(--muted);
+            background: transparent !important;
+            padding-top: 0.5rem; padding-bottom: 0.5rem;
+        }
+        .cr-name { font-weight: 700; color: var(--text); }
+        .cr-date { font-family: 'JetBrains Mono', monospace; font-size: 0.68rem; color: var(--muted2); }
+        .cr-mono { font-family: 'JetBrains Mono', monospace; font-weight: 600; }
+        .cr-green { color: var(--green); }
+        .cr-accent { color: var(--accent); }
+        .cr-muted { color: var(--muted2); }
+
+        /* BADGES */
+        .badge {
+            font-size: 0.5rem; font-weight: 800; letter-spacing: 0.1em;
+            text-transform: uppercase; padding: 0.15rem 0.45rem;
+            border-radius: 2rem; white-space: nowrap;
+        }
+        .badge-reinv { background: var(--amber-dim); color: var(--amber); border: 1px solid rgba(251,191,36,0.25); }
+        .badge-propio { background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent-border); }
+        .badge-inver1 { background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent-border); }
+        .badge-inver2 { background: var(--purple-dim); color: var(--purple); border: 1px solid rgba(167,139,250,0.25); }
+        .badge-inver3 { background: rgba(251,146,60,0.1); color: var(--orange); border: 1px solid rgba(251,146,60,0.25); }
+
+        /* PROFIT BREAKDOWN */
+        .profit-breakdown {
+            background: var(--surface2);
+            border-top: 1px solid var(--border);
+            padding: 0.85rem 1.25rem;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 0.75rem;
+        }
+        .pb-item { }
+        .pb-name {
+            font-size: 0.58rem; font-weight: 700; letter-spacing: 0.1em;
+            text-transform: uppercase; margin-bottom: 0.2rem;
+            display: flex; align-items: center; gap: 0.4rem;
+        }
+        .pb-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+        .pb-val {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem; font-weight: 700;
+        }
+        .pb-pct { font-size: 0.6rem; color: var(--muted); }
+
+        /* REINV RESIDUAL */
+        .reinv-section {
+            background: rgba(251,191,36,0.04);
+            border: 1px solid rgba(251,191,36,0.15);
+            border-radius: 0.75rem; padding: 1rem 1.25rem;
+            margin-bottom: 1.5rem;
+        }
+        .reinv-title {
+            font-family: 'Syne', sans-serif;
+            font-weight: 800; font-size: 0.8rem;
+            color: var(--amber);
+            margin-bottom: 0.75rem;
+            display: flex; align-items: center; gap: 0.5rem;
+        }
+        .reinv-row {
+            display: grid; grid-template-columns: 1fr 1fr 1fr 1fr;
+            gap: 0.75rem;
+        }
+        .reinv-item { }
+        .reinv-label { font-size: 0.58rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.2rem; }
+        .reinv-val { font-family: 'JetBrains Mono', monospace; font-weight: 700; }
+
+        /* LOADING */
+        .loading-wrap {
+            display: flex; align-items: center; justify-content: center;
+            padding: 4rem; color: var(--muted); gap: 0.75rem;
+        }
+        .spinner {
+            width: 20px; height: 20px;
+            border: 2px solid var(--border2);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* EMPTY */
+        .empty-month {
+            padding: 2rem; text-align: center;
+            color: var(--muted); font-size: 0.75rem;
+        }
+
+        /* MODULE LABEL */
+        .mod-label {
+            font-size: 0.55rem; font-weight: 800;
+            letter-spacing: 0.1em; text-transform: uppercase;
+            padding: 0.15rem 0.45rem; border-radius: 0.25rem;
+        }
+
+        /* SECTION DIVIDER */
+        .sec-divider {
+            display: flex; align-items: center; gap: 0.75rem;
+            margin: 1.5rem 0 1rem;
+        }
+        .sec-divider-label {
+            font-family: 'Syne', sans-serif; font-weight: 800;
+            font-size: 0.75rem; letter-spacing: 0.05em;
+            white-space: nowrap; color: var(--text);
+        }
+        .sec-divider-line {
+            flex: 1; height: 1px; background: var(--border);
+        }
+
+        /* STATUS */
+        .status-bar {
+            background: var(--surface);
+            border-top: 1px solid var(--border);
+            padding: 0.5rem 1.5rem;
+            font-size: 0.6rem; color: var(--muted);
+            display: flex; justify-content: space-between;
+            position: fixed; bottom: 0; left: 0; right: 0;
+        }
+        .status-dot {
+            display: inline-block; width: 6px; height: 6px;
+            border-radius: 50%; background: var(--green);
+            margin-right: 0.4rem; animation: pulse 2s ease-in-out infinite;
+        }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+        .pb-extra { padding-bottom: 3rem; }
+
+        /* Responsive */
+        @media (max-width: 700px) {
+            .client-row {
+                grid-template-columns: 1fr 70px 70px auto;
+            }
+            .cr-total, .cr-ganancia { display: none; }
+            .month-stats { gap: 0.75rem; }
+            .summary-row { grid-template-columns: 1fr 1fr; }
+            .reinv-row { grid-template-columns: 1fr 1fr; }
+        }
+        @media (max-width: 480px) {
+            .tabs-wrap { overflow-x: auto; padding-bottom: 0; }
+            .summary-row { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ── LOCK ───────────────────────────────────────── -->
+<div id="lock">
+    <div class="lock-glow"></div>
+    <div class="lock-card">
+        <div class="lock-icon">📊</div>
+        <div class="lock-logo">Credi<em>Listo</em></div>
+        <div class="lock-sub">Consolidado Financiero</div>
+        <div class="lock-badge">Acceso Restringido</div>
+        <input type="password" class="lock-input" id="lock-pin"
+               maxlength="4" placeholder="· · · ·"
+               onkeydown="if(event.key==='Enter')unlock()"
+               oninput="document.getElementById('lock-err').style.display='none'">
+        <button class="lock-btn" onclick="unlock()">INGRESAR</button>
+        <div id="lock-err">PIN incorrecto</div>
+    </div>
+</div>
+
+<!-- ── APP ────────────────────────────────────────── -->
+<div id="app">
+    <div class="header">
+        <div class="header-brand">Credi<em>Listo</em> · Consolidado</div>
+        <div class="header-right">
+            <span class="header-tag" id="last-update">Cargando…</span>
+        </div>
+    </div>
+
+    <div class="tabs-wrap">
+        <div class="tab active" onclick="setView('total')">
+            <span class="tab-dot" style="background:#94a3b8"></span>Total Consolidado
+        </div>
+        <div class="tab" onclick="setView('inver1')">
+            <span class="tab-dot" style="background:var(--lazaro)"></span>INVER 1
+        </div>
+        <div class="tab" onclick="setView('inver2')">
+            <span class="tab-dot" style="background:var(--purple)"></span>INVER 2
+        </div>
+        <div class="tab" onclick="setView('inver3')">
+            <span class="tab-dot" style="background:var(--orange)"></span>INVER 3
+        </div>
+    </div>
+
+    <div class="main pb-extra" id="main-content">
+        <div class="loading-wrap">
+            <div class="spinner"></div>
+            <span>Cargando datos…</span>
+        </div>
+    </div>
+
+    <div class="status-bar">
+        <span><span class="status-dot"></span>Conectado a Firebase · credilistosv</span>
+        <span id="ts-label">—</span>
+    </div>
+</div>
+
+<script>
+/* ─── PIN ─────────────────────────────────────────── */
+function unlock() {
+    const pin = document.getElementById('lock-pin').value;
+    if (pin === '2025') {
+        document.getElementById('lock').style.display = 'none';
+        document.getElementById('app').style.display = 'block';
+        initFirebase();
+    } else {
+        const err = document.getElementById('lock-err');
+        err.style.display = 'block';
+        document.getElementById('lock-pin').value = '';
+        document.getElementById('lock-pin').focus();
+    }
+}
+
+/* ─── FIREBASE ────────────────────────────────────── */
+const DB_URL = 'https://credilistosv-default-rtdb.firebaseio.com';
+const FB_CFG = {
+    apiKey: 'AIzaSyC1GiJitT0QegrVe9o6CHCsvf7sEZELwRk',
+    authDomain: 'credilistosv.firebaseapp.com',
+    databaseURL: DB_URL,
+    projectId: 'credilistosv',
+    storageBucket: 'credilistosv.firebasestorage.app'
+};
+
+let db;
+let dataStore = { inver1: {}, inver2: {}, inver3: {}, cfg1: {}, cfg2: {}, cfg3: {} };
+let loaded = { inver1: false, inver2: false, inver3: false };
+let currentView = 'total';
+
+/* Profit splits */
+const SPLITS = {
+    inver1: [
+        { name: 'Lázaro',  pct: 17, color: 'var(--lazaro)'  },
+        { name: 'Emanuel', pct:  3, color: 'var(--emanuel)' }
+    ],
+    inver2: [
+        { name: 'Magda',   pct: 12, color: 'var(--magda)'   },
+        { name: 'Lázaro',  pct:  4, color: 'var(--lazaro)'  },
+        { name: 'Emanuel', pct:  4, color: 'var(--emanuel)' }
+    ],
+    inver3: [
+        { name: 'Walter',  pct: 12, color: 'var(--walter)'  },
+        { name: 'Lázaro',  pct:  4, color: 'var(--lazaro)'  },
+        { name: 'Emanuel', pct:  4, color: 'var(--emanuel)' }
+    ]
+};
+
+const MODULE_LABEL = {
+    inver1: 'INVER 1',
+    inver2: 'INVER 2',
+    inver3: 'INVER 3'
+};
+const MODULE_COLOR = {
+    inver1: 'var(--accent)',
+    inver2: 'var(--purple)',
+    inver3: 'var(--orange)'
+};
+const MODULE_BADGE = {
+    inver1: 'badge-inver1',
+    inver2: 'badge-inver2',
+    inver3: 'badge-inver3'
+};
+
+function initFirebase() {
+    firebase.initializeApp(FB_CFG);
+    db = firebase.database();
+    subscribeAll();
+}
+
+function subscribeAll() {
+    /* INVER 1: clientes */
+    db.ref('clientes').on('value', snap => {
+        dataStore.inver1 = {};
+        snap.forEach(c => {
+            const v = c.val();
+            if (v && v.tipo === 'ACTIVO') {
+                dataStore.inver1[c.key] = { ...v, _key: c.key, _mod: 'inver1' };
+            }
+        });
+        loaded.inver1 = true;
+        checkAndRender();
+    });
+
+    /* INVER 2: clientes2 */
+    db.ref('clientes2').on('value', snap => {
+        dataStore.inver2 = {};
+        snap.forEach(c => {
+            const v = c.val();
+            if (v && v.tipo === 'ACTIVO') {
+                dataStore.inver2[c.key] = { ...v, _key: c.key, _mod: 'inver2' };
+            }
+        });
+        loaded.inver2 = true;
+        checkAndRender();
+    });
+
+    /* INVER 3: clientes3 */
+    db.ref('clientes3').on('value', snap => {
+        dataStore.inver3 = {};
+        snap.forEach(c => {
+            const v = c.val();
+            if (v && v.tipo === 'ACTIVO') {
+                dataStore.inver3[c.key] = { ...v, _key: c.key, _mod: 'inver3' };
+            }
+        });
+        loaded.inver3 = true;
+        checkAndRender();
+    });
+
+    /* Configs */
+    db.ref('config/finanzas').on('value',  s => { dataStore.cfg1 = s.val() || {}; });
+    db.ref('config/finanzas2').on('value', s => { dataStore.cfg2 = s.val() || {}; });
+    db.ref('config/finanzas3').on('value', s => { dataStore.cfg3 = s.val() || {}; });
+}
+
+function checkAndRender() {
+    if (loaded.inver1 && loaded.inver2 && loaded.inver3) {
+        render();
+        const now = new Date();
+        document.getElementById('last-update').textContent =
+            now.toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit' });
+        document.getElementById('ts-label').textContent =
+            'Última actualización: ' + now.toLocaleString('es-SV');
+    }
+}
+
+/* ─── TABS ───────────────────────────────────────── */
+function setView(view) {
+    currentView = view;
+    document.querySelectorAll('.tab').forEach((t, i) => {
+        t.classList.toggle('active', ['total','inver1','inver2','inver3'][i] === view);
+    });
+    if (loaded.inver1 && loaded.inver2 && loaded.inver3) render();
+}
+
+/* ─── HELPERS ────────────────────────────────────── */
+function $$(n) { return parseFloat(n || 0); }
+
+function getFechaCorte(cliente) {
+    const cuotas = cliente.cuotas || [];
+    if (!cuotas.length) return null;
+    // Last cuota's fecha_prog or fecha_ISO
+    const ult = cuotas[cuotas.length - 1];
+    const raw = ult.fecha_prog_sv || ult.fecha_prog || ult.fecha_ISO || '';
+    return raw;
+}
+
+function parseToDate(raw) {
+    if (!raw) return null;
+    // dd/mm/yyyy
+    if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(raw)) {
+        const [d, m, y] = raw.split('/');
+        return new Date(+y, +m - 1, +d);
+    }
+    // yyyy-mm-dd
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+        const [y, m, d] = raw.split('-');
+        return new Date(+y, +m - 1, +d);
+    }
+    return null;
+}
+
+function monthKey(date) {
+    if (!date) return 'Sin fecha';
+    const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    return MESES[date.getMonth()] + ' ' + date.getFullYear();
+}
+
+function monthSort(a, b) {
+    // parse "Mes YYYY"
+    const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    const parse = s => {
+        if (s === 'Sin fecha') return new Date(9999,0,1);
+        const [m, y] = s.split(' ');
+        return new Date(+y, MESES.indexOf(m), 1);
+    };
+    return parse(a) - parse(b);
+}
+
+function fmt$(n) { return '$' + $$(n).toFixed(2); }
+
+function getGanancia(cliente) {
+    const monto = $$(cliente.monto);
+    const total = $$(cliente.total) || monto * 1.2;
+    return total - monto;
+}
+
+function getSplitForMod(mod, gananciaTotal) {
+    return SPLITS[mod].map(s => ({
+        name: s.name,
+        pct: s.pct,
+        color: s.color,
+        amount: gananciaTotal * s.pct / 100
+    }));
+}
+
+/* Aggregate all partners across all visible modules */
+function aggregatePartners(clientsByMod) {
+    const partners = {};
+    for (const [mod, clientes] of Object.entries(clientsByMod)) {
+        const splits = SPLITS[mod];
+        const gananciaTotal = clientes.reduce((a, c) => a + getGanancia(c), 0);
+        splits.forEach(s => {
+            if (!partners[s.name]) partners[s.name] = { name: s.name, color: s.color, total: 0, detail: [] };
+            const amt = gananciaTotal * s.pct / 100;
+            partners[s.name].total += amt;
+            partners[s.name].detail.push({ mod, pct: s.pct, amount: amt });
+        });
+    }
+    return Object.values(partners);
+}
+
+/* ─── RENDER ─────────────────────────────────────── */
+function render() {
+    const view = currentView;
+    const content = document.getElementById('main-content');
+
+    // Select which modules to show
+    let modsToShow = view === 'total'
+        ? ['inver1','inver2','inver3']
+        : [view];
+
+    // Build client lists per module
+    const clientsByMod = {};
+    let allClients = [];
+    for (const mod of modsToShow) {
+        clientsByMod[mod] = Object.values(dataStore[mod]);
+        allClients = allClients.concat(clientsByMod[mod]);
+    }
+
+    // ── SUMMARY STATS ──────────────────────────────────
+    let totalInv = 0, totalCobrar = 0, totalGan = 0;
+    let totalReinv = 0, totalPropio = 0;
+
+    for (const c of allClients) {
+        const monto = $$(c.monto);
+        const total = $$(c.total) || monto * 1.2;
+        const gan   = total - monto;
+        totalInv    += monto;
+        totalCobrar += total;
+        totalGan    += gan;
+        if (c.procedenciaCapital === 'recogido') totalReinv += monto;
+        else totalPropio += monto;
+    }
+
+    // ── PARTNERS AGGREGATE ─────────────────────────────
+    const partners = aggregatePartners(clientsByMod);
+
+    // ── GROUP BY MONTH (fecha corte) ───────────────────
+    const byMonth = {};
+    for (const c of allClients) {
+        const raw = getFechaCorte(c);
+        const d   = parseToDate(raw);
+        const key = monthKey(d);
+        if (!byMonth[key]) byMonth[key] = { clients: [], date: d };
+        byMonth[key].clients.push(c);
+    }
+
+    // Sort months chronologically
+    const sortedMonths = Object.keys(byMonth).sort(monthSort);
+
+    // ── BUILD HTML ─────────────────────────────────────
+    let html = '';
+
+    // Summary cards
+    html += `<div class="summary-row">
+        <div class="sum-card">
+            <div class="sum-label">💰 Inversión Total</div>
+            <div class="sum-val" style="color:var(--accent)">${fmt$(totalInv)}</div>
+            <div class="sum-sub">${allClients.length} crédito${allClients.length !== 1 ? 's' : ''} activo${allClients.length !== 1 ? 's' : ''}</div>
+        </div>
+        <div class="sum-card">
+            <div class="sum-label">📥 Total a Cobrar</div>
+            <div class="sum-val" style="color:var(--text)">${fmt$(totalCobrar)}</div>
+            <div class="sum-sub">Capital + ganancia</div>
+        </div>
+        <div class="sum-card">
+            <div class="sum-label">✨ Ganancia Total</div>
+            <div class="sum-val" style="color:var(--green)">${fmt$(totalGan)}</div>
+            <div class="sum-sub">${totalInv > 0 ? (totalGan/totalInv*100).toFixed(1) : 0}% sobre inversión</div>
+        </div>
+        <div class="sum-card">
+            <div class="sum-label">♻️ Capital Reinvertido</div>
+            <div class="sum-val" style="color:var(--amber)">${fmt$(totalReinv)}</div>
+            <div class="sum-sub">Capital propio: ${fmt$(totalPropio)}</div>
+        </div>
+    </div>`;
+
+    // Partner cards
+    if (partners.length) {
+        html += `<div class="sec-divider"><span class="sec-divider-label">Ganancia por Socio</span><div class="sec-divider-line"></div></div>`;
+        html += `<div class="partners-row">`;
+        for (const p of partners) {
+            const slug = p.name.toLowerCase().replace('á','a').replace('é','e').replace('ó','o');
+            const detailTxt = p.detail.map(d =>
+                `${MODULE_LABEL[d.mod]}: ${d.pct}% = ${fmt$(d.amount)}`
+            ).join(' · ');
+            html += `<div class="partner-card pc-${slug}">
+                <div class="partner-name" style="color:${p.color}">${p.name}</div>
+                <div class="partner-role">Socio</div>
+                <div class="partner-val" style="color:${p.color}">${fmt$(p.total)}</div>
+                <div class="partner-detail">${detailTxt}</div>
+            </div>`;
+        }
+        html += `</div>`;
+    }
+
+    // Reinversión residual section
+    if (totalReinv > 0) {
+        const ganReinv  = totalReinv * 0.20;
+        const ganPropio = totalPropio * 0.20;
+        html += `<div class="reinv-section">
+            <div class="reinv-title">♻️ Desglose Reinversión (Caja Chica)</div>
+            <div class="reinv-row">
+                <div class="reinv-item">
+                    <div class="reinv-label">Capital Reinvertido</div>
+                    <div class="reinv-val" style="color:var(--amber)">${fmt$(totalReinv)}</div>
+                </div>
+                <div class="reinv-item">
+                    <div class="reinv-label">Ganancia de Reinv.</div>
+                    <div class="reinv-val" style="color:var(--green)">${fmt$(ganReinv)}</div>
+                </div>
+                <div class="reinv-item">
+                    <div class="reinv-label">Capital Propio</div>
+                    <div class="reinv-val" style="color:var(--accent)">${fmt$(totalPropio)}</div>
+                </div>
+                <div class="reinv-item">
+                    <div class="reinv-label">Ganancia de Capital</div>
+                    <div class="reinv-val" style="color:var(--green)">${fmt$(ganPropio)}</div>
+                </div>
+            </div>
+        </div>`;
+    }
+
+    // Monthly sections
+    html += `<div class="sec-divider"><span class="sec-divider-label">Fechas de Corte por Mes</span><div class="sec-divider-line"></div></div>`;
+
+    if (!sortedMonths.length) {
+        html += `<div class="empty-month">No hay créditos activos.</div>`;
+    }
+
+    for (const month of sortedMonths) {
+        const { clients } = byMonth[month];
+        // Sort clients by fecha corte ascending
+        clients.sort((a, b) => {
+            const da = parseToDate(getFechaCorte(a));
+            const db_ = parseToDate(getFechaCorte(b));
+            if (!da && !db_) return 0;
+            if (!da) return 1; if (!db_) return -1;
+            return da - db_;
+        });
+
+        let mInv = 0, mTotal = 0, mGan = 0;
+        clients.forEach(c => {
+            const mon = $$(c.monto);
+            const tot = $$(c.total) || mon * 1.2;
+            mInv   += mon;
+            mTotal += tot;
+            mGan   += tot - mon;
+        });
+
+        // Per-module split for this month
+        const modGans = {};
+        for (const mod of modsToShow) {
+            const mc = clients.filter(c => c._mod === mod);
+            modGans[mod] = mc.reduce((a, c) => a + getGanancia(c), 0);
+        }
+
+        // Partner breakdown for month
+        const monthPartners = {};
+        for (const mod of modsToShow) {
+            if (!modGans[mod]) continue;
+            SPLITS[mod].forEach(s => {
+                if (!monthPartners[s.name]) monthPartners[s.name] = { name: s.name, color: s.color, total: 0 };
+                monthPartners[s.name].total += modGans[mod] * s.pct / 100;
+            });
+        }
+        const mpArr = Object.values(monthPartners);
+
+        const collapseId = 'month-' + month.replace(/\s/g, '_');
+
+        html += `<div class="month-section">
+            <div class="month-header" onclick="toggleMonth('${collapseId}', this)">
+                <div class="month-title">
+                    <span>📅 ${month}</span>
+                    <span class="month-badge" style="background:rgba(56,189,248,0.1);color:var(--accent);border-color:rgba(56,189,248,0.25)">
+                        ${clients.length} cliente${clients.length!==1?'s':''}
+                    </span>
+                </div>
+                <div class="month-stats">
+                    <div class="mstat">
+                        <div class="mstat-label">Inversión</div>
+                        <div class="mstat-val" style="color:var(--accent)">${fmt$(mInv)}</div>
+                    </div>
+                    <div class="mstat">
+                        <div class="mstat-label">Ganancia</div>
+                        <div class="mstat-val" style="color:var(--green)">${fmt$(mGan)}</div>
+                    </div>
+                    <div class="mstat">
+                        <div class="mstat-label">Total a cobrar</div>
+                        <div class="mstat-val">${fmt$(mTotal)}</div>
+                    </div>
+                    <span class="chevron open" id="chev-${collapseId}">▶</span>
+                </div>
+            </div>
+            <div class="clients-body" id="${collapseId}">
+                <div class="client-row header-row">
+                    <span>Cliente</span>
+                    <span>Corte</span>
+                    <span>Inversión</span>
+                    <span class="cr-total">Total</span>
+                    <span class="cr-ganancia">Ganancia</span>
+                    <span>Tipo</span>
+                </div>`;
+
+        for (const c of clients) {
+            const monto = $$(c.monto);
+            const total = $$(c.total) || monto * 1.2;
+            const gan   = total - monto;
+            const raw   = getFechaCorte(c);
+            const isReinv = c.procedenciaCapital === 'recogido';
+            const badge = isReinv
+                ? `<span class="badge badge-reinv">♻️ Reinv.</span>`
+                : `<span class="badge ${MODULE_BADGE[c._mod]}">${MODULE_LABEL[c._mod]}</span>`;
+
+            html += `<div class="client-row">
+                <div>
+                    <div class="cr-name">${c.nombre || c.name || '—'}</div>
+                    ${view === 'total' ? `<div style="font-size:0.58rem;color:${MODULE_COLOR[c._mod]};font-weight:700;letter-spacing:0.05em;text-transform:uppercase;margin-top:0.1rem">${MODULE_LABEL[c._mod]}</div>` : ''}
+                </div>
+                <div class="cr-date cr-mono">${raw || '—'}</div>
+                <div class="cr-mono cr-accent">${fmt$(monto)}</div>
+                <div class="cr-mono cr-muted cr-total">${fmt$(total)}</div>
+                <div class="cr-mono cr-green cr-ganancia">${fmt$(gan)}</div>
+                <div>${badge}</div>
+            </div>`;
+        }
+
+        // Profit breakdown for this month
+        if (mpArr.length) {
+            html += `<div class="profit-breakdown">`;
+            for (const p of mpArr) {
+                html += `<div class="pb-item">
+                    <div class="pb-name">
+                        <span class="pb-dot" style="background:${p.color}"></span>
+                        ${p.name}
+                    </div>
+                    <div class="pb-val" style="color:${p.color}">${fmt$(p.total)}</div>
+                    <div class="pb-pct">Ganancia del mes</div>
+                </div>`;
+            }
+            html += `</div>`;
+        }
+
+        html += `</div></div>`;
+    }
+
+    content.innerHTML = html;
+}
+
+function toggleMonth(id, header) {
+    const body = document.getElementById(id);
+    const chev = document.getElementById('chev-' + id);
+    const isHidden = body.classList.toggle('hidden');
+    header.classList.toggle('collapsed', isHidden);
+    chev.classList.toggle('open', !isHidden);
+}
+</script>
+</body>
+</html>
