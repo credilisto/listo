@@ -2842,7 +2842,7 @@ async function guardarConfigFinanzas() {
 
 // ─── IMPRIMIR DOCUMENTOS ──────────────────────────────────────────────────
 function imprimirContrato() {
-    const s = clienteActual;
+    const s = allClients[currentId];
     if (!s) return;
     const frec      = s.frecuencia || 'diario';
     const nCuotas   = frec === 'semanal' ? 4 : 30;
@@ -2910,7 +2910,7 @@ function imprimirContrato() {
 }
 
 function imprimirLetra() {
-    const s = clienteActual;
+    const s = allClients[currentId];
     if (!s) return;
     const monto       = parseFloat(s.monto || 0);
     const cuotas      = s.cuotas || [];
