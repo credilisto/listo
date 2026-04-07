@@ -6,448 +6,189 @@
     <title>Proyecciones | CrediListo</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&display=swap" rel="stylesheet">
-
-    <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-database-compat.js"></script>
-
     <style>
         :root {
-            --bg: #0a0f1e;
-            --surface: #111827;
-            --surface2: #1a2235;
-            --surface3: #1f2d45;
-            --border: rgba(255,255,255,0.07);
-            --border2: rgba(255,255,255,0.12);
-            --text: #f1f5f9;
-            --muted: #64748b;
-            --muted2: #94a3b8;
-            --accent: #38bdf8;
-            --accent-dim: rgba(56,189,248,0.1);
-            --accent-border: rgba(56,189,248,0.25);
-            --green: #4ade80;
-            --green-dim: rgba(74,222,128,0.08);
-            --amber: #fbbf24;
-            --amber-dim: rgba(251,191,36,0.08);
-            --rose: #fb7185;
-            --rose-dim: rgba(251,113,133,0.08);
-            --purple: #a78bfa;
-            --purple-dim: rgba(167,139,250,0.08);
-            --teal: #2dd4bf;
-            --orange: #fb923c;
+            --bg:#0a0f1e; --surface:#111827; --surface2:#1a2235; --surface3:#1f2d45;
+            --border:rgba(255,255,255,0.07); --border2:rgba(255,255,255,0.12);
+            --text:#f1f5f9; --muted:#64748b; --muted2:#94a3b8;
+            --accent:#38bdf8; --accent-dim:rgba(56,189,248,0.1); --accent-border:rgba(56,189,248,0.25);
+            --green:#4ade80; --green-dim:rgba(74,222,128,0.08);
+            --amber:#fbbf24; --amber-dim:rgba(251,191,36,0.08);
+            --rose:#fb7185; --purple:#a78bfa; --purple-dim:rgba(167,139,250,0.08);
+            --orange:#fb923c;
+            --lazaro:#38bdf8; --emanuel:#4ade80; --magda:#f472b6; --walter:#fb923c;
+        }
+        *{box-sizing:border-box;margin:0;padding:0}
+        html{scroll-behavior:smooth}
+        body{background:var(--bg);color:var(--text);font-family:'Instrument Sans',sans-serif;min-height:100vh}
 
-            --lazaro: #38bdf8;
-            --emanuel: #4ade80;
-            --magda: #f472b6;
-            --walter: #fb923c;
-        }
+        /* LOCK */
+        #lock{position:fixed;inset:0;z-index:9999;background:linear-gradient(135deg,#0a0f1e 0%,#0f1f3a 50%,#0a0f1e 100%);display:flex;align-items:center;justify-content:center}
+        .lock-glow{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+        .lock-glow::before{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:500px;height:500px;background:radial-gradient(circle,rgba(56,189,248,0.12) 0%,transparent 70%);border-radius:50%}
+        .lock-card{position:relative;width:min(90vw,360px);text-align:center}
+        .lock-icon{width:64px;height:64px;background:var(--accent-dim);border:1px solid var(--accent-border);border-radius:1.25rem;display:flex;align-items:center;justify-content:center;margin:0 auto 1.5rem;font-size:1.75rem}
+        .lock-logo{font-family:'Syne',sans-serif;font-weight:800;font-size:1.6rem;letter-spacing:-0.04em;margin-bottom:.25rem}
+        .lock-logo em{color:var(--accent);font-style:normal}
+        .lock-sub{font-size:.6rem;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:.5rem}
+        .lock-badge{display:inline-block;background:var(--accent-dim);border:1px solid var(--accent-border);color:var(--accent);font-size:.55rem;font-weight:800;letter-spacing:.15em;text-transform:uppercase;padding:.2rem .6rem;border-radius:2rem;margin-bottom:2rem}
+        .lock-input{width:100%;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.15);border-radius:.75rem;padding:1rem;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:1.8rem;font-weight:700;text-align:center;letter-spacing:.5em;outline:none;transition:border-color .2s,background .2s;margin-bottom:.75rem}
+        .lock-input::placeholder{color:rgba(255,255,255,.2);letter-spacing:.3em;font-size:1.2rem}
+        .lock-input:focus{border-color:var(--accent);background:rgba(56,189,248,.05)}
+        .lock-btn{width:100%;background:var(--accent);color:#0a0f1e;border:none;border-radius:.75rem;padding:.9rem;font-family:'Syne',sans-serif;font-weight:800;font-size:.7rem;letter-spacing:.15em;text-transform:uppercase;cursor:pointer;transition:opacity .2s}
+        .lock-btn:hover{opacity:.85}
+        #lock-err{color:var(--rose);font-size:.65rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;margin-top:.5rem;display:none}
 
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        html { scroll-behavior: smooth; }
+        /* APP */
+        #app{display:none}
+        .header{background:var(--surface);border-bottom:1px solid var(--border);padding:0 1.5rem;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:200;height:56px}
+        .header-brand{font-family:'Syne',sans-serif;font-weight:800;font-size:1.05rem;letter-spacing:-.03em}
+        .header-brand em{color:var(--accent);font-style:normal}
+        .header-tag{font-size:.55rem;font-weight:800;letter-spacing:.15em;text-transform:uppercase;padding:.2rem .6rem;border-radius:2rem;background:var(--accent-dim);color:var(--accent);border:1px solid var(--accent-border)}
 
-        body {
-            background: var(--bg);
-            color: var(--text);
-            font-family: 'Instrument Sans', sans-serif;
-            min-height: 100vh;
-        }
+        .tabs-wrap{background:var(--surface);border-bottom:1px solid var(--border);padding:0 1.5rem;display:flex;gap:.25rem;overflow-x:auto}
+        .tab{padding:.85rem 1.25rem;font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap}
+        .tab:hover{color:var(--text)}
+        .tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+        .tab-dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:.4rem;vertical-align:middle}
 
-        /* ── LOCK ─────────────────────────────────── */
-        #lock {
-            position: fixed; inset: 0; z-index: 9999;
-            background: linear-gradient(135deg, #0a0f1e 0%, #0f1f3a 50%, #0a0f1e 100%);
-            display: flex; align-items: center; justify-content: center;
-        }
-        .lock-glow { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
-        .lock-glow::before {
-            content: '';
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            width: 500px; height: 500px;
-            background: radial-gradient(circle, rgba(56,189,248,0.12) 0%, transparent 70%);
-            border-radius: 50%;
-        }
-        .lock-card { position: relative; width: min(90vw, 360px); text-align: center; }
-        .lock-icon {
-            width: 64px; height: 64px;
-            background: var(--accent-dim);
-            border: 1px solid var(--accent-border);
-            border-radius: 1.25rem;
-            display: flex; align-items: center; justify-content: center;
-            margin: 0 auto 1.5rem; font-size: 1.75rem;
-        }
-        .lock-logo {
-            font-family: 'Syne', sans-serif;
-            font-weight: 800; font-size: 1.6rem;
-            letter-spacing: -0.04em; color: var(--text);
-            margin-bottom: 0.25rem;
-        }
-        .lock-logo em { color: var(--accent); font-style: normal; }
-        .lock-sub { font-size: 0.6rem; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.5rem; }
-        .lock-badge {
-            display: inline-block;
-            background: var(--accent-dim); border: 1px solid var(--accent-border);
-            color: var(--accent);
-            font-size: 0.55rem; font-weight: 800; letter-spacing: 0.15em;
-            text-transform: uppercase; padding: 0.2rem 0.6rem;
-            border-radius: 2rem; margin-bottom: 2rem;
-        }
-        .lock-input {
-            width: 100%;
-            background: rgba(255,255,255,0.04);
-            border: 1px solid rgba(255,255,255,0.15);
-            border-radius: 0.75rem;
-            padding: 1rem;
-            color: var(--text);
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 1.8rem; font-weight: 700;
-            text-align: center; letter-spacing: 0.5em;
-            outline: none; transition: border-color 0.2s, background 0.2s;
-            margin-bottom: 0.75rem;
-        }
-        .lock-input::placeholder { color: rgba(255,255,255,0.2); letter-spacing: 0.3em; font-size: 1.2rem; }
-        .lock-input:focus { border-color: var(--accent); background: rgba(56,189,248,0.05); }
-        .lock-btn {
-            width: 100%;
-            background: var(--accent); color: #0a0f1e;
-            border: none; border-radius: 0.75rem;
-            padding: 0.9rem;
-            font-family: 'Syne', sans-serif;
-            font-weight: 800; font-size: 0.7rem;
-            letter-spacing: 0.15em; text-transform: uppercase;
-            cursor: pointer; transition: opacity 0.2s;
-        }
-        .lock-btn:hover { opacity: 0.85; }
-        #lock-err { color: var(--rose); font-size: 0.65rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; margin-top: 0.5rem; display: none; }
-
-        /* ── APP ──────────────────────────────────── */
-        #app { display: none; }
-
-        /* HEADER */
-        .header {
-            background: var(--surface);
-            border-bottom: 1px solid var(--border);
-            padding: 0 1.5rem;
-            display: flex; justify-content: space-between; align-items: center;
-            position: sticky; top: 0; z-index: 200;
-            height: 56px;
-        }
-        .header-brand {
-            font-family: 'Syne', sans-serif;
-            font-weight: 800; font-size: 1.05rem;
-            letter-spacing: -0.03em; color: var(--text);
-        }
-        .header-brand em { color: var(--accent); font-style: normal; }
-        .header-right { display: flex; align-items: center; gap: 0.75rem; }
-        .header-tag {
-            font-size: 0.55rem; font-weight: 800; letter-spacing: 0.15em;
-            text-transform: uppercase; padding: 0.2rem 0.6rem;
-            border-radius: 2rem;
-            background: var(--accent-dim); color: var(--accent);
-            border: 1px solid var(--accent-border);
-        }
-
-        /* TABS */
-        .tabs-wrap {
-            background: var(--surface);
-            border-bottom: 1px solid var(--border);
-            padding: 0 1.5rem;
-            display: flex; gap: 0.25rem; overflow-x: auto;
-        }
-        .tab {
-            padding: 0.85rem 1.25rem;
-            font-size: 0.7rem; font-weight: 700;
-            letter-spacing: 0.08em; text-transform: uppercase;
-            color: var(--muted); cursor: pointer;
-            border-bottom: 2px solid transparent;
-            transition: all 0.15s; white-space: nowrap;
-        }
-        .tab:hover { color: var(--text); }
-        .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
-        .tab-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 0.4rem; vertical-align: middle; }
-
-        /* MAIN */
-        .main { padding: 1.5rem; max-width: 1200px; margin: 0 auto; padding-bottom: 5rem; }
-
-        /* PAGE TITLE */
-        .page-hero {
-            background: linear-gradient(135deg, var(--surface2) 0%, rgba(56,189,248,0.05) 100%);
-            border: 1px solid var(--border);
-            border-radius: 1.25rem;
-            padding: 1.75rem 2rem;
-            margin-bottom: 1.5rem;
-            display: flex; justify-content: space-between; align-items: flex-start;
-            gap: 1rem;
-        }
-        .hero-left {}
-        .hero-title {
-            font-family: 'Syne', sans-serif;
-            font-weight: 800; font-size: 1.5rem;
-            letter-spacing: -0.03em;
-            margin-bottom: 0.35rem;
-        }
-        .hero-title em { color: var(--accent); font-style: normal; }
-        .hero-sub { font-size: 0.7rem; color: var(--muted); line-height: 1.5; }
-        .hero-right { display: flex; gap: 0.75rem; flex-wrap: wrap; }
-        .hero-badge {
-            background: var(--surface);
-            border: 1px solid var(--border2);
-            border-radius: 0.75rem;
-            padding: 0.6rem 1rem;
-            text-align: center;
-        }
-        .hero-badge-label { font-size: 0.5rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.2rem; }
-        .hero-badge-val { font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; font-weight: 700; }
-
-        /* SUMMARY CARDS */
-        .summary-row {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 0.75rem; margin-bottom: 1.5rem;
-        }
-        .sum-card {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 1rem; padding: 1.1rem 1.25rem;
-            transition: border-color 0.2s;
-        }
-        .sum-card:hover { border-color: var(--border2); }
-        .sum-label { font-size: 0.58rem; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.5rem; }
-        .sum-val { font-family: 'JetBrains Mono', monospace; font-size: 1.4rem; font-weight: 700; }
-        .sum-sub { font-size: 0.65rem; color: var(--muted); margin-top: 0.25rem; }
-
-        /* SECTION DIVIDER */
-        .sec-divider { display: flex; align-items: center; gap: 0.75rem; margin: 1.5rem 0 1rem; }
-        .sec-divider-label { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 0.75rem; letter-spacing: 0.05em; white-space: nowrap; color: var(--text); }
-        .sec-divider-line { flex: 1; height: 1px; background: var(--border); }
-        .sec-divider-badge {
-            font-size: 0.5rem; font-weight: 800; letter-spacing: 0.12em;
-            text-transform: uppercase; padding: 0.2rem 0.55rem;
-            border-radius: 2rem; border: 1px solid;
-        }
-
-        /* HORIZON TABS */
-        .horizon-wrap {
-            display: flex; gap: 0.5rem; margin-bottom: 1.5rem;
-        }
-        .horizon-btn {
-            flex: 1;
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 0.875rem;
-            padding: 1rem;
-            cursor: pointer;
-            text-align: center;
-            transition: all 0.18s;
-            color: var(--muted);
-        }
-        .horizon-btn:hover { border-color: var(--border2); color: var(--text); }
-        .horizon-btn.active {
-            border-color: var(--accent);
-            background: var(--accent-dim);
-            color: var(--text);
-        }
-        .horizon-icon { font-size: 1.2rem; margin-bottom: 0.35rem; }
-        .horizon-label { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 0.8rem; }
-        .horizon-sub { font-size: 0.58rem; color: var(--muted); margin-top: 0.15rem; letter-spacing: 0.05em; }
-        .horizon-btn.active .horizon-sub { color: var(--accent); }
-
-        /* PROJECTION CARDS — 3 columns (one per inver) */
-        .proj-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-        }
-        .proj-card {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 1.25rem;
-            overflow: hidden;
-            transition: border-color 0.2s;
-        }
-        .proj-card:hover { border-color: var(--border2); }
-        .proj-card-header {
-            padding: 1rem 1.25rem 0.85rem;
-            border-bottom: 1px solid var(--border);
-            position: relative;
-        }
-        .proj-card-header::before {
-            content: '';
-            position: absolute; top: 0; left: 0; right: 0;
-            height: 3px;
-        }
-        .pc-i1 .proj-card-header::before { background: var(--accent); }
-        .pc-i2 .proj-card-header::before { background: var(--purple); }
-        .pc-i3 .proj-card-header::before { background: var(--orange); }
-
-        .proj-card-title {
-            font-family: 'Syne', sans-serif;
-            font-weight: 800; font-size: 0.85rem;
-            display: flex; align-items: center; gap: 0.5rem;
-            margin-bottom: 0.15rem;
-        }
-        .proj-card-sub { font-size: 0.6rem; color: var(--muted); }
-
-        .proj-body { padding: 1rem 1.25rem; }
-        .proj-row {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 0.45rem 0;
-            border-bottom: 1px solid var(--border);
-        }
-        .proj-row:last-child { border-bottom: none; }
-        .proj-row-label { font-size: 0.62rem; color: var(--muted2); }
-        .proj-row-val { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 0.82rem; }
-
-        .proj-total-block {
-            background: var(--surface2);
-            border-top: 1px solid var(--border);
-            padding: 0.85rem 1.25rem;
-        }
-        .proj-total-label { font-size: 0.55rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.3rem; }
-        .proj-total-val { font-family: 'JetBrains Mono', monospace; font-size: 1.5rem; font-weight: 700; }
-        .proj-total-sub { font-size: 0.6rem; color: var(--muted); margin-top: 0.2rem; }
-
-        /* PARTNER BREAKDOWN IN PROJECTION */
-        .proj-partner-block {
-            padding: 0.75rem 1.25rem;
-            border-top: 1px solid var(--border);
-            display: flex; flex-direction: column; gap: 0.4rem;
-        }
-        .proj-partner-label { font-size: 0.55rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.2rem; }
-        .proj-partner-row { display: flex; justify-content: space-between; align-items: center; }
-        .proj-partner-name { font-size: 0.65rem; font-weight: 600; display: flex; align-items: center; gap: 0.3rem; }
-        .proj-partner-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-        .proj-partner-val { font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; font-weight: 700; }
-
-        /* CONSOLIDATED PROJECTION ROW */
-        .consol-proj {
-            background: linear-gradient(135deg, var(--surface2), rgba(56,189,248,0.04));
-            border: 1px solid var(--accent-border);
-            border-radius: 1.25rem;
-            overflow: hidden;
-            margin-bottom: 1.5rem;
-        }
-        .consol-header {
-            padding: 1rem 1.5rem;
-            border-bottom: 1px solid var(--border);
-            display: flex; justify-content: space-between; align-items: center;
-        }
-        .consol-title { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1rem; }
-        .consol-title em { color: var(--accent); font-style: normal; }
-        .consol-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-            gap: 0;
-        }
-        .consol-cell {
-            padding: 1.1rem 1.5rem;
-            border-right: 1px solid var(--border);
-            border-bottom: 1px solid var(--border);
-        }
-        .consol-cell:last-child { border-right: none; }
-        .consol-cell-label { font-size: 0.55rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.35rem; }
-        .consol-cell-val { font-family: 'JetBrains Mono', monospace; font-size: 1.25rem; font-weight: 700; }
-        .consol-cell-sub { font-size: 0.6rem; color: var(--muted); margin-top: 0.2rem; }
-
-        /* MONTHLY TIMELINE */
-        .timeline-wrap { margin-bottom: 1.5rem; }
-        .timeline-month {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 1rem;
-            margin-bottom: 0.75rem;
-            overflow: hidden;
-        }
-        .timeline-month-header {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 0.75rem 1.25rem;
-            border-bottom: 1px solid var(--border);
-            cursor: pointer;
-        }
-        .timeline-month-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.8rem; display: flex; align-items: center; gap: 0.5rem; }
-        .timeline-month-stats { display: flex; gap: 1.25rem; align-items: center; }
-        .tm-stat { text-align: right; }
-        .tm-stat-label { font-size: 0.52rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
-        .tm-stat-val { font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; font-weight: 700; }
-        .chevron { font-size: 0.8rem; color: var(--muted); transition: transform 0.2s; }
-        .chevron.open { transform: rotate(90deg); }
-
-        .timeline-body { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; }
-        .timeline-body.hidden { display: none; }
-        .timeline-cell {
-            padding: 0.85rem 1.25rem;
-            border-right: 1px solid var(--border);
-        }
-        .timeline-cell:last-child { border-right: none; }
-        .timeline-cell-label { font-size: 0.55rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 0.5rem; }
-        .timeline-row { display: flex; justify-content: space-between; font-size: 0.65rem; padding: 0.2rem 0; }
-        .timeline-row-name { color: var(--muted2); }
-        .timeline-row-val { font-family: 'JetBrains Mono', monospace; font-weight: 600; }
-
-        /* CYCLE SIMULATION */
-        .cycle-info {
-            background: var(--amber-dim);
-            border: 1px solid rgba(251,191,36,0.2);
-            border-radius: 0.75rem;
-            padding: 0.85rem 1.25rem;
-            margin-bottom: 1.5rem;
-            display: flex; gap: 1.5rem; align-items: flex-start; flex-wrap: wrap;
-        }
-        .cycle-icon { font-size: 1.4rem; flex-shrink: 0; }
-        .cycle-text {}
-        .cycle-title { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 0.8rem; color: var(--amber); margin-bottom: 0.2rem; }
-        .cycle-sub { font-size: 0.65rem; color: var(--muted2); line-height: 1.5; }
+        .main{padding:1.5rem;max-width:1200px;margin:0 auto;padding-bottom:5rem}
 
         /* LOADING */
-        .loading-wrap { display: flex; align-items: center; justify-content: center; padding: 4rem; color: var(--muted); gap: 0.75rem; }
-        .spinner { width: 20px; height: 20px; border: 2px solid var(--border2); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-wrap{display:flex;align-items:center;justify-content:center;padding:4rem;color:var(--muted);gap:.75rem}
+        .spinner{width:20px;height:20px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+        @keyframes spin{to{transform:rotate(360deg)}}
 
-        /* STATUS BAR */
-        .status-bar {
-            background: var(--surface);
-            border-top: 1px solid var(--border);
-            padding: 0.5rem 1.5rem;
-            font-size: 0.6rem; color: var(--muted);
-            display: flex; justify-content: space-between;
-            position: fixed; bottom: 0; left: 0; right: 0;
+        /* STATUS */
+        .status-bar{background:var(--surface);border-top:1px solid var(--border);padding:.5rem 1.5rem;font-size:.6rem;color:var(--muted);display:flex;justify-content:space-between;position:fixed;bottom:0;left:0;right:0}
+        .status-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--green);margin-right:.4rem;animation:pulse 2s ease-in-out infinite}
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+        /* HERO */
+        .page-hero{background:linear-gradient(135deg,var(--surface2) 0%,rgba(56,189,248,.04) 100%);border:1px solid var(--border);border-radius:1.25rem;padding:1.75rem 2rem;margin-bottom:1.5rem}
+        .hero-title{font-family:'Syne',sans-serif;font-weight:800;font-size:1.35rem;letter-spacing:-.03em;margin-bottom:.4rem}
+        .hero-title em{color:var(--accent);font-style:normal}
+        .hero-sub{font-size:.7rem;color:var(--muted);line-height:1.65}
+
+        /* METHOD BANNER */
+        .method-banner{background:rgba(251,191,36,.04);border:1px solid rgba(251,191,36,.2);border-radius:1rem;padding:1.1rem 1.5rem;margin-bottom:1.5rem;display:grid;grid-template-columns:auto 1fr;gap:1rem;align-items:start}
+        .method-icon{font-size:1.5rem;padding-top:.1rem}
+        .method-title{font-family:'Syne',sans-serif;font-weight:800;font-size:.85rem;color:var(--amber);margin-bottom:.5rem}
+        .method-steps{display:flex;flex-wrap:wrap;gap:.5rem}
+        .method-step{background:var(--surface2);border:1px solid var(--border2);border-radius:.5rem;padding:.5rem .75rem;font-size:.62rem;color:var(--muted2);line-height:1.45}
+        .method-step strong{color:var(--text)}
+
+        /* HORIZON */
+        .horizon-wrap{display:flex;gap:.5rem;margin-bottom:1.5rem}
+        .horizon-btn{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:.875rem;padding:1rem;cursor:pointer;text-align:center;transition:all .18s;color:var(--muted)}
+        .horizon-btn:hover{border-color:var(--border2);color:var(--text)}
+        .horizon-btn.active{border-color:var(--accent);background:var(--accent-dim);color:var(--text)}
+        .h-icon{font-size:1.2rem;margin-bottom:.35rem}
+        .h-label{font-family:'Syne',sans-serif;font-weight:800;font-size:.8rem}
+        .h-sub{font-size:.58rem;color:var(--muted);margin-top:.15rem}
+        .horizon-btn.active .h-sub{color:var(--accent)}
+
+        /* SEC DIVIDER */
+        .sec-div{display:flex;align-items:center;gap:.75rem;margin:1.5rem 0 1rem}
+        .sec-div-label{font-family:'Syne',sans-serif;font-weight:800;font-size:.75rem;white-space:nowrap}
+        .sec-div-line{flex:1;height:1px;background:var(--border)}
+        .badge{font-size:.5rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;padding:.15rem .45rem;border-radius:2rem}
+        .badge-i1{background:var(--accent-dim);color:var(--accent);border:1px solid var(--accent-border)}
+        .badge-i2{background:var(--purple-dim);color:var(--purple);border:1px solid rgba(167,139,250,.25)}
+        .badge-i3{background:rgba(251,146,60,.1);color:var(--orange);border:1px solid rgba(251,146,60,.25)}
+
+        /* CONSOL STRIP */
+        .consol-strip{background:linear-gradient(135deg,var(--surface2),rgba(56,189,248,.04));border:1px solid var(--accent-border);border-radius:1.25rem;overflow:hidden;margin-bottom:1.5rem}
+        .cs-header{padding:1rem 1.5rem;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+        .cs-title{font-family:'Syne',sans-serif;font-weight:800;font-size:1rem}
+        .cs-title em{color:var(--accent);font-style:normal}
+        .cs-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr))}
+        .cs-cell{padding:1rem 1.5rem;border-right:1px solid var(--border)}
+        .cs-cell:last-child{border-right:none}
+        .cs-label{font-size:.55rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:.35rem}
+        .cs-val{font-family:'JetBrains Mono',monospace;font-size:1.2rem;font-weight:700}
+        .cs-sub{font-size:.6rem;color:var(--muted);margin-top:.2rem}
+
+        /* MODULE CARDS */
+        .mod-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.5rem}
+        .mod-card{background:var(--surface);border:1px solid var(--border);border-radius:1.25rem;overflow:hidden}
+        .mod-top{padding:1.1rem 1.25rem;border-bottom:1px solid var(--border);position:relative}
+        .mod-top::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+        .mc-i1 .mod-top::before{background:var(--accent)}
+        .mc-i2 .mod-top::before{background:var(--purple)}
+        .mc-i3 .mod-top::before{background:var(--orange)}
+        .mod-name{font-family:'Syne',sans-serif;font-weight:800;font-size:.9rem;margin-bottom:.1rem}
+        .mod-desc{font-size:.6rem;color:var(--muted)}
+        .mod-body{padding:.85rem 1.25rem}
+        .mod-row{display:flex;justify-content:space-between;align-items:center;padding:.4rem 0;border-bottom:1px solid var(--border)}
+        .mod-row:last-child{border-bottom:none}
+        .mod-row-label{font-size:.62rem;color:var(--muted2)}
+        .mod-row-val{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:.82rem}
+        .mod-total-block{background:var(--surface2);border-top:1px solid var(--border);padding:.85rem 1.25rem}
+        .mtb-label{font-size:.55rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:.3rem}
+        .mtb-val{font-family:'JetBrains Mono',monospace;font-size:1.4rem;font-weight:700}
+        .mtb-sub{font-size:.6rem;color:var(--muted);margin-top:.2rem}
+        .mod-partners{padding:.75rem 1.25rem;border-top:1px solid var(--border)}
+        .mp-title{font-size:.55rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:.4rem}
+        .mp-row{display:flex;justify-content:space-between;align-items:baseline;padding:.15rem 0}
+        .mp-name-wrap{font-size:.65rem;font-weight:600;display:flex;align-items:center;gap:.3rem}
+        .mp-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+        .mp-vals{text-align:right}
+        .mp-mes{font-family:'JetBrains Mono',monospace;font-size:.72rem;font-weight:700}
+        .mp-total-yr{font-size:.58rem;color:var(--muted)}
+
+        /* PHASE LEGEND */
+        .phase-legend{display:flex;gap:.5rem;margin-bottom:.75rem;flex-wrap:wrap}
+        .phase-pill{display:flex;align-items:center;gap:.35rem;background:var(--surface2);border:1px solid var(--border2);border-radius:.5rem;padding:.35rem .65rem;font-size:.62rem;color:var(--muted2)}
+        .phase-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+
+        /* MONTHLY TABLE */
+        .month-block{background:var(--surface);border:1px solid var(--border);border-radius:1rem;overflow:hidden;margin-bottom:.75rem}
+        .mb-header{background:var(--surface2);padding:.75rem 1.25rem;display:flex;justify-content:space-between;align-items:center;cursor:pointer;border-bottom:1px solid var(--border)}
+        .mb-title{font-family:'Syne',sans-serif;font-weight:800;font-size:.85rem;display:flex;align-items:center;gap:.5rem}
+        .mb-yr-tag{font-size:.6rem;font-weight:600;color:var(--muted);background:var(--surface3);border:1px solid var(--border2);padding:.1rem .4rem;border-radius:.25rem}
+        .mb-stats{display:flex;gap:1.25rem;align-items:center}
+        .mb-stat{text-align:right}
+        .mb-stat-label{font-size:.52rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+        .mb-stat-val{font-family:'JetBrains Mono',monospace;font-size:.8rem;font-weight:700}
+        .chevron{font-size:.75rem;color:var(--muted);transition:transform .2s}
+        .chevron.open{transform:rotate(90deg)}
+        .mb-body{display:none}
+        .mb-body.open{display:block}
+
+        /* TABLE INNER */
+        .tbl-head{display:grid;font-size:.55rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:.5rem 1.25rem;border-bottom:1px solid var(--border);background:rgba(255,255,255,.02)}
+        .tbl-row{display:grid;padding:.6rem 1.25rem;border-bottom:1px solid var(--border);align-items:start;transition:background .1s}
+        .tbl-row:last-child{border-bottom:none}
+        .tbl-row:hover{background:var(--surface2)}
+        .tbl-row.r-setup{background:rgba(251,191,36,.025)}
+        .phase-tag{font-size:.5rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:.1rem .4rem;border-radius:2rem;display:inline-block}
+        .pt-setup{background:rgba(251,191,36,.1);color:var(--amber);border:1px solid rgba(251,191,36,.25)}
+        .pt-cruise{background:var(--green-dim);color:var(--green);border:1px solid rgba(74,222,128,.25)}
+
+        /* SUMMARY CARDS */
+        .sum-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:.75rem;margin-bottom:1.5rem}
+        .sum-card{background:var(--surface);border:1px solid var(--border);border-radius:1rem;padding:1.1rem 1.25rem;transition:border-color .2s}
+        .sum-card:hover{border-color:var(--border2)}
+        .sc-label{font-size:.58rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:.5rem}
+        .sc-val{font-family:'JetBrains Mono',monospace;font-size:1.35rem;font-weight:700}
+        .sc-sub{font-size:.65rem;color:var(--muted);margin-top:.25rem}
+
+        @media(max-width:768px){
+            .mod-grid{grid-template-columns:1fr}
+            .horizon-wrap{flex-wrap:wrap}
+            .cs-grid{grid-template-columns:1fr 1fr}
         }
-        .status-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--green); margin-right: 0.4rem; animation: pulse 2s ease-in-out infinite; }
-        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
-
-        /* BADGE */
-        .badge { font-size: 0.5rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; padding: 0.15rem 0.45rem; border-radius: 2rem; white-space: nowrap; }
-        .badge-inver1 { background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent-border); }
-        .badge-inver2 { background: var(--purple-dim); color: var(--purple); border: 1px solid rgba(167,139,250,0.25); }
-        .badge-inver3 { background: rgba(251,146,60,0.1); color: var(--orange); border: 1px solid rgba(251,146,60,0.25); }
-
-        /* GROWTH INDICATOR */
-        .growth-pill {
-            display: inline-flex; align-items: center; gap: 0.25rem;
-            font-size: 0.55rem; font-weight: 800; padding: 0.15rem 0.45rem;
-            border-radius: 2rem; letter-spacing: 0.05em;
-        }
-        .growth-up { background: var(--green-dim); color: var(--green); border: 1px solid rgba(74,222,128,0.25); }
-
-        @media (max-width: 768px) {
-            .proj-grid { grid-template-columns: 1fr; }
-            .timeline-body { grid-template-columns: 1fr; }
-            .timeline-cell { border-right: none; border-bottom: 1px solid var(--border); }
-            .horizon-wrap { flex-wrap: wrap; }
-            .hero-right { display: none; }
-            .consol-grid { grid-template-columns: 1fr 1fr; }
-        }
-        @media (max-width: 480px) {
-            .tabs-wrap { overflow-x: auto; }
-            .summary-row { grid-template-columns: 1fr 1fr; }
+        @media(max-width:480px){
+            .tabs-wrap{overflow-x:auto}
+            .sum-row{grid-template-columns:1fr 1fr}
         }
     </style>
 </head>
 <body>
 
-<!-- ── LOCK ───────────────────────────────── -->
 <div id="lock">
     <div class="lock-glow"></div>
     <div class="lock-card">
@@ -455,8 +196,7 @@
         <div class="lock-logo">Credi<em>Listo</em></div>
         <div class="lock-sub">Proyecciones Financieras</div>
         <div class="lock-badge">Acceso Restringido</div>
-        <input type="password" class="lock-input" id="lock-pin"
-               maxlength="4" placeholder="· · · ·"
+        <input type="password" class="lock-input" id="lock-pin" maxlength="4" placeholder="· · · ·"
                onkeydown="if(event.key==='Enter')unlock()"
                oninput="document.getElementById('lock-err').style.display='none'">
         <button class="lock-btn" onclick="unlock()">INGRESAR</button>
@@ -464,7 +204,6 @@
     </div>
 </div>
 
-<!-- ── APP ────────────────────────────────── -->
 <div id="app">
     <div class="header">
         <div class="header-brand">Credi<em>Listo</em> · Proyecciones</div>
@@ -472,29 +211,15 @@
             <span class="header-tag" id="last-update">Cargando…</span>
         </div>
     </div>
-
     <div class="tabs-wrap">
-        <div class="tab active" onclick="setView('total')">
-            <span class="tab-dot" style="background:#94a3b8"></span>Total Consolidado
-        </div>
-        <div class="tab" onclick="setView('inver1')">
-            <span class="tab-dot" style="background:var(--lazaro)"></span>INVER 1
-        </div>
-        <div class="tab" onclick="setView('inver2')">
-            <span class="tab-dot" style="background:var(--purple)"></span>INVER 2
-        </div>
-        <div class="tab" onclick="setView('inver3')">
-            <span class="tab-dot" style="background:var(--orange)"></span>INVER 3
-        </div>
+        <div class="tab active" onclick="setView('total')"><span class="tab-dot" style="background:#94a3b8"></span>Total Consolidado</div>
+        <div class="tab" onclick="setView('inver1')"><span class="tab-dot" style="background:var(--lazaro)"></span>INVER 1</div>
+        <div class="tab" onclick="setView('inver2')"><span class="tab-dot" style="background:var(--purple)"></span>INVER 2</div>
+        <div class="tab" onclick="setView('inver3')"><span class="tab-dot" style="background:var(--orange)"></span>INVER 3</div>
     </div>
-
     <div class="main" id="main-content">
-        <div class="loading-wrap">
-            <div class="spinner"></div>
-            <span>Cargando datos y calculando proyecciones…</span>
-        </div>
+        <div class="loading-wrap"><div class="spinner"></div><span>Cargando datos…</span></div>
     </div>
-
     <div class="status-bar">
         <span><span class="status-dot"></span>Conectado a Firebase · credilistosv</span>
         <span id="ts-label">—</span>
@@ -502,519 +227,406 @@
 </div>
 
 <script>
-/* ─── PIN ──────────────────────────────────────── */
-function unlock() {
-    const pin = document.getElementById('lock-pin').value;
-    if (pin === '2025') {
-        document.getElementById('lock').style.display = 'none';
-        document.getElementById('app').style.display = 'block';
+/* ── PIN ─────────────────────────────── */
+function unlock(){
+    if(document.getElementById('lock-pin').value==='2025'){
+        document.getElementById('lock').style.display='none';
+        document.getElementById('app').style.display='block';
         initFirebase();
     } else {
-        const err = document.getElementById('lock-err');
-        err.style.display = 'block';
-        document.getElementById('lock-pin').value = '';
+        document.getElementById('lock-err').style.display='block';
+        document.getElementById('lock-pin').value='';
         document.getElementById('lock-pin').focus();
     }
 }
 
-/* ─── FIREBASE ─────────────────────────────────── */
-const DB_URL = 'https://credilistosv-default-rtdb.firebaseio.com';
-const FB_CFG = {
-    apiKey: 'AIzaSyC1GiJitT0QegrVe9o6CHCsvf7sEZELwRk',
-    authDomain: 'credilistosv.firebaseapp.com',
-    databaseURL: DB_URL,
-    projectId: 'credilistosv',
-    storageBucket: 'credilistosv.firebasestorage.app'
+/* ── FIREBASE ────────────────────────── */
+const FB_CFG={
+    apiKey:'AIzaSyC1GiJitT0QegrVe9o6CHCsvf7sEZELwRk',
+    authDomain:'credilistosv.firebaseapp.com',
+    databaseURL:'https://credilistosv-default-rtdb.firebaseio.com',
+    projectId:'credilistosv',
+    storageBucket:'credilistosv.firebasestorage.app'
 };
-
 let db;
-let dataStore = { inver1: {}, inver2: {}, inver3: {} };
-let loaded = { inver1: false, inver2: false, inver3: false };
-let currentView = 'total';
-let currentHorizon = 1; // 1, 2 or 3 years
-
-const SPLITS = {
-    inver1: [
-        { name: 'Lázaro',  pct: 17, color: 'var(--lazaro)'  },
-        { name: 'Emanuel', pct:  3, color: 'var(--emanuel)' }
-    ],
-    inver2: [
-        { name: 'Magda',   pct: 12, color: 'var(--magda)'   },
-        { name: 'Lázaro',  pct:  4, color: 'var(--lazaro)'  },
-        { name: 'Emanuel', pct:  4, color: 'var(--emanuel)' }
-    ],
-    inver3: [
-        { name: 'Walter',  pct: 12, color: 'var(--walter)'  },
-        { name: 'Lázaro',  pct:  4, color: 'var(--lazaro)'  },
-        { name: 'Emanuel', pct:  4, color: 'var(--emanuel)' }
-    ]
-};
-
-const MODULE_LABEL  = { inver1: 'INVER 1', inver2: 'INVER 2', inver3: 'INVER 3' };
-const MODULE_COLOR  = { inver1: 'var(--accent)', inver2: 'var(--purple)', inver3: 'var(--orange)' };
-const MODULE_CARD   = { inver1: 'pc-i1', inver2: 'pc-i2', inver3: 'pc-i3' };
-const MODULE_BADGE  = { inver1: 'badge-inver1', inver2: 'badge-inver2', inver3: 'badge-inver3' };
-
-function initFirebase() {
-    firebase.initializeApp(FB_CFG);
-    db = firebase.database();
-    subscribeAll();
-}
-
-function subscribeAll() {
-    db.ref('clientes').on('value', snap => {
-        dataStore.inver1 = {};
-        snap.forEach(c => {
-            const v = c.val();
-            if (v && v.tipo === 'ACTIVO') dataStore.inver1[c.key] = { ...v, _key: c.key, _mod: 'inver1' };
-        });
-        loaded.inver1 = true; checkAndRender();
-    });
-    db.ref('clientes2').on('value', snap => {
-        dataStore.inver2 = {};
-        snap.forEach(c => {
-            const v = c.val();
-            if (v && v.tipo === 'ACTIVO') dataStore.inver2[c.key] = { ...v, _key: c.key, _mod: 'inver2' };
-        });
-        loaded.inver2 = true; checkAndRender();
-    });
-    db.ref('clientes3').on('value', snap => {
-        dataStore.inver3 = {};
-        snap.forEach(c => {
-            const v = c.val();
-            if (v && v.tipo === 'ACTIVO') dataStore.inver3[c.key] = { ...v, _key: c.key, _mod: 'inver3' };
-        });
-        loaded.inver3 = true; checkAndRender();
-    });
-}
-
-function checkAndRender() {
-    if (loaded.inver1 && loaded.inver2 && loaded.inver3) {
-        render();
-        const now = new Date();
-        document.getElementById('last-update').textContent =
-            now.toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit' });
-        document.getElementById('ts-label').textContent =
-            'Última actualización: ' + now.toLocaleString('es-SV');
-    }
-}
-
-function setView(view) {
-    currentView = view;
-    document.querySelectorAll('.tab').forEach((t, i) => {
-        t.classList.toggle('active', ['total','inver1','inver2','inver3'][i] === view);
-    });
-    if (loaded.inver1 && loaded.inver2 && loaded.inver3) render();
-}
-
-function setHorizon(years) {
-    currentHorizon = years;
-    render();
-}
-
-/* ─── HELPERS ───────────────────────────────────── */
-function $$(n) { return parseFloat(n || 0); }
-function fmt$(n) { return '$' + $$(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+let DS={inver1:{},inver2:{},inver3:{}};
+let LD={inver1:false,inver2:false,inver3:false};
+let VIEW='total';
+let HORIZON=1;
 
 /*
- * CICLO: el capital se presta, recupera capital+ganancia, y se vuelve a prestar.
- * Tasa de ganancia: 20% por ciclo.
- * Duración promedio de un ciclo: estándar de 1 mes (mensual).
- * En 12 meses → 12 ciclos → capital crece con reinversión compuesta.
- *
- * Si el capital base actual es K, y se reinvierte con 20% por ciclo:
- *   Al año: K × (1.20)^12
- *   A 2 años: K × (1.20)^24
- *   A 3 años: K × (1.20)^36
- *
- * Ganancia acumulada = Capital proyectado − Capital original
- * Ganancia por socio = pct% × Capital proyectado en cada ciclo
+ * DISTRIBUCIÓN DE GANANCIAS
+ * Los porcentajes suman 20 (la tasa mensual).
+ * La fracción de cada socio = pct/20.
+ * Sobre la ganancia mensual G: socio_i recibe G × (pct_i / 20).
  */
-function projectMod(clientes, horizonYears) {
-    const cycles = horizonYears * 12;   // ciclos mensuales
-    const rate   = 0.20;                // 20% ganancia por ciclo
+const SPLITS={
+    inver1:[{name:'Lázaro',pct:17,color:'var(--lazaro)'},{name:'Emanuel',pct:3,color:'var(--emanuel)'}],
+    inver2:[{name:'Magda',pct:12,color:'var(--magda)'},{name:'Lázaro',pct:4,color:'var(--lazaro)'},{name:'Emanuel',pct:4,color:'var(--emanuel)'}],
+    inver3:[{name:'Walter',pct:12,color:'var(--walter)'},{name:'Lázaro',pct:4,color:'var(--lazaro)'},{name:'Emanuel',pct:4,color:'var(--emanuel)'}]
+};
+const ML={inver1:'INVER 1',inver2:'INVER 2',inver3:'INVER 3'};
+const MC={inver1:'var(--accent)',inver2:'var(--purple)',inver3:'var(--orange)'};
+const MB={inver1:'badge-i1',inver2:'badge-i2',inver3:'badge-i3'};
+const MK={inver1:'mc-i1',inver2:'mc-i2',inver3:'mc-i3'};
+const CAP_MAX=4000;
+const RATE=0.20;
 
-    let capitalBase = 0;
-    clientes.forEach(c => capitalBase += $$(c.monto));
-
-    // Capital final con reinversión compuesta
-    const capitalProyectado = capitalBase * Math.pow(1 + rate, cycles);
-    const gananciaAcumulada = capitalProyectado - capitalBase;
-
-    return { capitalBase, capitalProyectado, gananciaAcumulada, cycles };
-}
-
-function partnerProjection(mod, capitalBase, horizonYears) {
-    const cycles = horizonYears * 12;
-    const rate   = 0.20;
-    // Ganancia acumulada total del módulo
-    const capProy = capitalBase * Math.pow(1 + rate, cycles);
-    const ganTotal = capProy - capitalBase;
-
-    return SPLITS[mod].map(s => {
-        // Porcentaje de cada socio sobre la ganancia total (s.pct / 20 = fracción)
-        const fraccion = s.pct / 20;
-        return { name: s.name, color: s.color, ganancia: ganTotal * fraccion };
+function initFirebase(){
+    firebase.initializeApp(FB_CFG);
+    db=firebase.database();
+    [['clientes','inver1'],['clientes2','inver2'],['clientes3','inver3']].forEach(([ref,mod])=>{
+        db.ref(ref).on('value',snap=>{
+            DS[mod]={};
+            snap.forEach(c=>{const v=c.val();if(v&&v.tipo==='ACTIVO')DS[mod][c.key]={...v,_mod:mod}});
+            LD[mod]=true;
+            if(LD.inver1&&LD.inver2&&LD.inver3){
+                render();
+                const n=new Date();
+                document.getElementById('last-update').textContent=n.toLocaleTimeString('es-SV',{hour:'2-digit',minute:'2-digit'});
+                document.getElementById('ts-label').textContent='Última actualización: '+n.toLocaleString('es-SV');
+            }
+        });
     });
 }
 
-/* Ganancia mensual media esperada (ciclos simples a partir del capital actual) */
-function monthlyByYear(capitalBase, year) {
-    const rate = 0.20;
-    const startCycle = (year - 1) * 12;
-    const capAtStart = capitalBase * Math.pow(1 + rate, startCycle);
-    const monthly = [];
-    const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-    for (let m = 0; m < 12; m++) {
-        const capM = capAtStart * Math.pow(1 + rate, m);
-        monthly.push({ label: MESES[m], ganancia: capM * rate, capital: capM });
-    }
-    return monthly;
+function setView(v){
+    VIEW=v;
+    document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',['total','inver1','inver2','inver3'][i]===v));
+    if(LD.inver1&&LD.inver2&&LD.inver3)render();
 }
 
-/* ─── RENDER ────────────────────────────────────── */
-function render() {
-    const view = currentView;
-    const content = document.getElementById('main-content');
+function $$(n){return parseFloat(n||0)}
+function fmt$(n){return '$'+parseFloat(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
 
-    const modsToShow = view === 'total' ? ['inver1','inver2','inver3'] : [view];
+/*
+ * ── MODELO DE PROYECCIÓN ─────────────────────────────────────────────────────
+ *
+ * Regla de negocio:
+ *   • Se inyecta capital externo. El primer ciclo genera ganancia.
+ *   • Mes 1: Se presta el capital base actual (leído de Firebase).
+ *             Al cobrar, se reinvierte capital + ganancia (máx $4,000).
+ *   • Mes 2: Capital en juego = min(cap_base + ganancia_m1, $4,000).
+ *             Se presta. Al cobrar, se vuelve a reinvertir (ya estamos cerca o en $4k).
+ *   • Mes 3 en adelante (CRUCERO):
+ *             Capital fijo = min(acumulado_m2 + ganancia_m2, $4,000) → ya no crece.
+ *             Cada mes se retira la ganancia. El capital queda intacto = $4,000.
+ *             Ganancia mensual constante = $4,000 × 20% = $800 (si cap llegó a $4k).
+ *
+ * El capital original se recupera íntegro. Las ganancias son ingresos netos retirados.
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+function buildPlan(capBase,horizonYears){
+    const totalM=horizonYears*12;
+    const plan=[];
+    let cap=Math.min(capBase,CAP_MAX);
 
-    const clientsByMod = {};
-    let allClients = [];
-    for (const mod of modsToShow) {
-        clientsByMod[mod] = Object.values(dataStore[mod]);
-        allClients = allClients.concat(clientsByMod[mod]);
+    for(let m=1;m<=totalM;m++){
+        const gan=cap*RATE;
+        let fase,capNext;
+
+        if(m<=2){
+            // Arranque: reinvertir capital+ganancia hasta CAP_MAX
+            fase='setup';
+            capNext=Math.min(cap+gan,CAP_MAX);
+        } else {
+            // Crucero: retirar ganancia, capital fijo
+            fase='cruise';
+            capNext=cap; // capital no cambia
+        }
+
+        plan.push({mes:m,cap,gan,fase});
+        cap=capNext;
+    }
+    return plan;
+}
+
+function planTotals(plan){
+    const ganTotal=plan.reduce((s,m)=>s+m.gan,0);
+    const cruiseM=plan.find(m=>m.fase==='cruise');
+    const ganMes=cruiseM?cruiseM.cap*RATE:plan[plan.length-1].gan;
+    const capFijo=cruiseM?cruiseM.cap:plan[plan.length-1].cap;
+    return{ganTotal,ganMes,capFijo};
+}
+
+/* ── RENDER ──────────────────────────── */
+function render(){
+    const H=HORIZON;
+    const view=VIEW;
+    const mods=view==='total'?['inver1','inver2','inver3']:[view];
+    const cont=document.getElementById('main-content');
+
+    // Capital base por módulo
+    const capBase={};
+    ['inver1','inver2','inver3'].forEach(mod=>{
+        let t=0;Object.values(DS[mod]).forEach(c=>t+=$$(c.monto));
+        capBase[mod]=t;
+    });
+
+    // Planes y totales
+    const planes={};
+    ['inver1','inver2','inver3'].forEach(mod=>planes[mod]=buildPlan(capBase[mod],H));
+
+    // Ganancia total por horizonte (para selector)
+    function horizonGan(yr){
+        let g=0;
+        mods.forEach(mod=>buildPlan(capBase[mod],yr).forEach(m=>g+=m.gan));
+        return g;
     }
 
-    // Base stats
-    let totalCapital = 0;
-    for (const c of allClients) totalCapital += $$(c.monto);
+    // Consolidado visible
+    let totalGan=0,totalCapFijo=0,totalGanMes=0;
+    mods.forEach(mod=>{
+        const t=planTotals(planes[mod]);
+        totalGan+=t.ganTotal;totalCapFijo+=t.capFijo;totalGanMes+=t.ganMes;
+    });
 
-    const now = new Date();
+    const MESES=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    const nowYear=new Date().getFullYear();
 
-    let html = '';
+    let h='';
 
-    // ── HERO ───────────────────────────────────────────
-    const capProy1 = totalCapital * Math.pow(1.20, 12);
-    const capProy2 = totalCapital * Math.pow(1.20, 24);
-    const capProy3 = totalCapital * Math.pow(1.20, 36);
-
-    html += `<div class="page-hero">
-        <div class="hero-left">
-            <div class="hero-title">📈 Proyecciones de <em>Ventas</em></div>
-            <div class="hero-sub">
-                Basado en ${allClients.length} crédito${allClients.length!==1?'s':''} activo${allClients.length!==1?'s':''} · Capital base: <strong style="color:var(--accent)">${fmt$(totalCapital)}</strong><br>
-                Tasa de ganancia: 20% por ciclo mensual · Reinversión compuesta
-            </div>
+    /* HERO */
+    h+=`<div class="page-hero">
+        <div class="hero-title">📈 Proyecciones de <em>Ventas</em> — Capital Fijo + Retiro Mensual</div>
+        <div class="hero-sub">
+            Capital máximo en juego por módulo: <strong style="color:var(--amber)">$4,000</strong> (inyectado + 1ª reinversión) ·
+            <strong style="color:var(--green)">Mes 1–2:</strong> reinversión para alcanzar tope ·
+            <strong style="color:var(--accent)">Mes 3+:</strong> capital fijo, ganancias <em>retiradas</em> cada mes · Tasa: 20% mensual
         </div>
-        <div class="hero-right">
-            <div class="hero-badge">
-                <div class="hero-badge-label">📅 1 Año</div>
-                <div class="hero-badge-val" style="color:var(--green)">${fmt$(capProy1)}</div>
-            </div>
-            <div class="hero-badge">
-                <div class="hero-badge-label">📅 2 Años</div>
-                <div class="hero-badge-val" style="color:var(--accent)">${fmt$(capProy2)}</div>
-            </div>
-            <div class="hero-badge">
-                <div class="hero-badge-label">📅 3 Años</div>
-                <div class="hero-badge-val" style="color:var(--purple)">${fmt$(capProy3)}</div>
+    </div>`;
+
+    /* METODOLOGÍA */
+    h+=`<div class="method-banner">
+        <div class="method-icon">📐</div>
+        <div>
+            <div class="method-title">Metodología — Cómo funciona el ciclo</div>
+            <div class="method-steps">
+                <div class="method-step"><strong>Mes 1 — Arranque</strong><br>Capital en juego = saldo Firebase actual.<br>Ganancia 20% reinvertida junto al capital.</div>
+                <div class="method-step"><strong>Mes 2 — Refuerzo</strong><br>Capital sube hasta $4,000 máx.<br>Ganancia reinvertida por última vez.</div>
+                <div class="method-step"><strong>Mes 3+ — Crucero</strong><br>Capital fijo = $4,000.<br>Ganancia <strong>$800/mes se retira</strong>. El capital no crece.</div>
+                <div class="method-step"><strong>Al final del horizonte</strong><br>Capital original intacto = $4,000.<br>Ganancias = ingresos netos acumulados.</div>
             </div>
         </div>
     </div>`;
 
-    // ── CYCLE EXPLANATION ──────────────────────────────
-    html += `<div class="cycle-info">
-        <div class="cycle-icon">♻️</div>
-        <div class="cycle-text">
-            <div class="cycle-title">Metodología de Proyección — Reinversión Compuesta Mensual</div>
-            <div class="cycle-sub">
-                Cada ciclo mensual genera un 20% de ganancia sobre el capital invertido. Al término de cada ciclo, el capital + ganancia se reinvierte completamente.
-                Formula: <strong style="color:var(--amber)">K × (1.20)^n</strong> donde n = número de meses.
-                Ciclos proyectados: 12 / 24 / 36 meses según horizonte seleccionado.
+    /* HORIZON */
+    h+=`<div class="horizon-wrap">
+        ${[1,2,3].map((yr,i)=>`
+        <div class="horizon-btn${H===yr?' active':''}" onclick="HORIZON=${yr};render()">
+            <div class="h-icon">${['🌱','🌿','🌳'][i]}</div>
+            <div class="h-label">${yr} Año${yr>1?'s':''} · ${yr*12} meses</div>
+            <div class="h-sub">${fmt$(horizonGan(yr))} en ganancias</div>
+        </div>`).join('')}
+    </div>`;
+
+    /* CONSOLIDATED STRIP */
+    h+=`<div class="consol-strip">
+        <div class="cs-header">
+            <div class="cs-title">Resumen <em>Consolidado</em> — ${H} Año${H>1?'s':''} · ${H*12} ciclos</div>
+        </div>
+        <div class="cs-grid">
+            <div class="cs-cell">
+                <div class="cs-label">🏦 Capital en Juego (crucero)</div>
+                <div class="cs-val" style="color:var(--accent)">${fmt$(totalCapFijo)}</div>
+                <div class="cs-sub">Fijo desde mes 3 · no crece</div>
+            </div>
+            <div class="cs-cell">
+                <div class="cs-label">💵 Ganancia Mensual Retirada</div>
+                <div class="cs-val" style="color:var(--green)">${fmt$(totalGanMes)}</div>
+                <div class="cs-sub">Constante cada mes en crucero</div>
+            </div>
+            <div class="cs-cell">
+                <div class="cs-label">✨ Ganancia Total Acumulada</div>
+                <div class="cs-val" style="color:var(--amber)">${fmt$(totalGan)}</div>
+                <div class="cs-sub">En ${H*12} meses · retirada en efectivo</div>
+            </div>
+            <div class="cs-cell">
+                <div class="cs-label">📅 Ganancia por Año</div>
+                <div class="cs-val" style="color:var(--purple)">${fmt$(totalGanMes*12)}</div>
+                <div class="cs-sub">En fase crucero (12 meses × ${fmt$(totalGanMes)})</div>
             </div>
         </div>
     </div>`;
 
-    // ── HORIZON SELECTOR ───────────────────────────────
-    html += `<div class="horizon-wrap">
-        <div class="horizon-btn ${currentHorizon===1?'active':''}" onclick="currentHorizon=1;render()">
-            <div class="horizon-icon">🌱</div>
-            <div class="horizon-label">1 Año</div>
-            <div class="horizon-sub">12 ciclos · ${fmt$(totalCapital*Math.pow(1.20,12))}</div>
-        </div>
-        <div class="horizon-btn ${currentHorizon===2?'active':''}" onclick="currentHorizon=2;render()">
-            <div class="horizon-icon">🌿</div>
-            <div class="horizon-label">2 Años</div>
-            <div class="horizon-sub">24 ciclos · ${fmt$(totalCapital*Math.pow(1.20,24))}</div>
-        </div>
-        <div class="horizon-btn ${currentHorizon===3?'active':''}" onclick="currentHorizon=3;render()">
-            <div class="horizon-icon">🌳</div>
-            <div class="horizon-label">3 Años</div>
-            <div class="horizon-sub">36 ciclos · ${fmt$(totalCapital*Math.pow(1.20,36))}</div>
-        </div>
-    </div>`;
+    /* MODULE CARDS */
+    h+=`<div class="sec-div"><span class="sec-div-label">Proyección por Módulo</span><div class="sec-div-line"></div><span class="badge badge-i1" style="font-size:.6rem;padding:.2rem .55rem">${H} AÑO${H>1?'S':''}</span></div>`;
+    h+=`<div class="mod-grid" style="${mods.length===1?'grid-template-columns:1fr;max-width:480px':''}">`;
 
-    // ── CONSOLIDATED PROJECTION ────────────────────────
-    const H = currentHorizon;
-    const cycles = H * 12;
-    const capFinal   = totalCapital * Math.pow(1.20, cycles);
-    const ganTotal   = capFinal - totalCapital;
-    const ganMensual = ganTotal / cycles;
-    const multip     = totalCapital > 0 ? capFinal / totalCapital : 0;
+    ['inver1','inver2','inver3'].forEach(mod=>{
+        if(view!=='total'&&view!==mod)return;
+        const plan=planes[mod];
+        const{ganTotal,ganMes,capFijo}=planTotals(plan);
+        const ganAnual=ganMes*12;
 
-    html += `<div class="consol-proj">
-        <div class="consol-header">
-            <div class="consol-title">Proyección <em>Consolidada</em> a ${H} Año${H!==1?'s':''}</div>
-            <span class="growth-pill growth-up">↑ ×${multip.toFixed(2)}</span>
-        </div>
-        <div class="consol-grid">
-            <div class="consol-cell">
-                <div class="consol-cell-label">💰 Capital Base</div>
-                <div class="consol-cell-val" style="color:var(--accent)">${fmt$(totalCapital)}</div>
-                <div class="consol-cell-sub">Inversión actual activa</div>
+        h+=`<div class="mod-card ${MK[mod]}">
+            <div class="mod-top">
+                <div class="mod-name" style="color:${MC[mod]}">${ML[mod]}</div>
+                <div class="mod-desc">Capital Firebase: ${fmt$(capBase[mod])} · Máx. en juego: ${fmt$(CAP_MAX)}</div>
             </div>
-            <div class="consol-cell">
-                <div class="consol-cell-label">📈 Capital Proyectado</div>
-                <div class="consol-cell-val" style="color:var(--text)">${fmt$(capFinal)}</div>
-                <div class="consol-cell-sub">En ${cycles} ciclos mensuales</div>
-            </div>
-            <div class="consol-cell">
-                <div class="consol-cell-label">✨ Ganancia Acumulada</div>
-                <div class="consol-cell-val" style="color:var(--green)">${fmt$(ganTotal)}</div>
-                <div class="consol-cell-sub">${totalCapital>0?((ganTotal/totalCapital)*100).toFixed(0):0}% sobre capital</div>
-            </div>
-            <div class="consol-cell">
-                <div class="consol-cell-label">📅 Ganancia Mensual Media</div>
-                <div class="consol-cell-val" style="color:var(--amber)">${fmt$(ganMensual)}</div>
-                <div class="consol-cell-sub">Promedio del período</div>
-            </div>
-            <div class="consol-cell">
-                <div class="consol-cell-label">🔁 Multiplicador</div>
-                <div class="consol-cell-val" style="color:var(--purple)">×${multip.toFixed(2)}</div>
-                <div class="consol-cell-sub">Crecimiento total</div>
-            </div>
-            <div class="consol-cell">
-                <div class="consol-cell-label">📊 Créditos Activos</div>
-                <div class="consol-cell-val" style="color:var(--muted2)">${allClients.length}</div>
-                <div class="consol-cell-sub">Base de proyección</div>
-            </div>
-        </div>
-    </div>`;
-
-    // ── PROJECTION CARDS PER MODULE ────────────────────
-    html += `<div class="sec-divider">
-        <span class="sec-divider-label">Proyección por Módulo</span>
-        <div class="sec-divider-line"></div>
-        <span class="sec-divider-badge" style="color:var(--accent);border-color:var(--accent-border);background:var(--accent-dim)">
-            ${H} AÑO${H!==1?'S':''}
-        </span>
-    </div>`;
-
-    const modsAll = ['inver1','inver2','inver3'];
-    const modsDisplay = view === 'total' ? modsAll : [view];
-
-    // In filtered mode wrap in single col, otherwise 3-col grid
-    const gridCls = modsDisplay.length === 1 ? '' : 'proj-grid';
-    html += `<div class="${gridCls}">`;
-
-    for (const mod of modsAll) {
-        const clientes = Object.values(dataStore[mod]);
-        const { capitalBase, capitalProyectado, gananciaAcumulada, cycles: cy } = projectMod(clientes, H);
-        const partners = partnerProjection(mod, capitalBase, H);
-        const gMens = gananciaAcumulada / cy;
-        const mult = capitalBase > 0 ? capitalProyectado / capitalBase : 0;
-
-        // Skip if not in current view (but always show all 3 in total)
-        const isVisible = view === 'total' || view === mod;
-        if (!isVisible) continue;
-
-        html += `<div class="proj-card ${MODULE_CARD[mod]}">
-            <div class="proj-card-header">
-                <div class="proj-card-title">
-                    <span class="badge ${MODULE_BADGE[mod]}">${MODULE_LABEL[mod]}</span>
-                    <span style="color:${MODULE_COLOR[mod]}">${MODULE_LABEL[mod]}</span>
+            <div class="mod-body">
+                <div class="mod-row">
+                    <span class="mod-row-label">Capital en juego (mes 3+)</span>
+                    <span class="mod-row-val" style="color:${MC[mod]}">${fmt$(capFijo)}</span>
                 </div>
-                <div class="proj-card-sub">${clientes.length} crédito${clientes.length!==1?'s':''} · Capital: ${fmt$(capitalBase)}</div>
-            </div>
-            <div class="proj-body">
-                <div class="proj-row">
-                    <span class="proj-row-label">Capital base</span>
-                    <span class="proj-row-val" style="color:${MODULE_COLOR[mod]}">${fmt$(capitalBase)}</span>
+                <div class="mod-row">
+                    <span class="mod-row-label">Ganancia mensual retirada</span>
+                    <span class="mod-row-val" style="color:var(--green)">${fmt$(ganMes)}</span>
                 </div>
-                <div class="proj-row">
-                    <span class="proj-row-label">Capital proyectado (${H}a)</span>
-                    <span class="proj-row-val" style="color:var(--text)">${fmt$(capitalProyectado)}</span>
+                <div class="mod-row">
+                    <span class="mod-row-label">Ganancia anual (crucero)</span>
+                    <span class="mod-row-val" style="color:var(--amber)">${fmt$(ganAnual)}</span>
                 </div>
-                <div class="proj-row">
-                    <span class="proj-row-label">Ganancia acumulada</span>
-                    <span class="proj-row-val" style="color:var(--green)">${fmt$(gananciaAcumulada)}</span>
-                </div>
-                <div class="proj-row">
-                    <span class="proj-row-label">Ganancia mensual media</span>
-                    <span class="proj-row-val" style="color:var(--amber)">${fmt$(gMens)}</span>
-                </div>
-                <div class="proj-row">
-                    <span class="proj-row-label">Multiplicador</span>
-                    <span class="proj-row-val" style="color:var(--purple)">×${mult.toFixed(2)}</span>
+                <div class="mod-row">
+                    <span class="mod-row-label">Capital intacto al final</span>
+                    <span class="mod-row-val" style="color:var(--muted2)">${fmt$(capFijo)}</span>
                 </div>
             </div>
-            <div class="proj-total-block">
-                <div class="proj-total-label">Total a recibir</div>
-                <div class="proj-total-val" style="color:${MODULE_COLOR[mod]}">${fmt$(capitalProyectado)}</div>
-                <div class="proj-total-sub">En ${cy} ciclos mensuales</div>
+            <div class="mod-total-block">
+                <div class="mtb-label">Total ganancia retirada en ${H} año${H>1?'s':''}</div>
+                <div class="mtb-val" style="color:${MC[mod]}">${fmt$(ganTotal)}</div>
+                <div class="mtb-sub">Capital original no tocado = ${fmt$(capFijo)}</div>
             </div>
-            <div class="proj-partner-block">
-                <div class="proj-partner-label">Ganancia por Socio</div>
-                ${partners.map(p => `
-                    <div class="proj-partner-row">
-                        <span class="proj-partner-name">
-                            <span class="proj-partner-dot" style="background:${p.color}"></span>
-                            ${p.name}
+            <div class="mod-partners">
+                <div class="mp-title">Ingreso mensual por socio (crucero)</div>
+                ${SPLITS[mod].map(s=>{
+                    const ganSocioMes=ganMes*(s.pct/20);
+                    const ganSocioTotal=ganSocioMes*H*12;
+                    return `<div class="mp-row">
+                        <span class="mp-name-wrap"><span class="mp-dot" style="background:${s.color}"></span>${s.name} <span style="color:var(--muted);font-size:.6rem">(${s.pct}%)</span></span>
+                        <span class="mp-vals">
+                            <div class="mp-mes" style="color:${s.color}">${fmt$(ganSocioMes)}<span style="font-size:.6rem;font-weight:400;color:var(--muted)">/mes</span></div>
+                            <div class="mp-total-yr">${fmt$(ganSocioTotal)} en ${H}a</div>
                         </span>
-                        <span class="proj-partner-val" style="color:${p.color}">${fmt$(p.ganancia)}</span>
-                    </div>
-                `).join('')}
+                    </div>`;
+                }).join('')}
             </div>
         </div>`;
-    }
-    html += `</div>`;
+    });
+    h+=`</div>`;
 
-    // ── MONTHLY TIMELINE ───────────────────────────────
-    html += `<div class="sec-divider">
-        <span class="sec-divider-label">Desglose Mensual por Año</span>
-        <div class="sec-divider-line"></div>
+    /* MONTHLY TABLES */
+    h+=`<div class="sec-div"><span class="sec-div-label">Desglose Mensual Detallado</span><div class="sec-div-line"></div></div>`;
+    h+=`<div class="phase-legend">
+        <div class="phase-pill"><span class="phase-dot" style="background:var(--amber)"></span>Meses 1–2 · Fase Arranque (reinversión → alcanzar $4,000)</div>
+        <div class="phase-pill"><span class="phase-dot" style="background:var(--green)"></span>Mes 3+ · Fase Crucero (capital fijo · ganancia retirada mensualmente)</div>
     </div>`;
 
-    // Per-year timeline
-    for (let yr = 1; yr <= H; yr++) {
-        // One entry per month x each visible module
-        // Build per-mod monthly data
-        const modData = {};
-        for (const mod of modsDisplay) {
-            const clientes = Object.values(dataStore[mod]);
-            let capBase = 0;
-            clientes.forEach(c => capBase += $$(c.monto));
-            modData[mod] = monthlyByYear(capBase, yr);
-        }
+    for(let yr=1;yr<=H;yr++){
+        const s=(yr-1)*12;
+        const e=yr*12;
+        const calYear=nowYear+yr-1;
 
-        // Year-level totals
-        let yrGanTotal = 0;
-        let yrCapEnd = 0;
-        for (const mod of modsDisplay) {
-            const months = modData[mod];
-            months.forEach(m => yrGanTotal += m.ganancia);
-            yrCapEnd += modData[mod][11].capital * 1.20; // capital at end of year
-        }
-
-        const collapseId = `yr-${yr}`;
-
-        html += `<div class="timeline-month">
-            <div class="timeline-month-header" onclick="toggleSection('${collapseId}', this)">
-                <div class="timeline-month-title">
-                    📅 Año ${yr}
-                    <span class="badge" style="background:rgba(255,255,255,0.06);color:var(--muted2);border:1px solid var(--border2)">
-                        ${now.getFullYear() + yr - 1}
-                    </span>
-                </div>
-                <div class="timeline-month-stats">
-                    <div class="tm-stat">
-                        <div class="tm-stat-label">Ganancia del Año</div>
-                        <div class="tm-stat-val" style="color:var(--green)">${fmt$(yrGanTotal)}</div>
-                    </div>
-                    <div class="tm-stat">
-                        <div class="tm-stat-label">Capital al Cierre</div>
-                        <div class="tm-stat-val" style="color:var(--accent)">${fmt$(yrCapEnd)}</div>
-                    </div>
-                    <span class="chevron open" id="chev-${collapseId}">▶</span>
-                </div>
-            </div>`;
-
-        // Show first 3 months + a "ver más" collapse, or all 12 months
-        html += `<div id="${collapseId}" class="timeline-body-wrap">`;
-
-        const MESES_FULL = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-        for (let m = 0; m < 12; m++) {
-            const mesLabel = MESES_FULL[m];
-
-            html += `<div class="timeline-body">`;
-            for (const mod of modsDisplay) {
-                const md = modData[mod][m];
-                const partners = SPLITS[mod].map(s => ({
-                    name: s.name, color: s.color,
-                    ganancia: md.ganancia * (s.pct / 20)
-                }));
-                html += `<div class="timeline-cell">
-                    <div class="timeline-cell-label" style="color:${MODULE_COLOR[mod]}">${MODULE_LABEL[mod]} · ${mesLabel}</div>
-                    <div class="timeline-row">
-                        <span class="timeline-row-name">Capital</span>
-                        <span class="timeline-row-val" style="color:var(--accent)">${fmt$(md.capital)}</span>
-                    </div>
-                    <div class="timeline-row">
-                        <span class="timeline-row-name">Ganancia mes</span>
-                        <span class="timeline-row-val" style="color:var(--green)">${fmt$(md.ganancia)}</span>
-                    </div>
-                    ${partners.map(p => `
-                        <div class="timeline-row">
-                            <span class="timeline-row-name" style="color:${p.color}">${p.name}</span>
-                            <span class="timeline-row-val" style="color:${p.color}">${fmt$(p.ganancia)}</span>
-                        </div>
-                    `).join('')}
-                </div>`;
-            }
-            html += `</div>`; // .timeline-body
-        }
-
-        html += `</div>`; // .timeline-body-wrap
-        html += `</div>`; // .timeline-month
-    }
-
-    // ── PARTNER SUMMARY OVER HORIZON ──────────────────
-    html += `<div class="sec-divider">
-        <span class="sec-divider-label">Ganancia Total por Socio · ${H} Año${H!==1?'s':''}</span>
-        <div class="sec-divider-line"></div>
-    </div>`;
-
-    // Aggregate per partner over all visible modules
-    const partnerTotals = {};
-    for (const mod of modsDisplay) {
-        const clientes = Object.values(dataStore[mod]);
-        let capBase = 0;
-        clientes.forEach(c => capBase += $$(c.monto));
-        const partners = partnerProjection(mod, capBase, H);
-        partners.forEach(p => {
-            if (!partnerTotals[p.name]) partnerTotals[p.name] = { name: p.name, color: p.color, total: 0, byMod: {} };
-            partnerTotals[p.name].total += p.ganancia;
-            partnerTotals[p.name].byMod[mod] = p.ganancia;
+        // year-level totals
+        let yrGan=0;
+        mods.forEach(mod=>planes[mod].slice(s,e).forEach(m=>yrGan+=m.gan));
+        const cruisePlan=planes[mods[0]][Math.min(2,planes[mods[0]].length-1)];
+        let yrCruiseMes=0;
+        mods.forEach(mod=>{
+            const cp=planes[mod][Math.min(2,planes[mod].length-1)];
+            if(cp)yrCruiseMes+=cp.cap*RATE;
         });
+
+        const colId=`yr${yr}`;
+        // grid: mes | fase | one col per mod
+        const cols=`80px 100px ${mods.map(()=>'1fr').join(' ')}`;
+
+        h+=`<div class="month-block">
+            <div class="mb-header" onclick="toggleMB('${colId}')">
+                <div class="mb-title">📅 Año ${yr} <span class="mb-yr-tag">${calYear}</span></div>
+                <div class="mb-stats">
+                    <div class="mb-stat">
+                        <div class="mb-stat-label">Ganancia del año</div>
+                        <div class="mb-stat-val" style="color:var(--green)">${fmt$(yrGan)}</div>
+                    </div>
+                    <div class="mb-stat">
+                        <div class="mb-stat-label">Gan. mensual crucero</div>
+                        <div class="mb-stat-val" style="color:var(--amber)">${fmt$(yrCruiseMes)}</div>
+                    </div>
+                    <span class="chevron${yr===1?' open':''}" id="chev-${colId}">▶</span>
+                </div>
+            </div>
+            <div class="mb-body${yr===1?' open':''}" id="body-${colId}">
+                <div class="tbl-head" style="grid-template-columns:${cols}">
+                    <span>Mes</span><span>Fase</span>
+                    ${mods.map(mod=>`<span>${ML[mod]}</span>`).join('')}
+                </div>`;
+
+        for(let m=s+1;m<=e;m++){
+            const mi=m-1;
+            const mesLabel=MESES[(m-1)%12];
+            const fase=planes[mods[0]][mi]?.fase||'cruise';
+
+            h+=`<div class="tbl-row r-${fase}" style="grid-template-columns:${cols}">
+                <div>
+                    <div style="font-family:'JetBrains Mono',monospace;font-weight:700;font-size:.72rem">M${m}</div>
+                    <div style="font-size:.58rem;color:var(--muted)">${mesLabel}</div>
+                </div>
+                <div><span class="phase-tag pt-${fase}">${fase==='setup'?'⚡ Arranque':'✅ Crucero'}</span></div>
+                ${mods.map(mod=>{
+                    const pm=planes[mod][mi];
+                    if(!pm)return'<div>—</div>';
+                    return`<div>
+                        <div style="display:flex;justify-content:space-between;margin-bottom:.25rem">
+                            <span style="font-size:.6rem;color:var(--muted2)">Capital:</span>
+                            <span style="font-family:'JetBrains Mono',monospace;font-size:.7rem;font-weight:700;color:${MC[mod]}">${fmt$(pm.cap)}</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;margin-bottom:.3rem">
+                            <span style="font-size:.6rem;color:var(--muted2)">${fase==='cruise'?'Retiro:':'Reinvierte:'}</span>
+                            <span style="font-family:'JetBrains Mono',monospace;font-size:.7rem;font-weight:700;color:var(--green)">${fmt$(pm.gan)}</span>
+                        </div>
+                        <div style="border-top:1px solid var(--border);padding-top:.25rem;margin-top:.1rem">
+                        ${SPLITS[mod].map(s=>{
+                            const gs=pm.gan*(s.pct/20);
+                            return`<div style="display:flex;justify-content:space-between">
+                                <span style="font-size:.58rem;color:${s.color}">${s.name}:</span>
+                                <span style="font-family:'JetBrains Mono',monospace;font-size:.65rem;font-weight:600;color:${s.color}">${fmt$(gs)}</span>
+                            </div>`;
+                        }).join('')}
+                        </div>
+                    </div>`;
+                }).join('')}
+            </div>`;
+        }
+        h+=`</div></div>`;
     }
 
-    const ptArr = Object.values(partnerTotals).sort((a,b) => b.total - a.total);
+    /* PARTNER TOTALS */
+    h+=`<div class="sec-div"><span class="sec-div-label">Ingreso Total por Socio — ${H} Año${H>1?'s':''}</span><div class="sec-div-line"></div></div>`;
 
-    html += `<div class="summary-row">`;
-    for (const p of ptArr) {
-        const slug = p.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-        const detail = Object.entries(p.byMod).map(([mod, g]) =>
-            `${MODULE_LABEL[mod]}: ${fmt$(g)}`
-        ).join(' · ');
-        html += `<div class="sum-card">
-            <div class="sum-label" style="color:${p.color}">👤 ${p.name}</div>
-            <div class="sum-val" style="color:${p.color}">${fmt$(p.total)}</div>
-            <div class="sum-sub">${detail}</div>
+    const partnerMap={};
+    mods.forEach(mod=>{
+        const{ganTotal,ganMes}=planTotals(planes[mod]);
+        SPLITS[mod].forEach(s=>{
+            if(!partnerMap[s.name])partnerMap[s.name]={name:s.name,color:s.color,total:0,mes:0,byMod:{}};
+            const ganSocioTotal=ganTotal*(s.pct/20);
+            const ganSocioMes=ganMes*(s.pct/20);
+            partnerMap[s.name].total+=ganSocioTotal;
+            partnerMap[s.name].mes+=ganSocioMes;
+            partnerMap[s.name].byMod[mod]={total:ganSocioTotal,mes:ganSocioMes};
+        });
+    });
+
+    h+=`<div class="sum-row">`;
+    Object.values(partnerMap).sort((a,b)=>b.total-a.total).forEach(p=>{
+        const detail=Object.entries(p.byMod).map(([mod,v])=>`${ML[mod]}: ${fmt$(v.total)}`).join(' · ');
+        h+=`<div class="sum-card">
+            <div class="sc-label" style="color:${p.color}">👤 ${p.name}</div>
+            <div class="sc-val" style="color:${p.color}">${fmt$(p.total)}</div>
+            <div class="sc-sub" style="color:var(--green)">${fmt$(p.mes)}/mes en crucero</div>
+            <div class="sc-sub">${detail}</div>
         </div>`;
-    }
-    html += `</div>`;
+    });
+    h+=`</div>`;
 
-    content.innerHTML = html;
+    cont.innerHTML=h;
 }
 
-function toggleSection(id, header) {
-    const body = document.getElementById(id);
-    if (!body) return;
-    const isHidden = body.style.display === 'none';
-    body.style.display = isHidden ? '' : 'none';
-    const chev = document.getElementById('chev-' + id);
-    if (chev) chev.classList.toggle('open', isHidden);
+function toggleMB(id){
+    const b=document.getElementById('body-'+id);
+    const c=document.getElementById('chev-'+id);
+    const open=b.classList.toggle('open');
+    c.classList.toggle('open',open);
 }
 </script>
 </body>
