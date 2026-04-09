@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel Admin INVER 3 | CrediListo</title>
+    <title>Panel Admin | CrediListo</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&display=swap" rel="stylesheet">
 
@@ -319,7 +319,7 @@
             background: var(--surface2);
             transition: opacity 0.2s;
         }
-        .cuota-row.pagada { opacity: 0.4; }
+        .cuota-row.pagada { opacity: 0.75; background: rgba(22,163,74,0.04); border-color: rgba(22,163,74,0.2); }
         .cuota-n {
             font-family: 'JetBrains Mono', monospace;
             font-size: 0.65rem; font-weight: 700; color: var(--muted);
@@ -342,7 +342,7 @@
             transition: border-color 0.2s;
         }
         .cuota-input:focus { border-color: var(--accent); }
-        .cuota-input:disabled { opacity: 0.4; cursor: not-allowed; }
+        .cuota-input:disabled { opacity: 1; cursor: default; color: #16a34a; font-weight: 800; border-color: rgba(22,163,74,0.25); background: rgba(22,163,74,0.05); }
         .cuota-date {
             background: var(--bg);
             border: 1px solid var(--border2);
@@ -355,7 +355,7 @@
             transition: border-color 0.2s;
         }
         .cuota-date:focus { border-color: var(--accent); }
-        .cuota-date:disabled { opacity: 0.4; cursor: not-allowed; }
+        .cuota-date:disabled { opacity: 0.85; cursor: default; color: var(--muted2); }
         .cuota-btn {
             font-size: 0.6rem; font-weight: 800; letter-spacing: 0.05em;
             text-transform: uppercase; padding: 0.35rem 0.6rem;
@@ -494,7 +494,7 @@
 <div id="lock">
     <div class="lock-card">
         <div class="lock-logo">Credi<em>Listo</em></div>
-        <div class="lock-sub">Panel Administrativo · INVER 3</div>
+        <div class="lock-sub">Panel Administrativo</div>
         <input type="password" class="lock-input" id="pin" placeholder="••••" maxlength="6"
                onkeydown="if(event.key==='Enter')auth()">
         <button class="lock-btn" onclick="auth()">Entrar</button>
@@ -506,7 +506,7 @@
 <div id="app">
 
     <header class="header">
-        <div class="header-brand">Credi<em>Listo</em> <span style="color:var(--muted);font-size:0.7rem;font-weight:500;letter-spacing:0.05em"> / INVER 3</span></div>
+        <div class="header-brand">Credi<em>Listo</em> <span style="color:var(--muted);font-size:0.7rem;font-weight:500;letter-spacing:0.05em"> / Admin</span></div>
         <nav class="header-nav">
             <button class="btn btn-ghost btn-sm" onclick="exportarCartera()">↓ Excel</button>
             <button class="btn btn-ghost btn-sm" onclick="location.href='index.html'">Inicio</button>
@@ -551,6 +551,15 @@
                     <span class="stat-val" id="saldo-caja" style="color:#10b981">$0.00</span>
                 </div>
                 <div style="display:flex;flex-direction:column;gap:0.4rem;padding-top:0.5rem;border-top:1px solid var(--border)">
+                    <!-- COBROS DEL DÍA — nuevo módulo -->
+                    <button class="btn btn-sm" style="justify-content:space-between;width:100%;
+                            background:rgba(14,165,233,0.12);color:var(--accent);
+                            border:1px solid rgba(14,165,233,0.35);font-weight:800"
+                            onclick="mostrarCobrosDelDia()">
+                        <span>📅 Cobros del Día</span>
+                        <span class="client-badge" id="badge-cobros-dia"
+                              style="background:var(--accent);color:#fff;display:none">0</span>
+                    </button>
                     <button class="btn btn-ghost btn-sm" style="justify-content:space-between;width:100%"
                             onclick="mostrarSolicitudes()">
                         <span>📋 Solicitudes pendientes</span>
@@ -561,11 +570,11 @@
                         + Nuevo cliente
                     </button>
                     <button class="btn btn-ghost btn-sm" style="justify-content:center;width:100%"
-                            onclick="location.href='reporte-solicitudes2.html'">
+                            onclick="location.href='reporte-solicitudes.html'">
                         📋 Reporte solicitudes
                     </button>
                     <button class="btn btn-ghost btn-sm" style="justify-content:center;width:100%"
-                            onclick="location.href='reporte-activos2.html'">
+                            onclick="location.href='reporte-activos.html'">
                         📊 Reporte clientes activos
                     </button>
 
@@ -612,7 +621,7 @@ function getFechaHoySV() {
 }
 
 // ─── CONFIG ──────────────────────────────────────────────────────────────
-const PIN     = "2035";
+const PIN     = "2025";
 const DB_URL  = "https://credilistosv-default-rtdb.firebaseio.com";
 const FB_CFG  = {
     apiKey: "AIzaSyC1GiJitT0QegrVe9o6CHCsvf7sEZELwRk",
@@ -656,9 +665,9 @@ window.addEventListener('pageshow', () => {
 
 // ─── FIREBASE ─────────────────────────────────────────────────────────────
 function initFirebase() {
-    firebase.initializeApp(FB_CFG, "inver3");
-    db      = firebase.app("inver3").database();
-    storage = firebase.app("inver3").storage();
+    firebase.initializeApp(FB_CFG);
+    db      = firebase.database();
+    storage = firebase.storage();
     escucharClientes();
 }
 
@@ -666,7 +675,7 @@ function escucharClientes() {
     const hoy = getFechaHoySV();
 
     // Escuchar finanzas globales
-    db.ref('config/finanzas3').on('value', snapCfg => {
+    db.ref('config/finanzas').on('value', snapCfg => {
         const cfg = snapCfg.val() || {};
         const cajaChica      = parseFloat(cfg.cajaChica || 0);
         const capitalInv     = parseFloat(cfg.capitalInvertido || 0);
@@ -676,14 +685,13 @@ function escucharClientes() {
         if (elCap)  elCap.textContent  = '$' + capitalInv.toFixed(2);
     });
 
-    // Clientes propios de INVER 3 (ACTIVO / ARCHIVO)
-    let clientesPropios = {};
-    let clientesSolicitudes = {};
-
-    function recalcularTodo() {
-        allClients = { ...clientesSolicitudes, ...clientesPropios };
+    db.ref('clientes').on('value', snap => {
+        allClients = {};
         let activos = 0, cobradoHoy = 0, pendientes = 0;
-        Object.entries(allClients).forEach(([key, v]) => {
+
+        snap.forEach(c => {
+            const v = c.val();
+            allClients[c.key] = { ...v, _key: c.key };
             if (v.tipo === 'ACTIVO') {
                 activos++;
                 (v.cuotas || []).forEach(cuo => {
@@ -693,39 +701,68 @@ function escucharClientes() {
             }
             if (v.tipo === 'PENDIENTE') pendientes++;
         });
+
         document.getElementById('total-activos').textContent = activos;
         document.getElementById('cobrado-hoy').textContent   = '$' + cobradoHoy.toFixed(2);
         const badge = document.getElementById('badge-pendientes');
-        if (pendientes > 0) { badge.textContent = pendientes; badge.style.display = 'inline'; }
-        else { badge.style.display = 'none'; }
+        if (pendientes > 0) {
+            badge.textContent = pendientes;
+            badge.style.display = 'inline';
+        } else {
+            badge.style.display = 'none';
+        }
+
+        // Badge Cobros del Día
+        const _cd = calcularCobrosHoy();
+        const badgeCD = document.getElementById('badge-cobros-dia');
+        const totalCD = _cd.cobrarHoy + _cd.enMora;
+        if (badgeCD) {
+            if (totalCD > 0) { badgeCD.textContent = totalCD; badgeCD.style.display = 'inline'; }
+            else badgeCD.style.display = 'none';
+        }
+
         renderSidebar();
         if (currentId && allClients[currentId]) renderPanel(currentId);
+    });
+}
+
+// ─── HELPERS COBROS DEL DÍA ───────────────────────────────────────────────
+function parseFechaProgr(str) {
+    if (!str) return null;
+    if (str.includes('-') && str.length === 10) {
+        const d = new Date(str + 'T00:00:00'); d.setHours(0,0,0,0); return d;
     }
+    if (str.includes('/')) {
+        const p = str.split('/');
+        const d = new Date(`${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}T00:00:00`);
+        d.setHours(0,0,0,0);
+        if (!isNaN(d)) return d;
+    }
+    return null;
+}
 
-    // Escuchar solicitudes compartidas del formulario (PENDIENTE de clientes compartidos)
-    db.ref('clientes').on('value', snap => {
-        clientesSolicitudes = {};
-        snap.forEach(child => {
-            const v = child.val();
-            if (v && v.tipo === 'PENDIENTE') {
-                clientesSolicitudes[child.key] = { ...v, _key: child.key, _origen: 'clientes' };
-            }
-        });
-        recalcularTodo();
-    }, err => {
-        console.error('Error leyendo clientes compartidos:', err);
-        toast('Error al leer solicitudes: ' + err.message, 'error');
+function calcularCobrosHoy() {
+    const HOY = new Date(); HOY.setHours(0,0,0,0);
+    const HOY_ISO = getFechaHoySV();
+    let cobrarHoy = 0, enMora = 0, pagadosHoy = 0;
+    Object.values(allClients).forEach(c => {
+        if (c.tipo !== 'ACTIVO') return;
+        const cuotas = c.cuotas || [];
+        const yaPago = cuotas.some(q => q.pagada && q.fecha_ISO === HOY_ISO);
+        if (yaPago) { pagadosHoy++; return; }
+        let maxAtraso = 0, tocaHoyFlag = false;
+        for (const cuo of cuotas) {
+            if (cuo.pagada) continue;
+            const f = parseFechaProgr(cuo.fecha_prog || cuo.fecha_prog_sv);
+            if (!f) continue;
+            const diff = Math.floor((HOY - f) / 86400000);
+            if (diff > 0) maxAtraso = Math.max(maxAtraso, diff);
+            if (diff === 0) tocaHoyFlag = true;
+        }
+        if (maxAtraso > 0)    enMora++;
+        else if (tocaHoyFlag) cobrarHoy++;
     });
-
-    // Escuchar clientes propios de INVER 3
-    db.ref('clientes3').on('value', snap => {
-        clientesPropios = {};
-        snap.forEach(c => {
-            const v = c.val();
-            clientesPropios[c.key] = { ...v, _key: c.key, _origen: 'clientes3' };
-        });
-        recalcularTodo();
-    });
+    return { cobrarHoy, enMora, pagadosHoy };
 }
 
 // ─── TABS ─────────────────────────────────────────────────────────────────
@@ -986,7 +1023,7 @@ async function pagarCuota(i) {
     const fecha = document.getElementById('f-' + i).value || getFechaHoySV();
     if (isNaN(monto) || monto <= 0) return toast('Monto no válido', 'error');
 
-    const snap = await db.ref('clientes3/' + currentId).once('value');
+    const snap = await db.ref('clientes/' + currentId).once('value');
     let s = snap.val();
     s.cuotas[i].pagada = true;
     s.cuotas[i].valorPagado = monto;
@@ -997,7 +1034,7 @@ async function pagarCuota(i) {
     s.cuotas.forEach(c => { if (c.pagada) pagadoTotal += parseFloat(c.valorPagado || 0); });
     s.saldo = (parseFloat(s.total) - pagadoTotal).toFixed(2);
 
-    await db.ref('clientes3/' + currentId).set(s);
+    await db.ref('clientes/' + currentId).set(s);
     toast('✓ Pago registrado', 'success');
 }
 
@@ -1145,13 +1182,13 @@ async function guardarFicha() {
         )) return;
     }
 
-    await db.ref('clientes3/' + currentId).update(updates);
+    await db.ref('clientes/' + currentId).update(updates);
     toast('✓ Ficha actualizada', 'success');
 }
 
 async function eliminarCliente() {
     if (!confirm('¿Eliminar a ' + (allClients[currentId]?.nombre||'este cliente') + '? No se puede deshacer.')) return;
-    await db.ref('clientes3/' + currentId).remove();
+    await db.ref('clientes/' + currentId).remove();
     currentId = null;
     document.getElementById('panel').style.display = 'none';
     document.getElementById('welcome').style.display = 'flex';
@@ -1167,13 +1204,13 @@ async function archivarCliente() {
     const fechaArchivo = new Date().toLocaleDateString('es-SV');
     const totalCobrado = parseFloat((parseFloat(s.total||0) - parseFloat(s.saldo||0)).toFixed(2));
 
-    const snapCfg = await db.ref('config/finanzas3').once('value');
+    const snapCfg = await db.ref('config/finanzas').once('value');
     const cfg = snapCfg.val() || {};
     const nuevaCaja = parseFloat((parseFloat(cfg.cajaChica||0) + totalCobrado).toFixed(2));
 
     await Promise.all([
-        db.ref('clientes3/' + currentId).update({ tipo: 'ARCHIVO', fechaArchivo }),
-        db.ref('config/finanzas3').update({ cajaChica: nuevaCaja })
+        db.ref('clientes/' + currentId).update({ tipo: 'ARCHIVO', fechaArchivo }),
+        db.ref('config/finanzas').update({ cajaChica: nuevaCaja })
     ]);
 
     currentId = null;
@@ -1189,7 +1226,7 @@ function modalNuevoCredito() {
     const hoy = getFechaHoySV();
 
     // Leer caja chica global para mostrarlo en el modal
-    db.ref('config/finanzas3').once('value').then(snapCfg => {
+    db.ref('config/finanzas').once('value').then(snapCfg => {
         const cfg = snapCfg.val() || {};
         const cajaChicaGlobal = parseFloat(cfg.cajaChica || 0);
         const capitalInvertido = parseFloat(cfg.capitalInvertido || 0);
@@ -1398,7 +1435,7 @@ async function confirmarNuevoCredito() {
     const fechaSV    = new Date(fechaISO + 'T12:00:00').toLocaleDateString('es-SV');
 
     // Leer config global actual
-    const snapCfg = await db.ref('config/finanzas3').once('value');
+    const snapCfg = await db.ref('config/finanzas').once('value');
     const cfg = snapCfg.val() || {};
     let cajaChica       = parseFloat(cfg.cajaChica || 0);
     let capitalInvertido = parseFloat(cfg.capitalInvertido || 0);
@@ -1474,8 +1511,8 @@ async function confirmarNuevoCredito() {
 
     // Guardar cliente + actualizar config global en paralelo
     await Promise.all([
-        db.ref('clientes3/' + currentId).set(nuevoCliente),
-        db.ref('config/finanzas3').update({ cajaChica, capitalInvertido })
+        db.ref('clientes/' + currentId).set(nuevoCliente),
+        db.ref('config/finanzas').update({ cajaChica, capitalInvertido })
     ]);
 
     document.getElementById('modal-nuevo-credito')?.remove();
@@ -1539,7 +1576,7 @@ async function confirmarInyeccion() {
     const inyeccion = parseFloat(document.getElementById('inj-monto')?.value || 0);
     if (!inyeccion || inyeccion <= 0) { toast('Monto no válido', 'error'); return; }
 
-    const snap = await db.ref('clientes3/' + currentId).once('value');
+    const snap = await db.ref('clientes/' + currentId).once('value');
     let s = snap.val();
     const montoNuevo = parseFloat(s.monto || 0) + inyeccion;
     const totalNuevo = parseFloat((montoNuevo * 1.2).toFixed(2));
@@ -1561,7 +1598,7 @@ async function confirmarInyeccion() {
     s.saldo  = parseFloat((totalNuevo - pagadoTotal).toFixed(2));
     s.cuotas = cuotasRecalc;
 
-    await db.ref('clientes3/' + currentId).set(s);
+    await db.ref('clientes/' + currentId).set(s);
     document.getElementById('modal-capital')?.remove();
     toast(`✓ Capital aumentado en $${inyeccion.toFixed(2)}`, 'success');
 }
@@ -1627,11 +1664,11 @@ async function confirmarDeduccion(maxDisponible) {
     if (!monto || monto <= 0) { toast('Ingresa un monto válido', 'error'); return; }
     if (monto > maxDisponible + 0.01) { toast(`No puedes deducir más de $${maxDisponible.toFixed(2)}`, 'error'); return; }
 
-    const snap = await db.ref('clientes3/' + currentId).once('value');
+    const snap = await db.ref('clientes/' + currentId).once('value');
     let s = snap.val();
     const cajachicaActual = parseFloat(s.cajachica || 0);
     s.cajachica = parseFloat((cajachicaActual + monto).toFixed(2));
-    await db.ref('clientes3/' + currentId).set(s);
+    await db.ref('clientes/' + currentId).set(s);
     document.getElementById('modal-deducir')?.remove();
     toast(`✓ $${monto.toFixed(2)} registrado en Caja Chica`, 'success');
 }
@@ -1722,7 +1759,7 @@ async function subirDoc(input, tipo) {
             async () => {
                 const url = await task.snapshot.ref.getDownloadURL();
                 const campo = 'doc_' + tipo;   // doc_contrato, doc_letra, doc_dui_frontal, doc_dui_reverso
-                await db.ref('clientes3/' + currentId).update({ [campo]: url });
+                await db.ref('clientes/' + currentId).update({ [campo]: url });
                 setTimeout(() => { if (bar) bar.style.width = '0'; }, 800);
                 toast('✓ ' + tipo.replace('_',' ') + ' guardado', 'success');
                 input.value = '';
@@ -1735,6 +1772,222 @@ async function subirDoc(input, tipo) {
 }
 
 // ─── SOLICITUDES PENDIENTES ───────────────────────────────────────────────
+// ─── COBROS DEL DÍA ──────────────────────────────────────────────────────────
+function mostrarCobrosDelDia() {
+    currentId = null;
+    document.querySelectorAll('.client-item').forEach(el => el.classList.remove('active'));
+    document.getElementById('welcome').style.display = 'none';
+    const panel = document.getElementById('panel');
+    panel.style.display = 'flex';
+
+    const HOY = new Date(); HOY.setHours(0,0,0,0);
+    const fechaLabel = HOY.toLocaleDateString('es-SV', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+
+    // Armazón del panel con pestañas INVER1 / INVER2
+    panel.innerHTML = `
+    <div class="client-header">
+        <div>
+            <div class="ch-name">📅 Cobros del Día</div>
+            <div class="ch-meta" style="text-transform:capitalize">${fechaLabel}</div>
+        </div>
+        <div class="ch-actions">
+            <div style="display:flex;gap:0.35rem;background:var(--surface2);border:1px solid var(--border);
+                        border-radius:0.6rem;padding:0.25rem">
+                <button id="tab-cd-inver1" onclick="switchTabCobros('inver1')"
+                        style="padding:0.35rem 0.9rem;border-radius:0.4rem;font-size:0.7rem;font-weight:800;
+                               border:none;cursor:pointer;transition:all 0.15s;
+                               background:var(--accent);color:#fff">
+                    🏠 INVER1
+                </button>
+                <button id="tab-cd-inver2" onclick="switchTabCobros('inver2')"
+                        style="padding:0.35rem 0.9rem;border-radius:0.4rem;font-size:0.7rem;font-weight:800;
+                               border:none;cursor:pointer;transition:all 0.15s;
+                               background:transparent;color:var(--muted2)">
+                    🏦 INVER2
+                </button>
+            </div>
+        </div>
+    </div>
+    <div id="cobros-tab-content" style="display:contents"></div>`;
+
+    // Renderizar INVER1 por defecto
+    renderCobrosContent(allClients, 'inver1');
+}
+
+function switchTabCobros(rama) {
+    const t1 = document.getElementById('tab-cd-inver1');
+    const t2 = document.getElementById('tab-cd-inver2');
+    if (!t1 || !t2) return;
+    if (rama === 'inver1') {
+        t1.style.background = 'var(--accent)'; t1.style.color = '#fff';
+        t2.style.background = 'transparent';   t2.style.color = 'var(--muted2)';
+        renderCobrosContent(allClients, 'inver1');
+    } else {
+        t2.style.background = '#7c3aed'; t2.style.color = '#fff';
+        t1.style.background = 'transparent'; t1.style.color = 'var(--muted2)';
+        document.getElementById('cobros-tab-content').innerHTML =
+            '<div style="text-align:center;padding:2rem;color:var(--muted2)"><div style="font-size:1.5rem;margin-bottom:0.5rem">⏳</div><p style="font-size:0.8rem">Cargando INVER2…</p></div>';
+        db.ref('clientes2').once('value').then(snap => {
+            const clients2 = {};
+            snap.forEach(c => { clients2[c.key] = { ...c.val(), _key: c.key }; });
+            renderCobrosContent(clients2, 'inver2');
+        }).catch(() => {
+            document.getElementById('cobros-tab-content').innerHTML =
+                '<div style="text-align:center;padding:2rem;color:var(--danger)"><p style="font-size:0.8rem;font-weight:700">❌ No se pudo cargar INVER2</p></div>';
+        });
+    }
+}
+
+function renderCobrosContent(clientsObj, rama) {
+    const HOY = new Date(); HOY.setHours(0,0,0,0);
+    const HOY_ISO = getFechaHoySV();
+    const esInver2 = rama === 'inver2';
+    const accentColor = esInver2 ? '#7c3aed' : 'var(--accent)';
+    const accentDim   = esInver2 ? 'rgba(124,58,237,0.12)' : 'var(--accent-dim)';
+    const accentBorder= esInver2 ? 'rgba(124,58,237,0.3)'  : 'var(--accent-border)';
+
+    const mora=[], hoy=[], pagados=[];
+    Object.entries(clientsObj).forEach(([id, c]) => {
+        if (c.tipo !== 'ACTIVO') return;
+        const cuotas = c.cuotas || [];
+        const yaPago = cuotas.some(q => q.pagada && q.fecha_ISO === HOY_ISO);
+        if (yaPago) { pagados.push({id,c}); return; }
+        let maxAtraso = 0, tocaHoyFlag = false, cuotaPend = null;
+        for (const cuo of cuotas) {
+            if (cuo.pagada) continue;
+            if (!cuotaPend) cuotaPend = cuo;
+            const f = parseFechaProgr(cuo.fecha_prog || cuo.fecha_prog_sv);
+            if (!f) continue;
+            const diff = Math.floor((HOY - f) / 86400000);
+            if (diff > 0) maxAtraso = Math.max(maxAtraso, diff);
+            if (diff === 0) tocaHoyFlag = true;
+        }
+        if (maxAtraso > 0)    mora.push({id,c,dias:maxAtraso,cuotaPend});
+        else if (tocaHoyFlag) hoy.push({id,c,cuotaPend});
+    });
+    mora.sort((a,b) => b.dias - a.dias);
+
+    const btnVer = esInver2
+        ? (id) => `<button onclick="location.href='gestionar2.html'" style="background:rgba(124,58,237,0.15);color:#7c3aed;border:1px solid rgba(124,58,237,0.3);border-radius:0.4rem;padding:0.35rem 0.7rem;font-size:0.7rem;font-weight:800;cursor:pointer">Ir a INVER2</button>`
+        : (id) => `<button onclick="renderPanel('${id}')" class="btn btn-accent btn-sm">Ver ficha</button>`;
+
+    const btnVerMora = esInver2
+        ? (id) => `<button onclick="location.href='gestionar2.html'" style="background:rgba(239,68,68,0.15);color:var(--danger);border:1px solid rgba(239,68,68,0.3);border-radius:0.4rem;padding:0.35rem 0.7rem;font-size:0.7rem;font-weight:800;cursor:pointer">Ir a INVER2</button>`
+        : (id) => `<button onclick="renderPanel('${id}')" class="btn btn-danger btn-sm">Ver ficha</button>`;
+
+    const rowMora = x => {
+        const m = x.cuotaPend ? parseFloat(x.cuotaPend.valorPagado||0).toFixed(2) : '—';
+        const s = parseFloat(x.c.saldo||0).toFixed(2);
+        return `<div style="background:var(--surface2);border:1px solid var(--border);border-left:3px solid var(--danger);
+                    border-radius:0.6rem;padding:0.75rem 1rem;display:flex;justify-content:space-between;align-items:center;gap:0.75rem">
+            <div style="flex:1;min-width:0">
+                <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.2rem">
+                    <span style="background:rgba(239,68,68,0.15);color:var(--danger);font-size:0.6rem;font-weight:800;
+                                 letter-spacing:0.08em;text-transform:uppercase;padding:0.15rem 0.5rem;border-radius:2rem;
+                                 border:1px solid rgba(239,68,68,0.25)">⚠ ${x.dias} día${x.dias!==1?'s':''} atraso</span>
+                    <span style="font-size:0.58rem;font-weight:600;color:var(--muted);text-transform:uppercase">${(x.c.frecuencia||'diario')}</span>
+                </div>
+                <div style="font-weight:800;font-size:0.9rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${x.c.nombre||'—'}</div>
+                <div style="display:flex;gap:0.75rem;margin-top:0.2rem">
+                    <span style="font-size:0.65rem;color:var(--muted2)">Cuota: <strong style="color:var(--text)">$${m}</strong></span>
+                    <span style="font-size:0.65rem;color:var(--muted2)">Saldo: <strong style="color:var(--danger)">$${s}</strong></span>
+                </div>
+            </div>
+            ${btnVerMora(x.id)}
+        </div>`;
+    };
+
+    const rowHoy = x => {
+        const m = x.cuotaPend ? parseFloat(x.cuotaPend.valorPagado||0).toFixed(2) : '—';
+        const s = parseFloat(x.c.saldo||0).toFixed(2);
+        return `<div style="background:var(--surface2);border:1px solid var(--border);border-left:3px solid ${accentColor};
+                    border-radius:0.6rem;padding:0.75rem 1rem;display:flex;justify-content:space-between;align-items:center;gap:0.75rem">
+            <div style="flex:1;min-width:0">
+                <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.2rem">
+                    <span style="background:${accentDim};color:${accentColor};font-size:0.6rem;font-weight:800;
+                                 letter-spacing:0.08em;text-transform:uppercase;padding:0.15rem 0.5rem;border-radius:2rem;
+                                 border:1px solid ${accentBorder}">HOY</span>
+                    <span style="font-size:0.58rem;font-weight:600;color:var(--muted);text-transform:uppercase">${(x.c.frecuencia||'diario')}</span>
+                </div>
+                <div style="font-weight:800;font-size:0.9rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${x.c.nombre||'—'}</div>
+                <div style="display:flex;gap:0.75rem;margin-top:0.2rem">
+                    <span style="font-size:0.65rem;color:var(--muted2)">Cuota: <strong style="color:var(--text)">$${m}</strong></span>
+                    <span style="font-size:0.65rem;color:var(--muted2)">Saldo: <strong style="color:var(--danger)">$${s}</strong></span>
+                </div>
+            </div>
+            ${btnVer(x.id)}
+        </div>`;
+    };
+
+    const rowPagado = x => {
+        const q = (x.c.cuotas||[]).find(q => q.pagada && q.fecha_ISO === HOY_ISO);
+        const m = q ? parseFloat(q.valorPagado||0).toFixed(2) : '—';
+        return `<div style="background:rgba(16,185,129,0.04);border:1px solid rgba(16,185,129,0.2);border-left:3px solid #10b981;
+                    border-radius:0.6rem;padding:0.65rem 1rem;display:flex;justify-content:space-between;align-items:center;gap:0.75rem;opacity:0.7">
+            <div style="flex:1;min-width:0">
+                <div style="font-weight:800;font-size:0.85rem;color:var(--text)">${x.c.nombre||'—'}</div>
+                <div style="font-size:0.65rem;color:var(--muted2);margin-top:0.1rem">Cobrado: <strong style="color:#10b981">$${m}</strong></div>
+            </div>
+            <span style="font-size:0.7rem;color:#10b981;font-weight:800">✓ Pagado</span>
+        </div>`;
+    };
+
+    const totalPendiente = mora.length + hoy.length;
+
+    document.getElementById('cobros-tab-content').innerHTML = `
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;padding:0 0 0.25rem 0">
+        <div style="background:${accentDim};border:1px solid ${accentBorder};border-radius:0.6rem;padding:0.4rem 0.85rem;text-align:center">
+            <div style="font-size:0.55rem;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:${accentColor};margin-bottom:0.1rem">Por cobrar</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-weight:800;font-size:1.1rem;color:${accentColor}">${totalPendiente}</div>
+        </div>
+        <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:0.6rem;padding:0.4rem 0.85rem;text-align:center">
+            <div style="font-size:0.55rem;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:var(--danger);margin-bottom:0.1rem">En mora</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-weight:800;font-size:1.1rem;color:var(--danger)">${mora.length}</div>
+        </div>
+        <div style="background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.2);border-radius:0.6rem;padding:0.4rem 0.85rem;text-align:center">
+            <div style="font-size:0.55rem;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:#10b981;margin-bottom:0.1rem">Pagados</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-weight:800;font-size:1.1rem;color:#10b981">${pagados.length}</div>
+        </div>
+    </div>
+
+    ${mora.length > 0 ? `
+    <div class="section-card">
+        <div class="section-head">
+            <div class="section-title" style="color:var(--danger)">⚠️ En Mora — ${mora.length} cliente${mora.length!==1?'s':''}</div>
+            <span style="font-size:0.6rem;font-weight:600;color:var(--muted2)">ordenados por más días de atraso</span>
+        </div>
+        <div class="section-body" style="display:flex;flex-direction:column;gap:0.5rem">
+            ${mora.map(rowMora).join('')}
+        </div>
+    </div>` : ''}
+
+    ${hoy.length > 0 ? `
+    <div class="section-card">
+        <div class="section-head">
+            <div class="section-title" style="color:${accentColor}">📅 Cobros de Hoy — ${hoy.length} cliente${hoy.length!==1?'s':''}</div>
+        </div>
+        <div class="section-body" style="display:flex;flex-direction:column;gap:0.5rem">
+            ${hoy.map(rowHoy).join('')}
+        </div>
+    </div>` : ''}
+
+    ${hoy.length === 0 && mora.length === 0 ? `
+    <div style="text-align:center;padding:2rem;color:var(--muted2)">
+        <div style="font-size:2.5rem;margin-bottom:0.75rem">🎉</div>
+        <p style="font-size:0.85rem;font-weight:600">¡No hay cobros pendientes para hoy${esInver2?' en INVER2':''}!</p>
+    </div>` : ''}
+
+    ${pagados.length > 0 ? `
+    <div class="section-card">
+        <div class="section-head">
+            <div class="section-title" style="color:#10b981">✅ Pagados Hoy — ${pagados.length} cliente${pagados.length!==1?'s':''}</div>
+        </div>
+        <div class="section-body" style="display:flex;flex-direction:column;gap:0.4rem">
+            ${pagados.map(rowPagado).join('')}
+        </div>
+    </div>` : ''}`;
+}
+
 function mostrarSolicitudes() {
     currentId = null;
     document.querySelectorAll('.client-item').forEach(el => el.classList.remove('active'));
@@ -1751,8 +2004,8 @@ function mostrarSolicitudes() {
             <div class="ch-meta">${pendientes.length} solicitud${pendientes.length!==1?'es':''} esperando revisión</div>
         </div>
         <div class="ch-actions">
-            <button class="btn btn-ghost btn-sm" onclick="location.href='reporte-solicitudes2.html'">📊 Reporte solicitudes</button>
-            <button class="btn btn-ghost btn-sm" onclick="location.href='reporte-activos2.html'">📊 Reporte activos</button>
+            <button class="btn btn-ghost btn-sm" onclick="location.href='reporte-solicitudes.html'">📊 Reporte solicitudes</button>
+            <button class="btn btn-ghost btn-sm" onclick="location.href='reporte-activos.html'">📊 Reporte activos</button>
         </div>
     </div>
 
@@ -2044,7 +2297,7 @@ async function confirmarAprobacion() {
     if (!fechaISO) { toast('Selecciona la fecha de desembolso', 'error'); return; }
 
     // Leer config global
-    const snapCfg = await db.ref('config/finanzas3').once('value');
+    const snapCfg = await db.ref('config/finanzas').once('value');
     const cfg = snapCfg.val() || {};
     let cajaChica        = parseFloat(cfg.cajaChica || 0);
     let capitalInvertido = parseFloat(cfg.capitalInvertido || 0);
@@ -2089,7 +2342,7 @@ async function confirmarAprobacion() {
             const file = docAprobFiles.contrato;
             const ext  = file.name.split('.').pop();
             urlContrato = await new Promise((res, rej) => {
-                const task = storage.ref(`clientes3/${aprobandoId}/contrato_${Date.now()}.${ext}`).put(file);
+                const task = storage.ref(`clientes/${aprobandoId}/contrato_${Date.now()}.${ext}`).put(file);
                 task.on('state_changed', snap => { bar.style.width = (5 + snap.bytesTransferred/snap.totalBytes*20) + '%'; }, rej, async () => res(await task.snapshot.ref.getDownloadURL()));
             });
             bar.style.width = '25%';
@@ -2099,7 +2352,7 @@ async function confirmarAprobacion() {
             const file = docAprobFiles.letra;
             const ext  = file.name.split('.').pop();
             urlLetra = await new Promise((res, rej) => {
-                const task = storage.ref(`clientes3/${aprobandoId}/letra_${Date.now()}.${ext}`).put(file);
+                const task = storage.ref(`clientes/${aprobandoId}/letra_${Date.now()}.${ext}`).put(file);
                 task.on('state_changed', snap => { bar.style.width = (25 + snap.bytesTransferred/snap.totalBytes*20) + '%'; }, rej, async () => res(await task.snapshot.ref.getDownloadURL()));
             });
             bar.style.width = '50%';
@@ -2108,7 +2361,7 @@ async function confirmarAprobacion() {
             msg.textContent = 'Subiendo DUI frontal…';
             const file = docAprobFiles.dui_frontal; const ext = file.name.split('.').pop();
             urlDuiFrontal = await new Promise((res, rej) => {
-                const task = storage.ref(`clientes3/${aprobandoId}/dui_frontal_${Date.now()}.${ext}`).put(file);
+                const task = storage.ref(`clientes/${aprobandoId}/dui_frontal_${Date.now()}.${ext}`).put(file);
                 task.on('state_changed', snap => { bar.style.width = (50 + snap.bytesTransferred/snap.totalBytes*20) + '%'; }, rej, async () => res(await task.snapshot.ref.getDownloadURL()));
             });
             bar.style.width = '70%';
@@ -2117,7 +2370,7 @@ async function confirmarAprobacion() {
             msg.textContent = 'Subiendo DUI reverso…';
             const file = docAprobFiles.dui_reverso; const ext = file.name.split('.').pop();
             urlDuiReverso = await new Promise((res, rej) => {
-                const task = storage.ref(`clientes3/${aprobandoId}/dui_reverso_${Date.now()}.${ext}`).put(file);
+                const task = storage.ref(`clientes/${aprobandoId}/dui_reverso_${Date.now()}.${ext}`).put(file);
                 task.on('state_changed', snap => { bar.style.width = (70 + snap.bytesTransferred/snap.totalBytes*15) + '%'; }, rej, async () => res(await task.snapshot.ref.getDownloadURL()));
             });
             bar.style.width = '85%';
@@ -2150,18 +2403,10 @@ async function confirmarAprobacion() {
             doc_dui_frontal: urlDuiFrontal, doc_dui_reverso: urlDuiReverso,
         };
 
-        // Determinar origen de la solicitud
-        const origenSolicitud = allClients[aprobandoId]?._origen || 'clientes3';
-        const refDestino = db.ref('clientes3/' + aprobandoId);
-        const ops = [
-            refDestino.set(datosBase),
-            db.ref('config/finanzas3').update({ cajaChica, capitalInvertido })
-        ];
-        // Si la solicitud vino del formulario compartido, eliminarla de clientes/
-        if (origenSolicitud === 'clientes') {
-            ops.push(db.ref('clientes/' + aprobandoId).remove());
-        }
-        await Promise.all(ops);
+        await Promise.all([
+            db.ref('clientes/' + aprobandoId).set(datosBase),
+            db.ref('config/finanzas').update({ cajaChica, capitalInvertido })
+        ]);
 
         bar.style.width = '100%';
         msg.textContent = '¡Aprobado!';
@@ -2206,12 +2451,7 @@ function selProcAP(tipo) {
 async function rechazarSolicitud(id) {
     const s = allClients[id];
     if (!confirm('¿Rechazar y eliminar la solicitud de ' + (s?.nombre||'este cliente') + '?')) return;
-    const origen = s?._origen || 'clientes3';
-    if (origen === 'clientes') {
-        await db.ref('clientes/' + id).remove();
-    } else {
-        await db.ref('clientes3/' + id).remove();
-    }
+    await db.ref('clientes/' + id).remove();
     toast('Solicitud rechazada', 'error');
     mostrarSolicitudes();
 }
@@ -2383,7 +2623,7 @@ function mostrarNuevoCliente() {
 
     calcularPreview();
     // Cargar finanzas globales en el formulario
-    db.ref('config/finanzas3').once('value').then(snap => {
+    db.ref('config/finanzas').once('value').then(snap => {
         const cfg = snap.val() || {};
         window._nmCajaChica    = parseFloat(cfg.cajaChica || 0);
         window._nmCapitalInv   = parseFloat(cfg.capitalInvertido || 0);
@@ -2480,7 +2720,7 @@ async function guardarNuevoManual() {
     const monto       = parseFloat(data.monto);
 
     // Leer y validar finanzas globales
-    const snapCfg = await db.ref('config/finanzas3').once('value');
+    const snapCfg = await db.ref('config/finanzas').once('value');
     const cfg = snapCfg.val() || {};
     let cajaChica        = parseFloat(cfg.cajaChica || 0);
     let capitalInvertido = parseFloat(cfg.capitalInvertido || 0);
@@ -2505,14 +2745,14 @@ async function guardarNuevoManual() {
 
     const id = Date.now();
     await Promise.all([
-        db.ref('clientes3/' + id).set({
+        db.ref('clientes/' + id).set({
             ...data, id, tipo: 'ACTIVO', total, saldo: total,
             fechaInicio: new Date().toLocaleDateString('es-SV'),
             cajachica: 0,
             procedenciaCapital: procedencia,
             cuotas
         }),
-        db.ref('config/finanzas3').update({ cajaChica, capitalInvertido })
+        db.ref('config/finanzas').update({ cajaChica, capitalInvertido })
     ]);
 
     const msg = procedencia === 'inyeccion'
@@ -2526,7 +2766,7 @@ async function guardarComoPendiente() {
     const data = recogerDatosNuevo();
     if (!data.nombre || !data.dui) { toast('Nombre y DUI son obligatorios', 'error'); return; }
     const id = Date.now();
-    await db.ref('clientes3/' + id).set({ ...data, id, tipo: 'PENDIENTE' });
+    await db.ref('clientes/' + id).set({ ...data, id, tipo: 'PENDIENTE' });
     toast('Solicitud guardada como Pendiente', 'success');
     mostrarSolicitudes();
 }
@@ -2546,7 +2786,7 @@ function exportarCartera() {
 
 // ─── CONFIGURAR FINANZAS GLOBALES ────────────────────────────────────────
 function modalConfigurarFinanzas() {
-    db.ref('config/finanzas3').once('value').then(snap => {
+    db.ref('config/finanzas').once('value').then(snap => {
         const cfg = snap.val() || {};
         const capital = parseFloat(cfg.capitalInvertido || 0);
         const caja    = parseFloat(cfg.cajaChica || 0);
@@ -2607,7 +2847,7 @@ async function guardarConfigFinanzas() {
     const capital = parseFloat(document.getElementById('cfg-capital')?.value || 0);
     const caja    = parseFloat(document.getElementById('cfg-caja')?.value || 0);
     if (isNaN(capital) || isNaN(caja)) { toast('Valores inválidos', 'error'); return; }
-    await db.ref('config/finanzas3').set({ capitalInvertido: capital, cajaChica: caja });
+    await db.ref('config/finanzas').set({ capitalInvertido: capital, cajaChica: caja });
     document.getElementById('modal-config-finanzas')?.remove();
     toast(`✓ Finanzas actualizadas · Capital: $${capital.toFixed(2)} · Caja: $${caja.toFixed(2)}`, 'success');
 }

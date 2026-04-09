@@ -598,6 +598,19 @@
 <input type="file" id="fi-dui_reverso" accept="image/*"                 style="display:none" onchange="subirDoc(this,'dui_reverso')">
 
 <script>
+// ─── FUNCIÓN GLOBAL PARA FECHA CORRECTA DE EL SALVADOR ────────────────────
+// Soluciona el problema donde cobros después de 5 PM aparecían como día siguiente
+function getFechaHoySV() {
+    const opciones = { 
+        year: 'numeric', 
+        month: '2-digit', 
+        day: '2-digit',
+        timeZone: 'America/El_Salvador' 
+    };
+    const formatter = new Intl.DateTimeFormat('sv-SE', opciones);
+    return formatter.format(new Date());
+}
+
 // ─── CONFIG ──────────────────────────────────────────────────────────────
 const PIN     = "2030";
 const DB_URL  = "https://credilistosv-default-rtdb.firebaseio.com";
@@ -650,7 +663,7 @@ function initFirebase() {
 }
 
 function escucharClientes() {
-    const hoy = new Date().toISOString().split('T')[0];
+    const hoy = getFechaHoySV();
 
     // Escuchar finanzas globales
     db.ref('config/finanzas2').on('value', snapCfg => {
@@ -970,7 +983,7 @@ function renderCuotas(s) {
 
 async function pagarCuota(i) {
     const monto = parseFloat(document.getElementById('v-' + i).value);
-    const fecha = document.getElementById('f-' + i).value || new Date().toISOString().split('T')[0];
+    const fecha = document.getElementById('f-' + i).value || getFechaHoySV();
     if (isNaN(monto) || monto <= 0) return toast('Monto no válido', 'error');
 
     const snap = await db.ref('clientes2/' + currentId).once('value');
@@ -1173,7 +1186,7 @@ async function archivarCliente() {
 function modalNuevoCredito() {
     const s = allClients[currentId];
     if (!s) return;
-    const hoy = new Date().toISOString().split('T')[0];
+    const hoy = getFechaHoySV();
 
     // Leer caja chica global para mostrarlo en el modal
     db.ref('config/finanzas2').once('value').then(snapCfg => {
@@ -1377,7 +1390,7 @@ async function confirmarNuevoCredito() {
     if (!s) return;
     const monto      = parseFloat(document.getElementById('nc-monto').value);
     const frec       = document.getElementById('nc-frec').value;
-    const fechaISO   = document.getElementById('nc-fecha').value || new Date().toISOString().split('T')[0];
+    const fechaISO   = document.getElementById('nc-fecha').value || getFechaHoySV();
     const procedencia = document.getElementById('nc-procedencia')?.value || 'recogido';
     const total      = parseFloat((monto * 1.2).toFixed(2));
     const nCuotas    = frec === 'semanal' ? 4 : 30;
@@ -1793,7 +1806,7 @@ function aprobarSolicitud(id) {
     const s   = allClients[id];
     if (!s) return;
 
-    const hoy      = new Date().toISOString().split('T')[0];
+    const hoy      = getFechaHoySV();
     const monto    = parseFloat(s.monto) || 0;
     const total    = monto * 1.2;
     const esSemanl = (s.frecuencia || 'diario') === 'semanal';
