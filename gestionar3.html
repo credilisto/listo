@@ -683,9 +683,11 @@ function escucharClientes() {
     function recalcularTodo() {
         allClients = { ...clientesSolicitudes, ...clientesPropios };
         let activos = 0, cobradoHoy = 0, pendientes = 0;
+        let capitalActivo = 0;
         Object.entries(allClients).forEach(([key, v]) => {
             if (v.tipo === 'ACTIVO') {
                 activos++;
+                capitalActivo += parseFloat(v.monto || 0);
                 (v.cuotas || []).forEach(cuo => {
                     if (cuo.pagada && cuo.fecha_ISO === hoy)
                         cobradoHoy += parseFloat(cuo.valorPagado || 0);
@@ -695,6 +697,9 @@ function escucharClientes() {
         });
         document.getElementById('total-activos').textContent = activos;
         document.getElementById('cobrado-hoy').textContent   = '$' + cobradoHoy.toFixed(2);
+        // Actualizar capital invertido dinámicamente (suma de montos activos)
+        const elCap = document.getElementById('capital-invertido');
+        if (elCap) elCap.textContent = '$' + capitalActivo.toFixed(2);
         const badge = document.getElementById('badge-pendientes');
         if (pendientes > 0) { badge.textContent = pendientes; badge.style.display = 'inline'; }
         else { badge.style.display = 'none'; }
@@ -897,6 +902,38 @@ function renderPanel(id) {
         `}
     </div>
 
+    <!-- SEMÁFORO DE PUNTUALIDAD -->
+    <div class="section-card">
+        <div class="section-head">
+            <div class="section-title">🚦 Puntualidad del Cliente</div>
+        </div>
+        <div class="section-body" id="semaforo-wrap"></div>
+    </div>
+
+    <!-- HISTORIAL DE CRÉDITOS -->
+    ${Array.isArray(s.historialCreditos) && s.historialCreditos.length > 0 ? `
+    <div class="section-card">
+        <div class="section-head">
+            <div class="section-title">📋 Historial de Créditos Anteriores</div>
+            <span style="font-size:0.6rem;color:var(--muted2);font-weight:600">${s.historialCreditos.length} crédito${s.historialCreditos.length!==1?'s':''} previo${s.historialCreditos.length!==1?'s':''}</span>
+        </div>
+        <div class="section-body" style="display:flex;flex-direction:column;gap:0.5rem">
+            ${[...s.historialCreditos].reverse().map((h,i) => `
+            <div style="background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:0.6rem;padding:0.75rem 1rem">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem">
+                    <span style="font-size:0.6rem;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted2)">Crédito #${s.historialCreditos.length - i}</span>
+                    <span style="font-size:0.6rem;color:var(--muted2)">${h.fechaInicio||'—'} → ${h.fechaArchivo||'—'}</span>
+                </div>
+                <div style="display:flex;gap:1rem;flex-wrap:wrap">
+                    <span style="font-size:0.72rem;color:var(--muted2)">Capital: <strong style="color:var(--accent);font-family:'JetBrains Mono',monospace">$${parseFloat(h.monto||0).toFixed(2)}</strong></span>
+                    <span style="font-size:0.72rem;color:var(--muted2)">Total: <strong style="color:var(--text);font-family:'JetBrains Mono',monospace">$${parseFloat(h.total||0).toFixed(2)}</strong></span>
+                    <span style="font-size:0.72rem;color:var(--muted2)">Frec: <strong style="color:var(--text)">${h.frecuencia||'—'}</strong></span>
+                    <span style="font-size:0.72rem;color:var(--muted2)">Origen: <strong style="color:var(--text)">${h.procedencia||'—'}</strong></span>
+                </div>
+            </div>`).join('')}
+        </div>
+    </div>` : ''}
+
     <!-- CUOTAS -->
     <div class="section-card">
         <div class="section-head">
@@ -953,6 +990,7 @@ function renderPanel(id) {
 
     renderCuotas(s);
     renderFicha(s);
+    renderSemaforo(s);
 }
 
 // ─── CUOTAS ───────────────────────────────────────────────────────────────
@@ -999,6 +1037,90 @@ async function pagarCuota(i) {
 
     await db.ref('clientes3/' + currentId).set(s);
     toast('✓ Pago registrado', 'success');
+}
+
+// ─── UTILIDAD DE FECHAS ─────────────────────────────────────────────────
+function parseFechaProgr(str) {
+    if (!str) return null;
+    if (str.includes('-') && str.length === 10) {
+        const d = new Date(str + 'T00:00:00'); d.setHours(0,0,0,0); return d;
+    }
+    if (str.includes('/')) {
+        const p = str.split('/');
+        const d = new Date(`${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}T00:00:00`);
+        d.setHours(0,0,0,0);
+        if (!isNaN(d)) return d;
+    }
+    return null;
+}
+
+// ─── SEMÁFORO DE PUNTUALIDAD ─────────────────────────────────────────────
+function renderSemaforo(s) {
+    const wrap = document.getElementById('semaforo-wrap');
+    if (!wrap) return;
+    const cuotas = s.cuotas || [];
+    const total  = cuotas.length;
+    if (!total) {
+        wrap.innerHTML = '<p style="font-size:0.75rem;color:var(--muted);padding:0.5rem">Sin cuotas registradas aún.</p>';
+        return;
+    }
+    const pagadas    = cuotas.filter(c => c.pagada);
+    const atrasadas  = cuotas.filter(c => {
+        if (!c.pagada) return false;
+        const prog = parseFechaProgr(c.fecha_prog || c.fecha_prog_sv);
+        if (!prog) return false;
+        const pagado = new Date((c.fecha_ISO || '') + 'T12:00:00');
+        return pagado > prog;
+    });
+    const pendientes = cuotas.filter(c => !c.pagada);
+    const hoyISO = getFechaHoySV();
+    const hoy    = new Date(hoyISO + 'T12:00:00');
+    const enMora = pendientes.filter(c => {
+        const f = parseFechaProgr(c.fecha_prog || c.fecha_prog_sv);
+        return f && hoy > f;
+    });
+
+    const pct       = total > 0 ? Math.round((pagadas.length / total) * 100) : 0;
+    const atrasoPct = pagadas.length > 0 ? Math.round((atrasadas.length / pagadas.length) * 100) : 0;
+
+    let color, emoji, label, desc;
+    if (enMora.length > 0) {
+        color = '#ef4444'; emoji = '🔴'; label = 'EN MORA';
+        desc  = `${enMora.length} cuota${enMora.length!==1?'s':''} vencida${enMora.length!==1?'s':''} sin pagar`;
+    } else if (atrasoPct > 30) {
+        color = '#f59e0b'; emoji = '🟡'; label = 'IRREGULAR';
+        desc  = `${atrasoPct}% de pagos realizados con atraso`;
+    } else if (pct >= 80 && atrasoPct <= 10) {
+        color = '#10b981'; emoji = '🟢'; label = 'EXCELENTE';
+        desc  = `${pct}% de cuotas pagadas puntualmente`;
+    } else if (pct >= 50) {
+        color = '#10b981'; emoji = '🟢'; label = 'BUENO';
+        desc  = `${pct}% de cuotas pagadas`;
+    } else {
+        color = '#f59e0b'; emoji = '🟡'; label = 'REGULAR';
+        desc  = `${pct}% de cuotas pagadas hasta ahora`;
+    }
+
+    const barWidth = Math.max(pct, 2);
+    wrap.innerHTML = `
+    <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+        <div style="font-size:2.5rem;line-height:1">${emoji}</div>
+        <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.3rem">
+                <span style="font-family:'Syne',sans-serif;font-weight:800;font-size:1rem;color:${color}">${label}</span>
+                <span style="font-size:0.65rem;color:var(--muted2)">${desc}</span>
+            </div>
+            <div style="background:var(--surface2);border-radius:2rem;height:8px;overflow:hidden;border:1px solid var(--border)">
+                <div style="height:100%;width:${barWidth}%;background:${color};border-radius:2rem;transition:width 0.5s ease"></div>
+            </div>
+            <div style="display:flex;gap:1rem;margin-top:0.5rem;flex-wrap:wrap">
+                <span style="font-size:0.65rem;color:var(--muted2)">Pagadas: <strong style="color:#10b981">${pagadas.length}/${total}</strong></span>
+                <span style="font-size:0.65rem;color:var(--muted2)">Con atraso: <strong style="color:#f59e0b">${atrasadas.length}</strong></span>
+                <span style="font-size:0.65rem;color:var(--muted2)">En mora hoy: <strong style="color:#ef4444">${enMora.length}</strong></span>
+                <span style="font-size:0.65rem;color:var(--muted2)">Pendientes: <strong style="color:var(--text)">${pendientes.length}</strong></span>
+            </div>
+        </div>
+    </div>`;
 }
 
 // ─── FICHA ────────────────────────────────────────────────────────────────
