@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Migración Quirúrgica · INVER2 → INVER3</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    background: #0f172a;
+    color: #e2e8f0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .card {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 16px;
+    padding: 32px;
+    width: 100%;
+    max-width: 680px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+  .header {
+    text-align: center;
+    margin-bottom: 28px;
+  }
+  .header h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #f1f5f9;
+    margin-bottom: 6px;
+  }
+  .header p {
+    color: #94a3b8;
+    font-size: 0.9rem;
+  }
+  .badge-from { color: #f59e0b; font-weight: 700; }
+  .badge-to   { color: #10b981; font-weight: 700; }
+
+  .clientes-lista {
+    margin: 20px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .cliente-row {
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 10px;
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .cliente-nombre {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: #f1f5f9;
+  }
+  .cliente-key {
+    font-size: 0.75rem;
+    color: #64748b;
+    font-family: monospace;
+    margin-top: 3px;
+  }
+  .status-badge {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .status-pending  { background: rgba(100,116,139,0.2); color: #94a3b8; border: 1px solid #334155; }
+  .status-buscando { background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); }
+  .status-encontrado { background: rgba(245,158,11,0.15); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); }
+  .status-ok       { background: rgba(16,185,129,0.15); color: #10b981; border: 1px solid rgba(16,185,129,0.3); }
+  .status-error    { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+  .status-noenc    { background: rgba(239,68,68,0.12); color: #fca5a5; border: 1px solid rgba(239,68,68,0.2); }
+
+  .log-box {
+    background: #0f172a;
+    border: 1px solid #1e3a5f;
+    border-radius: 10px;
+    padding: 14px;
+    font-family: monospace;
+    font-size: 0.8rem;
+    color: #7dd3fc;
+    max-height: 220px;
+    overflow-y: auto;
+    margin-top: 20px;
+    line-height: 1.6;
+  }
+  .log-ok    { color: #34d399; }
+  .log-err   { color: #f87171; }
+  .log-warn  { color: #fbbf24; }
+  .log-info  { color: #7dd3fc; }
+
+  .btn {
+    width: 100%;
+    padding: 14px;
+    border-radius: 10px;
+    border: none;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 20px;
+    transition: all 0.2s;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+  }
+  .btn-primary:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+  .btn-danger {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: white;
+  }
+  .btn-danger:hover:not(:disabled) { opacity: 0.9; }
+  .btn-danger:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .warning-box {
+    background: rgba(245,158,11,0.1);
+    border: 1px solid rgba(245,158,11,0.3);
+    border-radius: 10px;
+    padding: 14px;
+    font-size: 0.85rem;
+    color: #fbbf24;
+    margin-bottom: 20px;
+  }
+  .warning-box strong { display: block; margin-bottom: 6px; }
+
+  .confirm-section {
+    display: none;
+    margin-top: 16px;
+    padding: 16px;
+    background: rgba(239,68,68,0.1);
+    border: 1px solid rgba(239,68,68,0.3);
+    border-radius: 10px;
+  }
+  .confirm-section p {
+    font-size: 0.88rem;
+    color: #fca5a5;
+    margin-bottom: 12px;
+  }
+  .confirm-btns { display: flex; gap: 10px; }
+  .confirm-btns button { margin-top: 0; flex: 1; padding: 10px; font-size: 0.9rem; }
+
+  .progress-bar-wrap {
+    background: #0f172a;
+    border-radius: 6px;
+    height: 8px;
+    margin-top: 14px;
+    overflow: hidden;
+    display: none;
+  }
+  .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #10b981, #34d399);
+    border-radius: 6px;
+    transition: width 0.4s ease;
+    width: 0%;
+  }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="header">
+    <h1>🔬 Migración Quirúrgica</h1>
+    <p>Mover clientes de <span class="badge-from">INVER2 (clientes2)</span> → <span class="badge-to">INVER3 (clientes3)</span></p>
+  </div>
+
+  <div class="warning-box">
+    <strong>⚠️ Operación irreversible</strong>
+    Esta herramienta leerá los datos de los clientes en <code>clientes2/</code>, los copiará exactamente a <code>clientes3/</code> y los eliminará de <code>clientes2/</code>. Haz respaldo si tienes dudas.
+  </div>
+
+  <div class="clientes-lista" id="clientesLista">
+    <div class="cliente-row">
+      <div>
+        <div class="cliente-nombre">FATIMA DEL CARMEN DEL CID MEDRANO</div>
+        <div class="cliente-key" id="key-0">Buscando en Firebase…</div>
+      </div>
+      <span class="status-badge status-pending" id="status-0">En espera</span>
+    </div>
+    <div class="cliente-row">
+      <div>
+        <div class="cliente-nombre">MAYRA ESMERALDA OCHOA ARGUERA</div>
+        <div class="cliente-key" id="key-1">Buscando en Firebase…</div>
+      </div>
+      <span class="status-badge status-pending" id="status-1">En espera</span>
+    </div>
+    <div class="cliente-row">
+      <div>
+        <div class="cliente-nombre">MOISES ALEJANDRO HERNANDEZ SORIANO</div>
+        <div class="cliente-key" id="key-2">Buscando en Firebase…</div>
+      </div>
+      <span class="status-badge status-pending" id="status-2">En espera</span>
+    </div>
+  </div>
+
+  <div class="progress-bar-wrap" id="progressWrap">
+    <div class="progress-bar" id="progressBar"></div>
+  </div>
+
+  <div class="log-box" id="logBox">
+    <span class="log-info">▶ Sistema listo. Presiona "Buscar clientes" para iniciar.</span>
+  </div>
+
+  <button class="btn btn-primary" id="btnBuscar" onclick="buscarClientes()">
+    🔍 Paso 1: Buscar clientes en INVER2
+  </button>
+
+  <div class="confirm-section" id="confirmSection">
+    <p>✅ Clientes encontrados y verificados. ¿Confirmas la migración permanente a INVER3?</p>
+    <div class="confirm-btns">
+      <button class="btn btn-danger" onclick="ejecutarMigracion()">⚡ SÍ, Migrar ahora</button>
+      <button class="btn btn-primary" style="background:linear-gradient(135deg,#475569,#334155)" onclick="cancelar()">✖ Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+
+<script>
+// ─── CONFIG FIREBASE (misma que gestionar2/gestionar3) ────────────────────
+const FB_CFG = {
+    apiKey: "AIzaSyC1GiJitT0QegrVe9o6CHCsvf7sEZELwRk",
+    authDomain: "credilistosv.firebaseapp.com",
+    databaseURL: "https://credilistosv-default-rtdb.firebaseio.com",
+    projectId: "credilistosv",
+    storageBucket: "credilistosv.firebasestorage.app"
+};
+
+// Nombres a migrar (buscaremos coincidencia flexible)
+const NOMBRES_OBJETIVO = [
+    "FATIMA DEL CARMEN DEL CID MEDRANO",
+    "MAYRA ESMERALDA OCHOA ARGUERA",
+    "MOISES ALEJANDRO HERNANDEZ SORIANO"
+];
+
+let db;
+let clientesEncontrados = []; // {idx, key, data}
+
+// ─── LOG ──────────────────────────────────────────────────────────────────
+function log(msg, tipo = 'info') {
+    const box = document.getElementById('logBox');
+    const line = document.createElement('div');
+    line.className = `log-${tipo}`;
+    const ts = new Date().toLocaleTimeString('es-SV');
+    line.textContent = `[${ts}] ${msg}`;
+    box.appendChild(line);
+    box.scrollTop = box.scrollHeight;
+}
+
+function setStatus(idx, texto, cls) {
+    const el = document.getElementById(`status-${idx}`);
+    el.textContent = texto;
+    el.className = `status-badge ${cls}`;
+}
+
+function setKey(idx, texto) {
+    document.getElementById(`key-${idx}`).textContent = texto;
+}
+
+function setProgress(pct) {
+    const wrap = document.getElementById('progressWrap');
+    wrap.style.display = 'block';
+    document.getElementById('progressBar').style.width = pct + '%';
+}
+
+// ─── NORMALIZAR NOMBRE para comparación flexible ─────────────────────────
+function normalizar(str) {
+    return (str || '')
+        .toUpperCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function similitud(a, b) {
+    const na = normalizar(a);
+    const nb = normalizar(b);
+    if (na === nb) return 1.0;
+    // Verificar si todas las palabras del objetivo están en el nombre
+    const palabrasObj = nb.split(' ');
+    const matchCount = palabrasObj.filter(p => na.includes(p)).length;
+    return matchCount / palabrasObj.length;
+}
+
+// ─── PASO 1: BUSCAR ───────────────────────────────────────────────────────
+async function buscarClientes() {
+    document.getElementById('btnBuscar').disabled = true;
+    document.getElementById('btnBuscar').textContent = '⏳ Buscando…';
+    clientesEncontrados = [];
+
+    log('Inicializando Firebase…', 'info');
+    try {
+        if (!firebase.apps.length) {
+            firebase.initializeApp(FB_CFG, 'migrador');
+        } else {
+            // Ya inicializado
+            try { firebase.app('migrador'); } catch(e) {
+                firebase.initializeApp(FB_CFG, 'migrador');
+            }
+        }
+        db = firebase.app('migrador').database();
+        log('✔ Firebase conectado', 'ok');
+    } catch(e) {
+        log('✖ Error Firebase: ' + e.message, 'err');
+        document.getElementById('btnBuscar').disabled = false;
+        document.getElementById('btnBuscar').textContent = '🔍 Paso 1: Buscar clientes en INVER2';
+        return;
+    }
+
+    log('Leyendo clientes2/ …', 'info');
+    setProgress(10);
+
+    try {
+        const snap = await db.ref('clientes2').once('value');
+        const datos = snap.val();
+
+        if (!datos) {
+            log('✖ clientes2/ está vacío o no existe', 'err');
+            document.getElementById('btnBuscar').disabled = false;
+            document.getElementById('btnBuscar').textContent = '🔍 Paso 1: Buscar clientes en INVER2';
+            return;
+        }
+
+        const keys = Object.keys(datos);
+        log(`📋 Total clientes en clientes2: ${keys.length}`, 'info');
+        setProgress(30);
+
+        // Buscar cada cliente objetivo
+        for (let i = 0; i < NOMBRES_OBJETIVO.length; i++) {
+            const nombreObj = NOMBRES_OBJETIVO[i];
+            setStatus(i, 'Buscando…', 'status-buscando');
+            log(`Buscando: "${nombreObj}"`, 'info');
+
+            let mejorKey = null;
+            let mejorScore = 0;
+            let mejorData = null;
+
+            for (const k of keys) {
+                const cliente = datos[k];
+                const score = similitud(cliente.nombre || '', nombreObj);
+                if (score > mejorScore) {
+                    mejorScore = score;
+                    mejorKey = k;
+                    mejorData = cliente;
+                }
+            }
+
+            if (mejorScore >= 0.7 && mejorKey) {
+                setStatus(i, '✔ Encontrado', 'status-encontrado');
+                setKey(i, `Key: ${mejorKey} · Score: ${(mejorScore*100).toFixed(0)}% · "${mejorData.nombre}"`);
+                log(`  ✔ Encontrado key="${mejorKey}" nombre="${mejorData.nombre}" (${(mejorScore*100).toFixed(0)}%)`, 'ok');
+                clientesEncontrados.push({ idx: i, key: mejorKey, data: mejorData });
+            } else {
+                setStatus(i, '✖ No encontrado', 'status-noenc');
+                setKey(i, mejorKey ? `Mejor coincidencia: "${datos[mejorKey]?.nombre}" (${(mejorScore*100).toFixed(0)}%)` : 'Sin coincidencia');
+                log(`  ✖ No encontrado con certeza. Mejor: "${datos[mejorKey]?.nombre}" (${(mejorScore*100).toFixed(0)}%)`, 'warn');
+            }
+        }
+
+        setProgress(60);
+
+        if (clientesEncontrados.length === 0) {
+            log('✖ No se encontró ningún cliente. Verifica los nombres en la BD.', 'err');
+            document.getElementById('btnBuscar').disabled = false;
+            document.getElementById('btnBuscar').textContent = '🔍 Reintentar búsqueda';
+            return;
+        }
+
+        log(`✔ Encontrados ${clientesEncontrados.length} de ${NOMBRES_OBJETIVO.length} clientes`, 'ok');
+        log('⚠ Revisa los resultados antes de confirmar la migración.', 'warn');
+
+        document.getElementById('confirmSection').style.display = 'block';
+        document.getElementById('btnBuscar').textContent = `✔ ${clientesEncontrados.length} cliente(s) listo(s) para migrar`;
+
+    } catch(e) {
+        log('✖ Error leyendo BD: ' + e.message, 'err');
+        document.getElementById('btnBuscar').disabled = false;
+        document.getElementById('btnBuscar').textContent = '🔍 Paso 1: Buscar clientes en INVER2';
+    }
+}
+
+// ─── PASO 2: MIGRAR ───────────────────────────────────────────────────────
+async function ejecutarMigracion() {
+    document.getElementById('confirmSection').style.display = 'none';
+    log('═══ INICIANDO MIGRACIÓN QUIRÚRGICA ═══', 'warn');
+    setProgress(65);
+
+    let exitosos = 0;
+    const total = clientesEncontrados.length;
+
+    for (let i = 0; i < total; i++) {
+        const { idx, key, data } = clientesEncontrados[i];
+        const nombre = data.nombre || key;
+
+        try {
+            log(`[${i+1}/${total}] Migrando: "${nombre}"`, 'info');
+            setStatus(idx, '⬆ Migrando…', 'status-buscando');
+
+            // 1. Escribir en clientes3 con la misma key
+            await db.ref('clientes3/' + key).set(data);
+            log(`  ✔ Escrito en clientes3/${key}`, 'ok');
+
+            // 2. Verificar que se escribió correctamente
+            const verify = await db.ref('clientes3/' + key).once('value');
+            if (!verify.exists()) {
+                throw new Error('Verificación fallida: no se guardó en clientes3');
+            }
+            log(`  ✔ Verificado en clientes3/${key}`, 'ok');
+
+            // 3. Eliminar de clientes2
+            await db.ref('clientes2/' + key).remove();
+            log(`  ✔ Eliminado de clientes2/${key}`, 'ok');
+
+            setStatus(idx, '✅ Migrado', 'status-ok');
+            setKey(idx, `✅ Movido a clientes3/${key}`);
+            exitosos++;
+
+        } catch(e) {
+            log(`  ✖ ERROR en "${nombre}": ${e.message}`, 'err');
+            setStatus(idx, '✖ Error', 'status-error');
+            setKey(idx, `ERROR: ${e.message}`);
+        }
+
+        setProgress(65 + ((i+1)/total) * 35);
+    }
+
+    setProgress(100);
+
+    if (exitosos === total) {
+        log(`═══ ✅ MIGRACIÓN COMPLETA: ${exitosos}/${total} clientes movidos a INVER3 ═══`, 'ok');
+    } else {
+        log(`═══ ⚠ MIGRACIÓN PARCIAL: ${exitosos}/${total} exitosos. Revisa errores arriba. ═══`, 'warn');
+    }
+
+    log('Puedes cerrar esta herramienta.', 'info');
+}
+
+function cancelar() {
+    document.getElementById('confirmSection').style.display = 'none';
+    document.getElementById('btnBuscar').disabled = false;
+    document.getElementById('btnBuscar').textContent = '🔍 Paso 1: Buscar clientes en INVER2';
+    log('Operación cancelada por el usuario.', 'warn');
+    setProgress(0);
+    document.getElementById('progressWrap').style.display = 'none';
+    clientesEncontrados = [];
+    for (let i = 0; i < 3; i++) {
+        setStatus(i, 'En espera', 'status-pending');
+        setKey(i, 'Buscando en Firebase…');
+    }
+}
+</script>
+</body>
+</html>
