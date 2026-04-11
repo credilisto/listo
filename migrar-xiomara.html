@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Migración XIOMARA · CrediListo</title>
+    <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-database-compat.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: #0f172a;
+            color: #e2e8f0;
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+            display: flex; align-items: center; justify-content: center;
+            padding: 1rem;
+        }
+        .card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 1rem;
+            padding: 2rem;
+            width: min(100%, 520px);
+        }
+        h1 {
+            font-size: 1rem;
+            font-weight: 700;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: #f59e0b;
+            margin-bottom: 0.25rem;
+        }
+        .sub {
+            font-size: 0.65rem;
+            color: #64748b;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            margin-bottom: 2rem;
+        }
+        .pin-section { margin-bottom: 1.5rem; }
+        label {
+            display: block;
+            font-size: 0.6rem;
+            font-weight: 700;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: #94a3b8;
+            margin-bottom: 0.4rem;
+        }
+        input[type="password"], input[type="text"] {
+            width: 100%;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 0.5rem;
+            padding: 0.75rem 1rem;
+            color: #f8fafc;
+            font-family: 'Courier New', monospace;
+            font-size: 1rem;
+            letter-spacing: 0.3em;
+            outline: none;
+        }
+        input:focus { border-color: #f59e0b; }
+        .btn {
+            width: 100%;
+            padding: 0.85rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-family: 'Courier New', monospace;
+            font-weight: 700;
+            font-size: 0.75rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            cursor: pointer;
+            margin-top: 1rem;
+            transition: opacity 0.2s;
+        }
+        .btn:hover { opacity: 0.85; }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .btn-warn   { background: #f59e0b; color: #0f172a; }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-ok     { background: #22c55e; color: #0f172a; }
+
+        .log {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-top: 1.5rem;
+            font-size: 0.72rem;
+            line-height: 1.8;
+            min-height: 80px;
+            display: none;
+        }
+        .log.visible { display: block; }
+        .log .ok   { color: #22c55e; }
+        .log .err  { color: #ef4444; }
+        .log .info { color: #94a3b8; }
+        .log .warn { color: #f59e0b; }
+        .log .bold { color: #f8fafc; font-weight: 700; }
+
+        .preview {
+            background: #0f172a;
+            border: 1px solid #f59e0b44;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-top: 1rem;
+            display: none;
+        }
+        .preview.visible { display: block; }
+        .prow { display: flex; justify-content: space-between; margin-bottom: 0.4rem;
+                font-size: 0.7rem; }
+        .prow .plbl { color: #64748b; }
+        .prow .pval { color: #f8fafc; font-weight: 600; }
+        .prow .pval.green { color: #22c55e; }
+        .prow .pval.red   { color: #ef4444; }
+        .prow .pval.gold  { color: #f59e0b; }
+        .divider { border: none; border-top: 1px solid #1e293b; margin: 0.5rem 0; }
+        .step-title {
+            font-size: 0.55rem;
+            font-weight: 800;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: #475569;
+            margin: 1.25rem 0 0.75rem;
+        }
+    </style>
+</head>
+<body>
+<div class="card">
+    <h1>⚡ Migración Quirúrgica</h1>
+    <div class="sub">XIOMARA · INVER 3 → INVER 2 · CrediListo</div>
+
+    <!-- PASO 1: PIN -->
+    <div id="step-pin">
+        <div class="step-title">Paso 1 — Autenticación</div>
+        <div class="pin-section">
+            <label>PIN de administrador (INVER 3)</label>
+            <input type="password" id="pin-input" placeholder="••••" maxlength="6"
+                   onkeydown="if(event.key==='Enter') verificarPin()">
+        </div>
+        <button class="btn btn-warn" onclick="verificarPin()">Verificar PIN →</button>
+    </div>
+
+    <!-- PASO 2: Buscar y preview -->
+    <div id="step-buscar" style="display:none">
+        <div class="step-title">Paso 2 — Buscar cliente en INVER 3</div>
+        <button class="btn btn-warn" onclick="buscarCliente()">🔍 Buscar XIOMARA TATIANA QUINTEROS GUEVARA</button>
+
+        <div class="preview" id="preview">
+            <div class="prow"><span class="plbl">Nombre</span><span class="pval bold" id="p-nombre">—</span></div>
+            <div class="prow"><span class="plbl">ID Firebase</span><span class="pval" id="p-id">—</span></div>
+            <div class="prow"><span class="plbl">Fecha inicio</span><span class="pval" id="p-fecha">—</span></div>
+            <div class="prow"><span class="plbl">Estado</span><span class="pval" id="p-tipo">—</span></div>
+            <hr class="divider">
+            <div class="prow"><span class="plbl">Monto (capital)</span><span class="pval gold" id="p-monto">—</span></div>
+            <div class="prow"><span class="plbl">Total a cobrar</span><span class="pval" id="p-total">—</span></div>
+            <div class="prow"><span class="plbl">Saldo pendiente</span><span class="pval red" id="p-saldo">—</span></div>
+            <hr class="divider">
+            <div style="font-size:0.6rem;color:#f59e0b;font-weight:700;letter-spacing:0.08em;margin-top:0.25rem">
+                ⚠ AJUSTES DE FINANZAS QUE SE REALIZARÁN
+            </div>
+            <div class="prow" style="margin-top:0.5rem">
+                <span class="plbl">INVER 3 capitalInvertido</span>
+                <span class="pval red" id="p-fin3">− $0.00</span>
+            </div>
+            <div class="prow">
+                <span class="plbl">INVER 3 cajaChica</span>
+                <span class="pval red" id="p-caja3">sin cambio</span>
+            </div>
+            <div class="prow">
+                <span class="plbl">INVER 2 capitalInvertido</span>
+                <span class="pval green" id="p-fin2">+ $0.00</span>
+            </div>
+        </div>
+
+        <button class="btn btn-danger" id="btn-migrar" style="display:none" onclick="confirmarMigracion()">
+            🚀 EJECUTAR MIGRACIÓN
+        </button>
+    </div>
+
+    <!-- LOG -->
+    <div class="log" id="log"></div>
+</div>
+
+<script>
+    const DB_URL = 'https://credilistosv-default-rtdb.firebaseio.com';
+    const FB_CFG = {
+        apiKey: 'AIzaSyC1GiJitT0QegrVe9o6CHCsvf7sEZELwRk',
+        authDomain: 'credilistosv.firebaseapp.com',
+        databaseURL: DB_URL,
+        projectId: 'credilistosv',
+        storageBucket: 'credilistosv.firebasestorage.app'
+    };
+    const PIN_CORRECTO = '2035';
+
+    let db = null;
+    let clienteEncontrado = null;
+    let clienteKey = null;
+
+    function log(msg, tipo = 'info') {
+        const el = document.getElementById('log');
+        el.classList.add('visible');
+        el.innerHTML += `<div class="${tipo}">${msg}</div>`;
+        el.scrollTop = el.scrollHeight;
+    }
+
+    function fmt(v) {
+        return '$' + parseFloat(v || 0).toLocaleString('es-SV', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function verificarPin() {
+        const pin = document.getElementById('pin-input').value;
+        if (pin === PIN_CORRECTO) {
+            log('✔ PIN correcto. Inicializando Firebase…', 'ok');
+            document.getElementById('step-pin').style.display = 'none';
+            document.getElementById('step-buscar').style.display = 'block';
+
+            try {
+                firebase.initializeApp(FB_CFG, 'migrador');
+            } catch(e) {
+                // ya inicializado
+            }
+            db = firebase.app('migrador').database();
+            log('✔ Firebase conectado.', 'ok');
+        } else {
+            log('✘ PIN incorrecto.', 'err');
+        }
+    }
+
+    async function buscarCliente() {
+        log('— Buscando en clientes3…', 'info');
+        const snap = await db.ref('clientes3').once('value');
+        let encontrado = null;
+        let keyEncontrado = null;
+
+        snap.forEach(child => {
+            const v = child.val();
+            const nombre = (v.nombre || '').toUpperCase().trim();
+            if (nombre.includes('XIOMARA') && nombre.includes('QUINTEROS')) {
+                encontrado = v;
+                keyEncontrado = child.key;
+            }
+        });
+
+        if (!encontrado) {
+            log('✘ No se encontró a XIOMARA TATIANA QUINTEROS GUEVARA en clientes3.', 'err');
+            log('  Verifica que el nombre esté correcto en Firebase.', 'warn');
+            return;
+        }
+
+        clienteEncontrado = encontrado;
+        clienteKey = keyEncontrado;
+
+        log(`✔ Cliente encontrado: ${encontrado.nombre} [${keyEncontrado}]`, 'ok');
+
+        // Mostrar preview
+        const monto = parseFloat(encontrado.monto || 0);
+        const total = parseFloat(encontrado.total || (monto * 1.2));
+        const saldo = parseFloat(encontrado.saldo !== undefined ? encontrado.saldo : total);
+
+        document.getElementById('p-nombre').textContent = encontrado.nombre || '—';
+        document.getElementById('p-id').textContent     = keyEncontrado;
+        document.getElementById('p-fecha').textContent  = encontrado.fechaInicio || encontrado.fecha || '—';
+        document.getElementById('p-tipo').textContent   = encontrado.tipo || '—';
+        document.getElementById('p-monto').textContent  = fmt(monto);
+        document.getElementById('p-total').textContent  = fmt(total);
+        document.getElementById('p-saldo').textContent  = fmt(saldo);
+        document.getElementById('p-fin3').textContent   = `− ${fmt(monto)}`;
+        document.getElementById('p-caja3').textContent  = 'sin cambio';
+        document.getElementById('p-fin2').textContent   = `+ ${fmt(monto)}`;
+
+        document.getElementById('preview').classList.add('visible');
+        document.getElementById('btn-migrar').style.display = 'block';
+    }
+
+    async function confirmarMigracion() {
+        if (!clienteEncontrado || !clienteKey) {
+            log('✘ No hay cliente cargado para migrar.', 'err');
+            return;
+        }
+
+        document.getElementById('btn-migrar').disabled = true;
+        log('', 'info');
+        log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'info');
+        log('🚀 INICIANDO MIGRACIÓN…', 'bold');
+
+        try {
+            const monto = parseFloat(clienteEncontrado.monto || 0);
+
+            // 1) Leer finanzas3
+            log('1/5 — Leyendo config/finanzas3…', 'info');
+            const snapFin3 = await db.ref('config/finanzas3').once('value');
+            const fin3 = snapFin3.val() || {};
+            const cap3Anterior = parseFloat(fin3.capitalInvertido || 0);
+            const cap3Nuevo    = Math.max(0, cap3Anterior - monto);
+            log(`     capitalInvertido INVER3: ${fmt(cap3Anterior)} → ${fmt(cap3Nuevo)}`, 'warn');
+
+            // 2) Leer finanzas2
+            log('2/5 — Leyendo config/finanzas2…', 'info');
+            const snapFin2 = await db.ref('config/finanzas2').once('value');
+            const fin2 = snapFin2.val() || {};
+            const cap2Anterior = parseFloat(fin2.capitalInvertido || 0);
+            const cap2Nuevo    = cap2Anterior + monto;
+            log(`     capitalInvertido INVER2: ${fmt(cap2Anterior)} → ${fmt(cap2Nuevo)}`, 'warn');
+
+            // 3) Copiar cliente a clientes2
+            log('3/5 — Copiando cliente a clientes2…', 'info');
+            const clienteLimpio = { ...clienteEncontrado };
+            delete clienteLimpio._key;
+            delete clienteLimpio._origen;
+            await db.ref('clientes2/' + clienteKey).set(clienteLimpio);
+            log(`     ✔ Registro escrito en clientes2/${clienteKey}`, 'ok');
+
+            // 4) Actualizar ambas finanzas en paralelo
+            log('4/5 — Actualizando finanzas…', 'info');
+            await Promise.all([
+                db.ref('config/finanzas3').update({ capitalInvertido: cap3Nuevo }),
+                db.ref('config/finanzas2').update({ capitalInvertido: cap2Nuevo })
+            ]);
+            log('     ✔ finanzas3 y finanzas2 actualizadas.', 'ok');
+
+            // 5) Eliminar de clientes3
+            log('5/5 — Eliminando de clientes3…', 'info');
+            await db.ref('clientes3/' + clienteKey).remove();
+            log(`     ✔ Registro eliminado de clientes3/${clienteKey}`, 'ok');
+
+            log('', 'info');
+            log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'info');
+            log('✅ MIGRACIÓN COMPLETADA EXITOSAMENTE', 'ok');
+            log(`   ${clienteEncontrado.nombre}`, 'ok');
+            log(`   INVER 3 → INVER 2`, 'ok');
+            log(`   Monto migrado: ${fmt(monto)}`, 'ok');
+            log('', 'info');
+            log('Puedes cerrar esta página.', 'info');
+
+            document.getElementById('btn-migrar').style.display = 'none';
+
+        } catch (err) {
+            log('', 'err');
+            log('✘ ERROR DURANTE LA MIGRACIÓN:', 'err');
+            log('  ' + err.message, 'err');
+            log('⚠ Verifica manualmente el estado de Firebase.', 'warn');
+            document.getElementById('btn-migrar').disabled = false;
+        }
+    }
+</script>
+</body>
+</html>
