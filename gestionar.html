@@ -2060,16 +2060,17 @@ function renderCobrosContent(clientsObj, rama) {
     const gestionUrl  = esInver3 ? 'gestionar3.html' : 'gestionar2.html';
 
     const mora=[], pagados=[];
-    // Para clientes diarios: van en hoy[]
-    // Para clientes semanales: van organizados por día de inicio
+    // Diarios con cuota exactamente hoy
     const hoyDiarios=[];
-    const semanalPorDia = {1:[],2:[],3:[],4:[],5:[],6:[]}; // Lun-Sab
+    // Semanales activos agrupados por día de la semana de su inicio (Lun=1 … Sab=6)
+    const semanalPorDia = {1:[],2:[],3:[],4:[],5:[],6:[]};
 
     Object.entries(clientsObj).forEach(([id, c]) => {
         if (c.tipo !== 'ACTIVO') return;
         const cuotas = c.cuotas || [];
         const yaPago = cuotas.some(q => q.pagada && q.fecha_ISO === HOY_ISO);
         if (yaPago) { pagados.push({id,c}); return; }
+
         let maxAtraso = 0, tocaHoyFlag = false, cuotaPend = null;
         for (const cuo of cuotas) {
             if (cuo.pagada) continue;
@@ -2080,21 +2081,19 @@ function renderCobrosContent(clientsObj, rama) {
             if (diff > 0) maxAtraso = Math.max(maxAtraso, diff);
             if (diff === 0) tocaHoyFlag = true;
         }
+
         if (maxAtraso > 0) {
             mora.push({id, c, dias:maxAtraso, cuotaPend});
+        } else if ((c.frecuencia||'diario') === 'semanal') {
+            // Todos los semanales activos (sin mora, sin pagar hoy) van al panel semanal
+            // Si tiene cuota hoy, tocaHoyFlag=true → se marca como "HOY" dentro de su día
+            const fechaI = c.fechaInicio || c.fecha || '';
+            const fi = parseFechaProgr(fechaI);
+            let dowInicio = fi ? fi.getDay() : HOY_DOW;
+            const slot = (dowInicio >= 1 && dowInicio <= 6) ? dowInicio : 1;
+            semanalPorDia[slot].push({id, c, cuotaPend, tocaHoy: tocaHoyFlag});
         } else if (tocaHoyFlag) {
-            if ((c.frecuencia||'diario') === 'semanal') {
-                // Determinar día de la semana del inicio del crédito
-                const fechaI = c.fechaInicio || c.fecha || '';
-                let dowInicio = HOY_DOW; // default: hoy
-                const fi = parseFechaProgr(fechaI);
-                if (fi) dowInicio = fi.getDay(); // 0=Dom..6=Sab
-                // Solo Lun-Sab (1-6); si cayó domingo lo ponemos en Lunes
-                const slot = (dowInicio >= 1 && dowInicio <= 6) ? dowInicio : 1;
-                semanalPorDia[slot].push({id,c,cuotaPend});
-            } else {
-                hoyDiarios.push({id,c,cuotaPend});
-            }
+            hoyDiarios.push({id, c, cuotaPend});
         }
     });
     mora.sort((a,b) => b.dias - a.dias);
@@ -2111,7 +2110,7 @@ function renderCobrosContent(clientsObj, rama) {
         if (el) el.textContent = '$' + totalMoraRegistrada.toFixed(2);
     });
 
-    const hoyTotal = hoyDiarios.length + Object.values(semanalPorDia).reduce((a,v)=>a+v.length,0);
+    const hoyTotal = hoyDiarios.length + Object.values(semanalPorDia).reduce((a,v)=>a+v.filter(x=>x.tocaHoy).length,0);
     const totalPendiente = mora.length + hoyTotal;
 
     const btnVer = (esInver2 || esInver3)
@@ -2146,7 +2145,7 @@ function renderCobrosContent(clientsObj, rama) {
                     <div style="display:flex;gap:0.75rem;margin-top:0.2rem;flex-wrap:wrap">
                         <span style="font-size:0.65rem;color:var(--muted2)">Cuota: <strong style="color:var(--text)">$${m}</strong></span>
                         <span style="font-size:0.65rem;color:var(--muted2)">Saldo: <strong style="color:var(--danger)">$${s}</strong></span>
-                        ${recargo > 0 ? `<span style="font-size:0.65rem;color:var(--muted2)">Total a cobrar: <strong style="color:#b45309">$${(parseFloat(m)+recargo).toFixed(2)}</strong></span>` : ''}
+                        ${recargo > 0 ? `<span style="font-size:0.65rem;color:var(--muted2)">Recargo mora: <strong style="color:#b45309">$${recargo.toFixed(2)}</strong></span>` : ''}
                     </div>
                 </div>
                 ${btnVerMora(x.id)}
@@ -2171,6 +2170,30 @@ function renderCobrosContent(clientsObj, rama) {
     const rowHoy = x => {
         const m = x.cuotaPend ? parseFloat(x.cuotaPend.valorPagado||0).toFixed(2) : '—';
         const s = parseFloat(x.c.saldo||0).toFixed(2);
+        const esHoyCliente = x.tocaHoy === true;
+        const borderColor = esHoyCliente ? accentColor : 'var(--border2)';
+        return `<div style="background:var(--surface2);border:1px solid var(--border);border-left:3px solid ${borderColor};
+                    border-radius:0.6rem;padding:0.75rem 1rem;display:flex;justify-content:space-between;align-items:center;gap:0.75rem">
+            <div style="flex:1;min-width:0">
+                <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.2rem">
+                    ${esHoyCliente ? `<span style="background:${accentDim};color:${accentColor};font-size:0.6rem;font-weight:800;
+                                 letter-spacing:0.08em;text-transform:uppercase;padding:0.15rem 0.5rem;border-radius:2rem;
+                                 border:1px solid ${accentBorder}">HOY</span>` : ''}
+                    <span style="font-size:0.58rem;font-weight:600;color:var(--muted);text-transform:uppercase">SEMANAL</span>
+                </div>
+                <div style="font-weight:800;font-size:0.9rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${x.c.nombre||'—'}</div>
+                <div style="display:flex;gap:0.75rem;margin-top:0.2rem">
+                    <span style="font-size:0.65rem;color:var(--muted2)">Cuota: <strong style="color:var(--text)">$${m}</strong></span>
+                    <span style="font-size:0.65rem;color:var(--muted2)">Saldo: <strong style="color:var(--danger)">$${s}</strong></span>
+                </div>
+            </div>
+            ${esHoyCliente ? btnVer(x.id) : ''}
+        </div>`;
+    };
+
+    const rowHoyDiario = x => {
+        const m = x.cuotaPend ? parseFloat(x.cuotaPend.valorPagado||0).toFixed(2) : '—';
+        const s = parseFloat(x.c.saldo||0).toFixed(2);
         return `<div style="background:var(--surface2);border:1px solid var(--border);border-left:3px solid ${accentColor};
                     border-radius:0.6rem;padding:0.75rem 1rem;display:flex;justify-content:space-between;align-items:center;gap:0.75rem">
             <div style="flex:1;min-width:0">
@@ -2178,7 +2201,7 @@ function renderCobrosContent(clientsObj, rama) {
                     <span style="background:${accentDim};color:${accentColor};font-size:0.6rem;font-weight:800;
                                  letter-spacing:0.08em;text-transform:uppercase;padding:0.15rem 0.5rem;border-radius:2rem;
                                  border:1px solid ${accentBorder}">HOY</span>
-                    <span style="font-size:0.58rem;font-weight:600;color:var(--muted);text-transform:uppercase">${(x.c.frecuencia||'diario')}</span>
+                    <span style="font-size:0.58rem;font-weight:600;color:var(--muted);text-transform:uppercase">DIARIO</span>
                 </div>
                 <div style="font-weight:800;font-size:0.9rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${x.c.nombre||'—'}</div>
                 <div style="display:flex;gap:0.75rem;margin-top:0.2rem">
@@ -2203,24 +2226,35 @@ function renderCobrosContent(clientsObj, rama) {
         </div>`;
     };
 
-    // Bloque semanal: solo muestra días que tienen clientes
-    const ORDEN_DIAS = [1,2,3,4,5,6]; // Lun→Sab
-    const bloquesSemana = ORDEN_DIAS
-        .filter(d => semanalPorDia[d].length > 0)
-        .map(d => {
-            const esHoy = d === HOY_DOW;
-            return `<div class="section-card">
+    // Bloques semanales: muestra los 6 días (Lun→Sab), resalta hoy, solo renderiza si hay clientes
+    const ORDEN_DIAS = [1,2,3,4,5,6];
+    const totalSemanales = Object.values(semanalPorDia).reduce((a,v)=>a+v.length,0);
+    const bloquesSemana = totalSemanales > 0 ? `
+    <div class="section-card">
         <div class="section-head">
-            <div class="section-title" style="color:${esHoy ? accentColor : 'var(--text)'}">
-                ${esHoy ? '📅 ' : '📆 '}${DIAS_SEMANA[d]} — ${semanalPorDia[d].length} cliente${semanalPorDia[d].length!==1?'s':''}
-                ${esHoy ? `<span style="font-size:0.6rem;background:${accentDim};color:${accentColor};padding:0.1rem 0.5rem;border-radius:2rem;border:1px solid ${accentBorder};margin-left:0.4rem">HOY</span>` : ''}
-            </div>
+            <div class="section-title">📆 Clientes Semanales — por día de cobro</div>
+            <span style="font-size:0.6rem;font-weight:600;color:var(--muted2)">${totalSemanales} cliente${totalSemanales!==1?'s':''}</span>
         </div>
-        <div class="section-body" style="display:flex;flex-direction:column;gap:0.5rem">
-            ${semanalPorDia[d].map(rowHoy).join('')}
+        <div class="section-body" style="display:flex;flex-direction:column;gap:0.75rem">
+            ${ORDEN_DIAS.filter(d => semanalPorDia[d].length > 0).map(d => {
+                const esHoy = d === HOY_DOW;
+                const cuantosHoy = semanalPorDia[d].filter(x => x.tocaHoy).length;
+                return `<div>
+                <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.4rem">
+                    <span style="font-size:0.6rem;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;
+                                 color:${esHoy ? accentColor : 'var(--muted)'};padding:0.2rem 0.7rem;border-radius:2rem;
+                                 background:${esHoy ? accentDim : 'var(--surface2)'};border:1px solid ${esHoy ? accentBorder : 'var(--border)'}">
+                        ${esHoy ? '📅 ' : ''}${DIAS_SEMANA[d]}${esHoy ? ' — HOY' : ''}
+                    </span>
+                    <span style="font-size:0.6rem;color:var(--muted2)">${semanalPorDia[d].length} cliente${semanalPorDia[d].length!==1?'s':''}${cuantosHoy > 0 ? ` · <strong style="color:${accentColor}">${cuantosHoy} pagan hoy</strong>` : ''}</span>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:0.4rem">
+                    ${semanalPorDia[d].map(rowHoy).join('')}
+                </div>
+            </div>`;
+            }).join('')}
         </div>
-    </div>`;
-        }).join('');
+    </div>` : '';
 
     document.getElementById('cobros-tab-content').innerHTML = `
     <div style="display:flex;gap:0.5rem;flex-wrap:wrap;padding:0 0 0.25rem 0;align-items:stretch">
@@ -2267,10 +2301,10 @@ function renderCobrosContent(clientsObj, rama) {
     ${hoyDiarios.length > 0 ? `
     <div class="section-card">
         <div class="section-head">
-            <div class="section-title" style="color:${accentColor}">📅 Cobros de Hoy — ${hoyDiarios.length} cliente${hoyDiarios.length!==1?'s':''}</div>
+            <div class="section-title" style="color:${accentColor}">📅 Cobros de Hoy — ${hoyDiarios.length} cliente${hoyDiarios.length!==1?'s':''} diarios</div>
         </div>
         <div class="section-body" style="display:flex;flex-direction:column;gap:0.5rem">
-            ${hoyDiarios.map(rowHoy).join('')}
+            ${hoyDiarios.map(rowHoyDiario).join('')}
         </div>
     </div>` : ''}
 
