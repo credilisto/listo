@@ -929,6 +929,14 @@ function renderPanel(id) {
         `}
     </div>
 
+    <!-- SEMÁFORO DE PUNTUALIDAD -->
+    <div class="section-card">
+        <div class="section-head">
+            <div class="section-title">🚦 Puntualidad del Cliente</div>
+        </div>
+        <div class="section-body" id="semaforo-wrap"></div>
+    </div>
+
     <!-- CUOTAS -->
     <div class="section-card">
         <div class="section-head">
@@ -985,6 +993,78 @@ function renderPanel(id) {
 
     renderCuotas(s);
     renderFicha(s);
+    renderSemaforo(s);
+}
+
+// ─── SEMÁFORO DE PUNTUALIDAD ─────────────────────────────────────────────
+function renderSemaforo(s) {
+    const wrap = document.getElementById('semaforo-wrap');
+    if (!wrap) return;
+    const cuotas = s.cuotas || [];
+    const total  = cuotas.length;
+    if (!total) {
+        wrap.innerHTML = '<p style="font-size:0.75rem;color:var(--muted);padding:0.5rem">Sin cuotas registradas aún.</p>';
+        return;
+    }
+    const pagadas    = cuotas.filter(c => c.pagada);
+    const atrasadas  = cuotas.filter(c => {
+        if (!c.pagada) return false;
+        if (!c.fecha_ISO || !c.fecha_prog) return false;
+        const prog = parseFechaProgr(c.fecha_prog || c.fecha_prog_sv);
+        if (!prog) return false;
+        const pagado = new Date(c.fecha_ISO + 'T12:00:00');
+        return pagado > prog;
+    });
+    const pendientes = cuotas.filter(c => !c.pagada);
+    const enMora     = (() => {
+        const hoy = new Date(getFechaHoySV() + 'T12:00:00');
+        return pendientes.filter(c => {
+            const f = parseFechaProgr(c.fecha_prog || c.fecha_prog_sv);
+            return f && hoy > f;
+        });
+    })();
+
+    const pct        = total > 0 ? Math.round((pagadas.length / total) * 100) : 0;
+    const atrasoPct  = pagadas.length > 0 ? Math.round((atrasadas.length / pagadas.length) * 100) : 0;
+
+    let color, emoji, label, desc;
+    if (enMora.length > 0) {
+        color = '#ef4444'; emoji = '🔴'; label = 'EN MORA';
+        desc  = `${enMora.length} cuota${enMora.length!==1?'s':''} vencida${enMora.length!==1?'s':''} sin pagar`;
+    } else if (atrasoPct > 30) {
+        color = '#f59e0b'; emoji = '🟡'; label = 'IRREGULAR';
+        desc  = `${atrasoPct}% de pagos realizados con atraso`;
+    } else if (pct >= 80 && atrasoPct <= 10) {
+        color = '#10b981'; emoji = '🟢'; label = 'EXCELENTE';
+        desc  = `${pct}% de cuotas pagadas puntualmente`;
+    } else if (pct >= 50) {
+        color = '#10b981'; emoji = '🟢'; label = 'BUENO';
+        desc  = `${pct}% de cuotas pagadas`;
+    } else {
+        color = '#f59e0b'; emoji = '🟡'; label = 'REGULAR';
+        desc  = `${pct}% de cuotas pagadas hasta ahora`;
+    }
+
+    const barWidth = Math.max(pct, 2);
+    wrap.innerHTML = `
+    <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+        <div style="font-size:2.5rem;line-height:1">${emoji}</div>
+        <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.3rem">
+                <span style="font-family:'Syne',sans-serif;font-weight:800;font-size:1rem;color:${color}">${label}</span>
+                <span style="font-size:0.65rem;color:var(--muted2)">${desc}</span>
+            </div>
+            <div style="background:var(--surface2);border-radius:2rem;height:8px;overflow:hidden;border:1px solid var(--border)">
+                <div style="height:100%;width:${barWidth}%;background:${color};border-radius:2rem;transition:width 0.5s ease"></div>
+            </div>
+            <div style="display:flex;gap:1rem;margin-top:0.5rem;flex-wrap:wrap">
+                <span style="font-size:0.65rem;color:var(--muted2)">Pagadas: <strong style="color:#10b981">${pagadas.length}/${total}</strong></span>
+                <span style="font-size:0.65rem;color:var(--muted2)">Con atraso: <strong style="color:#f59e0b">${atrasadas.length}</strong></span>
+                <span style="font-size:0.65rem;color:var(--muted2)">En mora hoy: <strong style="color:#ef4444">${enMora.length}</strong></span>
+                <span style="font-size:0.65rem;color:var(--muted2)">Pendientes: <strong style="color:var(--text)">${pendientes.length}</strong></span>
+            </div>
+        </div>
+    </div>`;
 }
 
 // ─── CUOTAS ───────────────────────────────────────────────────────────────
@@ -1873,18 +1953,20 @@ async function guardarNotaMora(clientId, rama) {
 }
 
 // ─── INYECCIÓN POR MORA ──────────────────────────────────────────────────────
-function modalInyeccionMora() {
+function modalInyeccionMora(rama) {
+    rama = rama || 'inver1';
     const modal = document.createElement('div');
     modal.id = 'modal-inj-mora';
     modal.style.cssText = `position:fixed;inset:0;z-index:9000;background:rgba(15,23,42,0.75);
         backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:1rem`;
+    const ramaLabel = rama === 'inver2' ? 'INVER2' : rama === 'inver3' ? 'INVER3' : 'INVER1';
     modal.innerHTML = `
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:1.25rem;
                 width:min(96vw,420px);box-shadow:0 20px 60px rgba(0,0,0,0.2)">
         <div style="padding:1.25rem 1.5rem;border-bottom:1px solid var(--border);
                     display:flex;justify-content:space-between;align-items:center">
             <div>
-                <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:1rem">💳 Inyección por Mora</div>
+                <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:1rem">💳 Inyección por Mora — ${ramaLabel}</div>
                 <div style="font-size:0.65rem;color:var(--muted2);margin-top:0.2rem">Registra dinero cobrado por mora — contabilidad separada</div>
             </div>
             <button onclick="document.getElementById('modal-inj-mora').remove()"
@@ -1915,6 +1997,7 @@ function modalInyeccionMora() {
                        style="width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:0.5rem;
                               padding:0.65rem 0.75rem;color:var(--text);font-size:0.85rem;outline:none">
             </div>
+            <input type="hidden" id="mora-rama" value="${rama}">
             <div style="display:flex;gap:0.5rem">
                 <button onclick="document.getElementById('modal-inj-mora').remove()"
                         style="flex:1;background:var(--surface2);border:1px solid var(--border2);border-radius:0.6rem;
@@ -1935,19 +2018,39 @@ async function confirmarInyeccionMora() {
     const nombre   = document.getElementById('mora-cliente-nombre')?.value.trim();
     const monto    = parseFloat(document.getElementById('mora-monto')?.value || 0);
     const concepto = document.getElementById('mora-concepto')?.value.trim() || 'Cobro por mora';
+    const rama     = document.getElementById('mora-rama')?.value || 'inver1';
     if (!nombre) { toast('Ingresa el nombre del cliente', 'error'); return; }
     if (!monto || monto <= 0) { toast('Ingresa un monto válido', 'error'); return; }
     const fecha = getFechaHoySV();
     const registro = { fecha, cliente: nombre, monto, concepto };
-    // Guardar en nodo separado "registros_mora"
-    await db.ref('registros_mora').push(registro);
+    const moraNodo = rama === 'inver2' ? 'registros_mora2' : rama === 'inver3' ? 'registros_mora3' : 'registros_mora';
+    await db.ref(moraNodo).push(registro);
     document.getElementById('modal-inj-mora')?.remove();
     toast(`✓ Mora registrada · $${monto.toFixed(2)} de ${nombre}`, 'success');
+    // Refrescar el total visible
+    const elTotal = document.getElementById('total-mora-registrada');
+    if (elTotal) {
+        db.ref(moraNodo).once('value').then(snap => {
+            let t = 0;
+            snap.forEach(r => { t += parseFloat(r.val().monto || 0); });
+            elTotal.textContent = '$' + t.toFixed(2);
+        });
+    }
+}
+
+function calcularRecargoMora(dias) {
+    // Desde el día 3 en adelante: $1 por cada día adicional a partir del 3
+    // Día 1 = $0, Día 2 = $0, Día 3 = $1, Día 4 = $2, etc.
+    if (dias < 3) return 0;
+    return dias - 2;
 }
 
 function renderCobrosContent(clientsObj, rama) {
     const HOY_ISO = getFechaHoySV();
     const HOY = new Date(HOY_ISO + 'T12:00:00');
+    const HOY_DOW = HOY.getDay(); // 0=Dom, 1=Lun, 2=Mar, 3=Mie, 4=Jue, 5=Vie, 6=Sab
+    const DIAS_SEMANA = ['DOMINGO','LUNES','MARTES','MIÉRCOLES','JUEVES','VIERNES','SÁBADO'];
+
     const esInver2 = rama === 'inver2';
     const esInver3 = rama === 'inver3';
     const accentColor = esInver3 ? '#0891b2' : esInver2 ? '#7c3aed' : 'var(--accent)';
@@ -1956,7 +2059,12 @@ function renderCobrosContent(clientsObj, rama) {
     const ramaLabel   = esInver3 ? 'INVER3' : esInver2 ? 'INVER2' : 'INVER1';
     const gestionUrl  = esInver3 ? 'gestionar3.html' : 'gestionar2.html';
 
-    const mora=[], hoy=[], pagados=[];
+    const mora=[], pagados=[];
+    // Para clientes diarios: van en hoy[]
+    // Para clientes semanales: van organizados por día de inicio
+    const hoyDiarios=[];
+    const semanalPorDia = {1:[],2:[],3:[],4:[],5:[],6:[]}; // Lun-Sab
+
     Object.entries(clientsObj).forEach(([id, c]) => {
         if (c.tipo !== 'ACTIVO') return;
         const cuotas = c.cuotas || [];
@@ -1972,10 +2080,39 @@ function renderCobrosContent(clientsObj, rama) {
             if (diff > 0) maxAtraso = Math.max(maxAtraso, diff);
             if (diff === 0) tocaHoyFlag = true;
         }
-        if (maxAtraso > 0)    mora.push({id,c,dias:maxAtraso,cuotaPend});
-        else if (tocaHoyFlag) hoy.push({id,c,cuotaPend});
+        if (maxAtraso > 0) {
+            mora.push({id, c, dias:maxAtraso, cuotaPend});
+        } else if (tocaHoyFlag) {
+            if ((c.frecuencia||'diario') === 'semanal') {
+                // Determinar día de la semana del inicio del crédito
+                const fechaI = c.fechaInicio || c.fecha || '';
+                let dowInicio = HOY_DOW; // default: hoy
+                const fi = parseFechaProgr(fechaI);
+                if (fi) dowInicio = fi.getDay(); // 0=Dom..6=Sab
+                // Solo Lun-Sab (1-6); si cayó domingo lo ponemos en Lunes
+                const slot = (dowInicio >= 1 && dowInicio <= 6) ? dowInicio : 1;
+                semanalPorDia[slot].push({id,c,cuotaPend});
+            } else {
+                hoyDiarios.push({id,c,cuotaPend});
+            }
+        }
     });
     mora.sort((a,b) => b.dias - a.dias);
+
+    // Total de recargo mora acumulado de todos los clientes en mora
+    const totalRecargo = mora.reduce((acc, x) => acc + calcularRecargoMora(x.dias), 0);
+
+    // Cargar total registrado de inyección por mora de Firebase (asíncrono, actualiza después)
+    const moraNodo = rama === 'inver2' ? 'registros_mora2' : rama === 'inver3' ? 'registros_mora3' : 'registros_mora';
+    let totalMoraRegistrada = 0;
+    db.ref(moraNodo).once('value').then(snap => {
+        snap.forEach(r => { totalMoraRegistrada += parseFloat(r.val().monto || 0); });
+        const el = document.getElementById('total-mora-registrada');
+        if (el) el.textContent = '$' + totalMoraRegistrada.toFixed(2);
+    });
+
+    const hoyTotal = hoyDiarios.length + Object.values(semanalPorDia).reduce((a,v)=>a+v.length,0);
+    const totalPendiente = mora.length + hoyTotal;
 
     const btnVer = (esInver2 || esInver3)
         ? (id) => `<button onclick="location.href='${gestionUrl}'" style="background:rgba(8,145,178,0.15);color:${accentColor};border:1px solid ${accentBorder};border-radius:0.4rem;padding:0.35rem 0.7rem;font-size:0.7rem;font-weight:800;cursor:pointer">Ir a ${ramaLabel}</button>`
@@ -1990,21 +2127,26 @@ function renderCobrosContent(clientsObj, rama) {
         const s = parseFloat(x.c.saldo||0).toFixed(2);
         const notasCount = Array.isArray(x.c.notasIncidencia) ? x.c.notasIncidencia.length : 0;
         const ultimaNota = notasCount > 0 ? x.c.notasIncidencia[notasCount-1] : null;
+        const recargo = calcularRecargoMora(x.dias);
         return `<div style="background:var(--surface2);border:1px solid var(--border);border-left:3px solid var(--danger);
                     border-radius:0.6rem;padding:0.75rem 1rem;display:flex;flex-direction:column;gap:0.6rem">
             <div style="display:flex;justify-content:space-between;align-items:center;gap:0.75rem">
                 <div style="flex:1;min-width:0">
-                    <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.2rem">
+                    <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.2rem;flex-wrap:wrap">
                         <span style="background:rgba(239,68,68,0.15);color:var(--danger);font-size:0.6rem;font-weight:800;
                                      letter-spacing:0.08em;text-transform:uppercase;padding:0.15rem 0.5rem;border-radius:2rem;
                                      border:1px solid rgba(239,68,68,0.25)">⚠ ${x.dias} día${x.dias!==1?'s':''} atraso</span>
+                        ${recargo > 0 ? `<span style="background:rgba(180,83,9,0.18);color:#b45309;font-size:0.6rem;font-weight:800;
+                                     letter-spacing:0.08em;text-transform:uppercase;padding:0.15rem 0.5rem;border-radius:2rem;
+                                     border:1px solid rgba(180,83,9,0.35)">💰 Mora: $${recargo.toFixed(2)}</span>` : ''}
                         <span style="font-size:0.58rem;font-weight:600;color:var(--muted);text-transform:uppercase">${(x.c.frecuencia||'diario')}</span>
                         ${notasCount > 0 ? `<span id="notas-count-${x.id}" style="background:rgba(245,158,11,0.15);color:#f59e0b;font-size:0.58rem;font-weight:800;padding:0.1rem 0.45rem;border-radius:2rem;border:1px solid rgba(245,158,11,0.3)">📝 ${notasCount}</span>` : `<span id="notas-count-${x.id}" style="display:none">0</span>`}
                     </div>
                     <div style="font-weight:800;font-size:0.9rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${x.c.nombre||'—'}</div>
-                    <div style="display:flex;gap:0.75rem;margin-top:0.2rem">
+                    <div style="display:flex;gap:0.75rem;margin-top:0.2rem;flex-wrap:wrap">
                         <span style="font-size:0.65rem;color:var(--muted2)">Cuota: <strong style="color:var(--text)">$${m}</strong></span>
                         <span style="font-size:0.65rem;color:var(--muted2)">Saldo: <strong style="color:var(--danger)">$${s}</strong></span>
+                        ${recargo > 0 ? `<span style="font-size:0.65rem;color:var(--muted2)">Total a cobrar: <strong style="color:#b45309">$${(parseFloat(m)+recargo).toFixed(2)}</strong></span>` : ''}
                     </div>
                 </div>
                 ${btnVerMora(x.id)}
@@ -2061,10 +2203,27 @@ function renderCobrosContent(clientsObj, rama) {
         </div>`;
     };
 
-    const totalPendiente = mora.length + hoy.length;
+    // Bloque semanal: solo muestra días que tienen clientes
+    const ORDEN_DIAS = [1,2,3,4,5,6]; // Lun→Sab
+    const bloquesSemana = ORDEN_DIAS
+        .filter(d => semanalPorDia[d].length > 0)
+        .map(d => {
+            const esHoy = d === HOY_DOW;
+            return `<div class="section-card">
+        <div class="section-head">
+            <div class="section-title" style="color:${esHoy ? accentColor : 'var(--text)'}">
+                ${esHoy ? '📅 ' : '📆 '}${DIAS_SEMANA[d]} — ${semanalPorDia[d].length} cliente${semanalPorDia[d].length!==1?'s':''}
+                ${esHoy ? `<span style="font-size:0.6rem;background:${accentDim};color:${accentColor};padding:0.1rem 0.5rem;border-radius:2rem;border:1px solid ${accentBorder};margin-left:0.4rem">HOY</span>` : ''}
+            </div>
+        </div>
+        <div class="section-body" style="display:flex;flex-direction:column;gap:0.5rem">
+            ${semanalPorDia[d].map(rowHoy).join('')}
+        </div>
+    </div>`;
+        }).join('');
 
     document.getElementById('cobros-tab-content').innerHTML = `
-    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;padding:0 0 0.25rem 0;align-items:center">
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;padding:0 0 0.25rem 0;align-items:stretch">
         <div style="background:${accentDim};border:1px solid ${accentBorder};border-radius:0.6rem;padding:0.4rem 0.85rem;text-align:center">
             <div style="font-size:0.55rem;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:${accentColor};margin-bottom:0.1rem">Por cobrar</div>
             <div style="font-family:'JetBrains Mono',monospace;font-weight:800;font-size:1.1rem;color:${accentColor}">${totalPendiente}</div>
@@ -2077,10 +2236,19 @@ function renderCobrosContent(clientsObj, rama) {
             <div style="font-size:0.55rem;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:#10b981;margin-bottom:0.1rem">Pagados</div>
             <div style="font-family:'JetBrains Mono',monospace;font-weight:800;font-size:1.1rem;color:#10b981">${pagados.length}</div>
         </div>
-        <button onclick="modalInyeccionMora()"
+        ${totalRecargo > 0 ? `
+        <div style="background:rgba(180,83,9,0.1);border:1px solid rgba(180,83,9,0.3);border-radius:0.6rem;padding:0.4rem 0.85rem;text-align:center">
+            <div style="font-size:0.55rem;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:#b45309;margin-bottom:0.1rem">Recargo mora</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-weight:800;font-size:1.1rem;color:#b45309">$${totalRecargo.toFixed(2)}</div>
+        </div>` : ''}
+        <div style="background:rgba(180,83,9,0.07);border:1px solid rgba(180,83,9,0.2);border-radius:0.6rem;padding:0.4rem 0.85rem;text-align:center;min-width:110px">
+            <div style="font-size:0.55rem;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:#b45309;margin-bottom:0.1rem">💳 Inyec. mora total</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-weight:800;font-size:1.1rem;color:#b45309" id="total-mora-registrada">$0.00</div>
+        </div>
+        <button onclick="modalInyeccionMora('${rama}')"
                 style="margin-left:auto;background:rgba(180,83,9,0.12);color:#b45309;border:1px solid rgba(180,83,9,0.3);
                        border-radius:0.5rem;padding:0.4rem 0.85rem;font-size:0.7rem;font-weight:800;cursor:pointer;
-                       white-space:nowrap">
+                       white-space:nowrap;align-self:center">
             💳 Inyección por Mora
         </button>
     </div>
@@ -2089,24 +2257,26 @@ function renderCobrosContent(clientsObj, rama) {
     <div class="section-card">
         <div class="section-head">
             <div class="section-title" style="color:var(--danger)">⚠️ En Mora — ${mora.length} cliente${mora.length!==1?'s':''}</div>
-            <span style="font-size:0.6rem;font-weight:600;color:var(--muted2)">ordenados por más días de atraso</span>
+            <span style="font-size:0.6rem;font-weight:600;color:var(--muted2)">ordenados por más días de atraso · recargo desde día 3</span>
         </div>
         <div class="section-body" style="display:flex;flex-direction:column;gap:0.5rem">
             ${mora.map(rowMora).join('')}
         </div>
     </div>` : ''}
 
-    ${hoy.length > 0 ? `
+    ${hoyDiarios.length > 0 ? `
     <div class="section-card">
         <div class="section-head">
-            <div class="section-title" style="color:${accentColor}">📅 Cobros de Hoy — ${hoy.length} cliente${hoy.length!==1?'s':''}</div>
+            <div class="section-title" style="color:${accentColor}">📅 Cobros de Hoy — ${hoyDiarios.length} cliente${hoyDiarios.length!==1?'s':''}</div>
         </div>
         <div class="section-body" style="display:flex;flex-direction:column;gap:0.5rem">
-            ${hoy.map(rowHoy).join('')}
+            ${hoyDiarios.map(rowHoy).join('')}
         </div>
     </div>` : ''}
 
-    ${hoy.length === 0 && mora.length === 0 ? `
+    ${bloquesSemana}
+
+    ${hoyTotal === 0 && mora.length === 0 ? `
     <div style="text-align:center;padding:2rem;color:var(--muted2)">
         <div style="font-size:2.5rem;margin-bottom:0.75rem">🎉</div>
         <p style="font-size:0.85rem;font-weight:600">¡No hay cobros pendientes para hoy${esInver2?' en INVER2':esInver3?' en INVER3':''}!</p>
