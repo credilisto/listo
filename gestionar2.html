@@ -1035,8 +1035,16 @@ async function pagarCuota(i) {
     s.cuotas.forEach(c => { if (c.pagada) pagadoTotal += parseFloat(c.valorPagado || 0); });
     s.saldo = (parseFloat(s.total) - pagadoTotal).toFixed(2);
 
-    await db.ref('clientes2/' + currentId).set(s);
-    toast('✓ Pago registrado', 'success');
+    // ── AUTO CAJA CHICA: cada cobro de INVER2 suma automáticamente ──
+    const snapCfg = await db.ref('config/finanzas2').once('value');
+    const cfg = snapCfg.val() || {};
+    const nuevaCaja = parseFloat((parseFloat(cfg.cajaChica || 0) + monto).toFixed(2));
+
+    await Promise.all([
+        db.ref('clientes2/' + currentId).set(s),
+        db.ref('config/finanzas2').update({ cajaChica: nuevaCaja })
+    ]);
+    toast(`✓ Pago registrado · Caja Chica +$${monto.toFixed(2)}`, 'success');
 }
 
 // ─── UTILIDAD DE FECHAS ─────────────────────────────────────────────────

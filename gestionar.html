@@ -3431,11 +3431,12 @@ async function mostrarModalReportesConsolidado() {
 
     try {
         // Cargar las 3 instancias en paralelo
-        const [snapC1, snapC2, snapC3, snapF1, snapF3] = await Promise.all([
+        const [snapC1, snapC2, snapC3, snapF1, snapF2, snapF3] = await Promise.all([
             db.ref('clientes').once('value'),
             db.ref('clientes2').once('value'),
             db.ref('clientes3').once('value'),
             db.ref('config/finanzas').once('value'),
+            db.ref('config/finanzas2').once('value'),
             db.ref('config/finanzas3').once('value'),
         ]);
 
@@ -3445,6 +3446,7 @@ async function mostrarModalReportesConsolidado() {
         snapC3.forEach(ch => { c3[ch.key] = ch.val(); });
 
         const f1 = snapF1.val() || {};
+        const f2 = snapF2.val() || {};
         const f3 = snapF3.val() || {};
 
         const s1 = calcStats(c1), s2 = calcStats(c2), s3 = calcStats(c3);
@@ -3453,7 +3455,7 @@ async function mostrarModalReportesConsolidado() {
         const totActivos    = s1.activos + s2.activos + s3.activos;
         const totCobradoHoy = s1.cobradoHoy + s2.cobradoHoy + s3.cobradoHoy;
         const totPorCobrar  = s1.porCobrar + s2.porCobrar + s3.porCobrar;
-        const totCaja       = parseFloat(f1.cajaChica||0) + parseFloat(f3.cajaChica||0);
+        const totCaja       = parseFloat(f1.cajaChica||0) + parseFloat(f2.cajaChica||0) + parseFloat(f3.cajaChica||0);
         const totMora       = s1.enMora + s2.enMora + s3.enMora;
 
         document.getElementById('mrc-body').innerHTML = `
@@ -3481,7 +3483,7 @@ async function mostrarModalReportesConsolidado() {
         ${tarjetaInstancia('INVER 1','#0ea5e9','🏠',s1,f1,'reporte-activos.html',null)}
 
         <!-- INVER 2 -->
-        ${tarjetaInstancia('INVER 2','#7c3aed','🏦',s2,{},'reporte-activos2.html','gestionmovil2.html')}
+        ${tarjetaInstancia('INVER 2','#7c3aed','🏦',s2,f2,'reporte-activos2.html','gestionmovil2.html')}
 
         <!-- INVER 3 -->
         ${tarjetaInstancia('INVER 3','#0891b2','🏢',s3,f3,'reporte-activos3.html','gestionmovil3.html')}

@@ -894,8 +894,17 @@ async function pagarMob(i) {
     let tot = 0;
     s.cuotas.forEach(c => { if(c.pagada) tot += parseFloat(c.valorPagado||0); });
     s.saldo = (parseFloat(s.total)-tot).toFixed(2);
-    await db.ref('clientes2/'+currentId).set(s);
-    toast('✓ Pago registrado','success');
+
+    // ── AUTO CAJA CHICA INVER2 ──
+    const snapCfg = await db.ref('config/finanzas2').once('value');
+    const cfg = snapCfg.val() || {};
+    const nuevaCaja = parseFloat((parseFloat(cfg.cajaChica||0) + monto).toFixed(2));
+
+    await Promise.all([
+        db.ref('clientes2/'+currentId).set(s),
+        db.ref('config/finanzas2').update({ cajaChica: nuevaCaja })
+    ]);
+    toast(`✓ Pago registrado · Caja Chica +$${monto.toFixed(2)}`,'success');
 }
 
 function renderFichaMob(s) {

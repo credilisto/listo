@@ -245,7 +245,7 @@
         const db = firebase.app("rpt_act2").database();
         // Smart back button
         const fromMob = new URLSearchParams(location.search).get('from') === 'movil';
-        document.getElementById('btn-back').onclick = () => location.href = fromMob ? 'gestionmovil.html' : 'gestionar.html';
+        document.getElementById('btn-back').onclick = () => location.href = fromMob ? 'gestionmovil2.html' : 'gestionar2.html';
         // Escuchar finanzas globales
         db.ref('config/finanzas2').on('value', snapCfg => {
             const cfg = snapCfg.val() || {};
