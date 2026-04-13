@@ -585,8 +585,20 @@
             s.cuotas[indiceCuota].fecha_ISO=fechaISO;
             s.cuotas[indiceCuota].fecha=fechaSV;
             s.saldo=(parseFloat(s.saldo||s.total||0)-monto).toFixed(2);
-            await db.ref(origenPago+'/'+clienteActualId).set(s);
-            alert("✅ PAGO REGISTRADO EXITOSAMENTE");
+
+            // ── AUTO CAJA CHICA según instancia ──
+            const rutaFin = origenPago==='clientes2' ? 'config/finanzas2'
+                          : origenPago==='clientes3' ? 'config/finanzas3'
+                          : 'config/finanzas';
+            const snapCfg=await db.ref(rutaFin).once('value');
+            const cfg=snapCfg.val()||{};
+            const nuevaCaja=parseFloat((parseFloat(cfg.cajaChica||0)+monto).toFixed(2));
+
+            await Promise.all([
+                db.ref(origenPago+'/'+clienteActualId).set(s),
+                db.ref(rutaFin).update({ cajaChica: nuevaCaja })
+            ]);
+            alert("✅ PAGO REGISTRADO · Caja Chica +$"+monto.toFixed(2));
             cerrarCobro();
         } catch(e) { alert("Error al guardar. Verifica tu conexión."); }
     }
