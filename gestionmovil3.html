@@ -1,0 +1,1374 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <title>INVER 3 Móvil | CrediListo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=JetBrains+Mono:wght@500;600;700&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-storage-compat.js"></script>
+
+    <style>
+        :root {
+            --bg:           #f0f4f8;
+            --surface:      #ffffff;
+            --surface2:     #f1f5f9;
+            --border:       #e2e8f0;
+            --border2:      #cbd5e1;
+            --text:         #0f172a;
+            --muted:        #94a3b8;
+            --muted2:       #64748b;
+            --accent:       #0ea5e9;
+            --accent-dim:   rgba(14,165,233,0.09);
+            --accent-bdr:   rgba(14,165,233,0.3);
+            --danger:       #ef4444;
+            --danger-dim:   rgba(239,68,68,0.08);
+            --warn:         #f59e0b;
+            --green:        #16a34a;
+            --safe-bottom:  env(safe-area-inset-bottom, 0px);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Instrument Sans', sans-serif; font-size: 15px; }
+
+        /* ── LOCK ─────────────────────────────────────── */
+        #lock {
+            position: fixed; inset: 0; z-index: 9999;
+            background: var(--accent);
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center; gap: 1.5rem;
+            padding: 2rem;
+        }
+        .lock-logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 2.2rem; letter-spacing: -0.04em; color: #fff; }
+        .lock-logo em { color: #0f172a; font-style: normal; }
+        .lock-sub { font-size: 0.65rem; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(255,255,255,0.65); margin-top: -1rem; }
+        .lock-box { width: 100%; max-width: 320px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); border-radius: 1.25rem; padding: 1.5rem; display: flex; flex-direction: column; gap: 0.75rem; }
+        .lock-input { width: 100%; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); border-radius: 0.75rem; padding: 1rem; color: #fff; font-family: 'JetBrains Mono', monospace; font-size: 1.6rem; font-weight: 700; text-align: center; letter-spacing: 0.5em; outline: none; }
+        .lock-input::placeholder { color: rgba(255,255,255,0.4); }
+        .lock-btn { width: 100%; background: #fff; color: var(--accent); border: none; border-radius: 0.75rem; padding: 0.9rem; font-family: 'Syne', sans-serif; font-weight: 800; font-size: 0.75rem; letter-spacing: 0.15em; text-transform: uppercase; cursor: pointer; }
+        #lock-err { color: #fef08a; font-size: 0.65rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; text-align: center; display: none; }
+
+        /* ── PANTALLAS INDEPENDIENTES ─────────────────── */
+        /* Cada pantalla es position:fixed con su propio overflow-y:auto */
+        .screen {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            display: none;
+            flex-direction: column;
+            background: var(--bg);
+            overflow: hidden; /* el topbar no scrollea */
+        }
+        .screen.activa { display: flex; }
+
+        /* El área scrolleable DENTRO de cada pantalla */
+        .screen-body {
+            flex: 1;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior: contain;
+        }
+        .screen-body::-webkit-scrollbar { display: none; }
+
+        /* ── TOP BAR ──────────────────────────────────── */
+        .topbar {
+            background: var(--surface);
+            border-bottom: 2px solid var(--accent);
+            padding: 0.75rem 1rem;
+            display: flex; align-items: center; gap: 0.75rem;
+            flex-shrink: 0;
+            min-height: 52px;
+        }
+        .topbar-back {
+            background: var(--surface2); border: 1px solid var(--border2);
+            border-radius: 0.5rem; padding: 0.4rem 0.65rem;
+            font-size: 0.75rem; font-weight: 700; color: var(--accent);
+            cursor: pointer; flex-shrink: 0;
+        }
+        .topbar-title {
+            font-family: 'Syne', sans-serif; font-weight: 800;
+            font-size: 1rem; letter-spacing: -0.02em;
+            flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .topbar-title em { color: var(--accent); font-style: normal; }
+        .topbar-action {
+            background: var(--accent); color: #fff; border: none;
+            border-radius: 0.5rem; padding: 0.4rem 0.75rem;
+            font-size: 0.65rem; font-weight: 700; letter-spacing: 0.08em;
+            text-transform: uppercase; cursor: pointer; flex-shrink: 0;
+        }
+
+        /* ── SCREEN LIST ──────────────────────────────── */
+        .list-stats {
+            background: var(--surface); border-bottom: 1px solid var(--border);
+            padding: 0.65rem 1rem;
+            display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;
+        }
+        .ls-item { display: flex; flex-direction: column; }
+        .ls-label { font-size: 0.55rem; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); }
+        .ls-val { font-family: 'JetBrains Mono', monospace; font-size: 1rem; font-weight: 700; color: var(--accent); }
+
+        .list-actions {
+            background: var(--surface2); border-bottom: 1px solid var(--border);
+            padding: 0.5rem 0.75rem;
+            display: flex; gap: 0.4rem;
+        }
+        .la-btn {
+            flex: 1; background: var(--surface); border: 1px solid var(--border2);
+            border-radius: 0.5rem; padding: 0.5rem 0.5rem;
+            font-size: 0.62rem; font-weight: 700; letter-spacing: 0.05em;
+            text-transform: uppercase; color: var(--muted2); cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 0.3rem;
+            position: relative;
+        }
+        .la-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .la-badge {
+            background: var(--danger); color: #fff;
+            font-size: 0.5rem; font-weight: 800;
+            border-radius: 2rem; padding: 0.1rem 0.35rem;
+            position: absolute; top: -4px; right: -4px;
+            display: none;
+        }
+
+        .list-search {
+            background: var(--surface); border-bottom: 1px solid var(--border);
+            padding: 0.5rem 0.75rem;
+        }
+        .list-search input {
+            width: 100%; background: var(--surface2);
+            border: 1px solid var(--border2); border-radius: 0.6rem;
+            padding: 0.55rem 0.75rem; font-size: 0.9rem; font-weight: 500;
+            color: var(--text); outline: none;
+        }
+
+        .client-list-mob {
+            flex: 1;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior: contain;
+        }
+        .client-list-mob::-webkit-scrollbar { display: none; }
+
+        .cli-item {
+            display: flex; align-items: center; gap: 0.75rem;
+            padding: 0.85rem 1rem;
+            background: var(--surface); border-bottom: 1px solid var(--border);
+            cursor: pointer; transition: background 0.15s;
+            -webkit-user-select: none; user-select: none;
+        }
+        .cli-item:active { background: var(--surface2); }
+        .cli-avatar {
+            width: 40px; height: 40px; border-radius: 50%;
+            background: var(--accent-dim); border: 2px solid var(--accent-bdr);
+            display: flex; align-items: center; justify-content: center;
+            font-family: 'Syne', sans-serif; font-weight: 800;
+            font-size: 1rem; color: var(--accent); flex-shrink: 0;
+        }
+        .cli-info { flex: 1; min-width: 0; }
+        .cli-nombre { font-weight: 700; font-size: 0.9rem; white-space: nowrap;
+                      overflow: hidden; text-overflow: ellipsis; }
+        .cli-sub { font-size: 0.65rem; font-weight: 500; color: var(--muted2); margin-top: 0.1rem; }
+        .cli-right { text-align: right; flex-shrink: 0; }
+        .cli-saldo { font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; font-weight: 700; }
+        .cli-saldo.red { color: var(--danger); }
+        .cli-saldo.green { color: var(--green); }
+        .cli-arrow { font-size: 0.75rem; color: var(--muted); margin-top: 0.1rem; }
+
+        .empty-mob { text-align: center; padding: 4rem 1.5rem; color: var(--muted); font-size: 0.85rem; }
+
+        /* ── SCREEN PANEL (ficha cliente) ─────────────── */
+        .panel-scroll {
+            flex: 1;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior: contain;
+            padding: 1rem;
+        }
+        .panel-scroll > * + * { margin-top: 0.85rem; }
+        .panel-scroll::-webkit-scrollbar { display: none; }
+
+        /* Stats strip */
+        .mob-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem; margin-bottom: 0.85rem; }
+        .mob-stat {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 0.75rem; padding: 0.65rem 0.75rem;
+        }
+        .mob-stat-lbl { font-size: 0.55rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.2rem; }
+        .mob-stat-val { font-family: 'JetBrains Mono', monospace; font-size: 1rem; font-weight: 700; }
+        .mob-stat-val.sky   { color: var(--accent); }
+        .mob-stat-val.green { color: var(--green); }
+        .mob-stat-val.red   { color: var(--danger); }
+
+        /* Section */
+        .mob-section {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 0.85rem; overflow: hidden; margin-bottom: 0.85rem;
+        }
+        .mob-sec-head {
+            padding: 0.6rem 1rem; border-bottom: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: center;
+            background: var(--surface2);
+        }
+        .mob-sec-title { font-size: 0.6rem; font-weight: 800; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted2); }
+        .mob-sec-body  { padding: 0.85rem 1rem; }
+
+        /* Cuotas */
+        .cuota-row-mob {
+            padding: 0.65rem 0.75rem;
+            border-radius: 0.6rem;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            margin-bottom: 0.5rem;
+            transition: opacity 0.2s;
+        }
+        .cuota-row-mob.pagada { opacity: 0.4; background: var(--surface2); }
+        .cuota-row-top {
+            display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.5rem;
+        }
+        .cuota-n-mob {
+            font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; font-weight: 700;
+            color: var(--muted); min-width: 22px; text-align: center;
+            background: var(--surface2); border-radius: 0.3rem; padding: 0.15rem 0.3rem;
+        }
+        .cuota-estado-mob { font-size: 0.7rem; font-weight: 700; flex: 1; }
+        .cuota-estado-mob.ok   { color: var(--green); }
+        .cuota-estado-mob.pend { color: var(--warn); }
+        .cuota-row-bottom { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.4rem; }
+        .cuota-inp-mob {
+            background: var(--bg); border: 1.5px solid var(--border2); border-radius: 0.5rem;
+            padding: 0.55rem 0.5rem; color: var(--text); font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem; font-weight: 700; outline: none; width: 100%; text-align: center;
+        }
+        .cuota-inp-mob:focus { border-color: var(--accent); }
+        .cuota-date-mob {
+            background: var(--bg); border: 1.5px solid var(--border2); border-radius: 0.5rem;
+            padding: 0.55rem 0.4rem; color: var(--text); font-family: 'JetBrains Mono', monospace;
+            font-size: 0.72rem; font-weight: 600; outline: none; width: 100%;
+        }
+        .cuota-btn-mob {
+            font-size: 0.7rem; font-weight: 800; text-transform: uppercase;
+            padding: 0.55rem 0; border-radius: 0.5rem; border: none;
+            cursor: pointer; width: 100%; text-align: center; letter-spacing: 0.05em;
+        }
+        .cuota-btn-mob.pagar  { background: var(--accent); color: #fff; }
+        .cuota-btn-mob.pagado { background: var(--accent-dim); color: var(--accent); cursor: default; font-size: 0.75rem; }
+
+        /* Ficha fields */
+        .ficha-mob { display: flex; flex-direction: column; gap: 0.5rem; }
+        .ff-mob { display: flex; flex-direction: column; gap: 0.15rem; }
+        .ff-lbl-mob { font-size: 0.55rem; font-weight: 800; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); }
+        .ff-inp-mob {
+            background: var(--surface2); border: 1px solid var(--border2); border-radius: 0.5rem;
+            padding: 0.55rem 0.75rem; color: var(--text); font-size: 0.88rem; font-weight: 600;
+            outline: none; width: 100%;
+        }
+        .ff-sel-mob {
+            background: var(--surface2); border: 1px solid var(--border2); border-radius: 0.5rem;
+            padding: 0.55rem 0.75rem; color: var(--text); font-size: 0.88rem; font-weight: 600;
+            outline: none; width: 100%; cursor: pointer;
+        }
+        .ff-ro-mob { font-size: 0.88rem; font-weight: 700; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+
+        /* Docs */
+        .docs-mob { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+        .doc-slot-mob {
+            border: 1px dashed var(--border2); border-radius: 0.75rem; overflow: hidden; cursor: pointer;
+        }
+        .doc-slot-lbl-mob { font-size: 0.55rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); padding: 0.5rem 0.65rem 0; }
+        .doc-prev-mob {
+            min-height: 80px; display: flex; align-items: center; justify-content: center;
+            flex-direction: column; gap: 0.3rem; padding: 0.65rem;
+        }
+        .doc-prev-mob img { width: 100%; max-height: 80px; object-fit: cover; border-radius: 0.35rem; display: block; }
+        .doc-ph { font-size: 0.65rem; font-weight: 600; color: var(--muted); text-align: center; }
+        .doc-ph span { display: block; font-size: 1.3rem; opacity: 0.4; margin-bottom: 0.2rem; }
+        .doc-act-mob {
+            padding: 0.35rem 0.5rem; border-top: 1px solid var(--border);
+            display: flex; gap: 0.3rem;
+        }
+        .doc-btn-mob {
+            flex: 1; background: var(--surface2); border: 1px solid var(--border2); border-radius: 0.35rem;
+            padding: 0.3rem; font-size: 0.58rem; font-weight: 700; letter-spacing: 0.05em;
+            text-transform: uppercase; color: var(--muted2); cursor: pointer; text-align: center;
+        }
+        .doc-btn-mob.blue { background: var(--accent-dim); color: var(--accent); border-color: var(--accent-bdr); }
+        .doc-up-bar { height: 2px; background: var(--border); }
+        .doc-up-fill { height: 100%; background: var(--accent); width: 0; transition: width 0.3s; }
+
+        /* Botón grande */
+        .mob-btn-full {
+            width: 100%; padding: 0.9rem; border-radius: 0.75rem; border: none;
+            font-family: 'Syne', sans-serif; font-weight: 800; font-size: 0.75rem;
+            letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer;
+            transition: opacity 0.15s;
+        }
+        .mob-btn-full.primary { background: var(--accent); color: #fff; }
+        .mob-btn-full.ghost   { background: var(--surface2); color: var(--muted2); border: 1px solid var(--border2); }
+        .mob-btn-full.danger  { background: var(--danger-dim); color: var(--danger); border: 1px solid rgba(239,68,68,0.2); }
+        .mob-btn-full:active  { opacity: 0.8; }
+
+        /* ── SCREEN EXTRA (solicitudes / nuevo) ─────── */
+        .extra-scroll {
+            flex: 1;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior: contain;
+            padding: 1rem;
+        }
+        .extra-scroll > * + * { margin-top: 0.85rem; }
+        .extra-scroll::-webkit-scrollbar { display: none; }
+
+        .sol-card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 0.85rem; overflow: hidden; margin-bottom: 0.85rem;
+        }
+        .sol-head { padding: 0.65rem 1rem; background: var(--surface2); border-bottom: 1px solid var(--border); }
+        .sol-nombre { font-weight: 700; font-size: 0.9rem; }
+        .sol-meta { font-size: 0.62rem; color: var(--muted2); margin-top: 0.1rem; }
+        .sol-body { padding: 0.75rem 1rem; display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; }
+        .sol-dato { background: var(--surface2); border-radius: 0.4rem; padding: 0.4rem 0.5rem; }
+        .sol-lbl { font-size: 0.5rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+        .sol-val { font-size: 0.8rem; font-weight: 600; }
+        .sol-actions { padding: 0.65rem 1rem; border-top: 1px solid var(--border); display: flex; gap: 0.5rem; }
+        .sol-btn { flex: 1; padding: 0.6rem; border-radius: 0.5rem; border: none; font-weight: 800; font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; }
+        .sol-btn.ok  { background: var(--accent); color: #fff; }
+        .sol-btn.no  { background: var(--danger-dim); color: var(--danger); border: 1px solid rgba(239,68,68,0.2); }
+
+        /* Modal aprobación (mismo del desktop, adaptado) */
+        .modal-overlay {
+            position: fixed; inset: 0; z-index: 500;
+            background: rgba(15,23,42,0.65); backdrop-filter: blur(4px);
+            display: flex; align-items: flex-end; padding: 0;
+        }
+        .modal-sheet {
+            background: var(--surface); border-radius: 1.25rem 1.25rem 0 0;
+            width: 100%; max-height: 92vh; overflow-y: auto;
+            padding-bottom: calc(1.5rem + var(--safe-bottom));
+        }
+        .modal-sheet::-webkit-scrollbar { display: none; }
+        .modal-handle {
+            width: 40px; height: 4px; background: var(--border2); border-radius: 2px;
+            margin: 0.75rem auto 0;
+        }
+        .modal-title {
+            font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1rem;
+            padding: 0.85rem 1rem 0.5rem;
+        }
+        .modal-sub { font-size: 0.65rem; color: var(--muted2); padding: 0 1rem 0.75rem; border-bottom: 1px solid var(--border); }
+        .modal-body { padding: 1rem; display: flex; flex-direction: column; gap: 0.85rem; }
+
+        .modal-field { display: flex; flex-direction: column; gap: 0.25rem; }
+        .modal-lbl { font-size: 0.6rem; font-weight: 800; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted2); }
+        .modal-inp {
+            background: var(--surface2); border: 1px solid var(--border2); border-radius: 0.6rem;
+            padding: 0.7rem 0.85rem; color: var(--text); font-family: 'JetBrains Mono', monospace;
+            font-size: 0.95rem; font-weight: 600; outline: none; width: 100%;
+        }
+        .modal-inp:focus { border-color: var(--accent); }
+
+        .fechas-preview {
+            background: var(--surface2); border: 1px solid var(--border); border-radius: 0.6rem;
+            padding: 0.65rem; display: flex; flex-wrap: wrap; gap: 0.3rem; max-height: 90px; overflow-y: auto;
+        }
+        .fp-chip {
+            background: var(--surface); border: 1px solid var(--border2); border-radius: 0.3rem;
+            padding: 0.15rem 0.4rem; font-size: 0.6rem; font-family: 'JetBrains Mono', monospace; font-weight: 600;
+        }
+
+        .docs-ap-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+        .doc-ap-slot {
+            border: 1px dashed var(--border2); border-radius: 0.75rem;
+            padding: 0.75rem 0.5rem; text-align: center; cursor: pointer;
+        }
+        .doc-ap-icon { font-size: 1.4rem; opacity: 0.4; display: block; margin-bottom: 0.25rem; }
+        .doc-ap-lbl { font-size: 0.58rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+        .doc-ap-name { font-size: 0.6rem; color: var(--accent); margin-top: 0.2rem; min-height: 0.9rem; }
+        .doc-ap-prev img { width: 100%; max-height: 60px; object-fit: cover; border-radius: 0.35rem; margin-bottom: 0.25rem; }
+
+        .ap-bar-wrap { height: 3px; background: var(--border); border-radius: 2px; }
+        .ap-bar { height: 100%; background: var(--accent); border-radius: 2px; width: 0; transition: width 0.3s; }
+        .ap-msg { font-size: 0.6rem; color: var(--muted2); text-align: center; margin-top: 0.25rem; min-height: 1rem; }
+
+        /* TOAST */
+        .toast {
+            position: fixed; bottom: calc(1rem + var(--safe-bottom)); left: 1rem; right: 1rem;
+            border-radius: 0.75rem; padding: 0.75rem 1rem;
+            font-size: 0.8rem; font-weight: 700; z-index: 9000;
+            transform: translateY(100px); opacity: 0; transition: all 0.3s; pointer-events: none;
+            text-align: center; box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+        }
+        .toast.show { transform: translateY(0); opacity: 1; }
+        .toast.success { background: var(--accent); color: #fff; }
+        .toast.error   { background: var(--danger); color: #fff; }
+
+        /* Extra bottom padding for content behind tab bars */
+        .pb-safe { padding-bottom: calc(0.5rem + var(--safe-bottom)); }
+    </style>
+</head>
+<body>
+
+<!-- LOCK -->
+<div id="lock">
+    <div class="lock-logo">Credi<em>Listo</em></div>
+    <div class="lock-sub">Panel Administrativo · INVER 3</div>
+    <div class="lock-box">
+        <input type="password" class="lock-input" id="pin" inputmode="numeric"
+               placeholder="••••" maxlength="6" onkeydown="if(event.key==='Enter')auth()">
+        <button class="lock-btn" onclick="auth()">Entrar</button>
+        <div id="lock-err">PIN incorrecto</div>
+    </div>
+</div>
+
+<!-- ── SCREEN LISTA ────────────────────────────── -->
+<div class="screen" id="screen-list">
+    <div class="topbar">
+        <div class="topbar-title">Credi<em>Listo</em></div>
+    </div>
+
+    <div class="list-stats">
+        <div class="ls-item">
+            <span class="ls-label">Clientes activos</span>
+            <span class="ls-val" id="ls-activos">0</span>
+        </div>
+        <div class="ls-item">
+            <span class="ls-label">Cobrado hoy</span>
+            <span class="ls-val" id="ls-hoy">$0.00</span>
+        </div>
+    </div>
+
+    <div class="list-actions">
+        <button class="la-btn" onclick="irExtra('solicitudes')">
+            📋 Solicitudes
+            <span class="la-badge" id="badge-pend">0</span>
+        </button>
+        <button class="la-btn primary" onclick="irExtra('nuevo')">+ Nuevo</button>
+        <button class="la-btn" onclick="location.href='reporte-activosm3.html?from=movil'">📊 Reporte</button>
+        <button class="la-btn" onclick="irExtra('cobros')" style="background:rgba(16,185,129,0.13);color:#10b981;border-color:rgba(16,185,129,0.35);font-weight:800;">💵 Cobros del Día</button>
+    </div>
+
+    <div class="list-search">
+        <input type="text" id="mob-search" placeholder="🔍 Buscar…" oninput="filtrarMob()">
+    </div>
+
+    <div class="client-list-mob" id="mob-list">
+        <div class="empty-mob">Cargando clientes…</div>
+    </div>
+</div>
+
+<!-- ── SCREEN PANEL (cliente activo) ──────────── -->
+<div class="screen" id="screen-panel">
+    <div class="topbar">
+        <button class="topbar-back" onclick="irLista()">← Atrás</button>
+        <div class="topbar-title" id="panel-title">—</div>
+        <a id="btn-ws" href="#" target="_blank" class="topbar-action">💬 WA</a>
+    </div>
+    <div class="panel-scroll" id="panel-scroll"></div>
+</div>
+
+<!-- ── SCREEN EXTRA (solicitudes / nuevo) ─────── -->
+<div class="screen" id="screen-extra">
+    <div class="topbar">
+        <button class="topbar-back" onclick="irLista()">← Atrás</button>
+        <div class="topbar-title" id="extra-title">—</div>
+    </div>
+    <div class="extra-scroll" id="extra-scroll"></div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- file inputs ocultos -->
+<input type="file" id="fi-contrato"    accept="image/*,application/pdf" style="display:none" onchange="subirDoc(this,'contrato')">
+<input type="file" id="fi-letra"       accept="image/*,application/pdf" style="display:none" onchange="subirDoc(this,'letra')">
+<input type="file" id="fi-dui_frontal" accept="image/*"                 style="display:none" onchange="subirDoc(this,'dui_frontal')">
+<input type="file" id="fi-dui_reverso" accept="image/*"                 style="display:none" onchange="subirDoc(this,'dui_reverso')">
+
+<script>
+// ── CONFIG ────────────────────────────────────────
+const PIN    = "2035";
+const FB_CFG = {
+    apiKey:        "AIzaSyC1GiJitT0QegrVe9o6CHCsvf7sEZELwRk",
+    authDomain:    "credilistosv.firebaseapp.com",
+    databaseURL:   "https://credilistosv-default-rtdb.firebaseio.com",
+    projectId:     "credilistosv",
+    storageBucket: "credilistosv.firebasestorage.app"
+};
+
+let db, storage;
+let allClients = {};
+let currentId  = null;
+let aprobandoId = null;
+let docAprobFiles = {};
+
+// ── AUTH ──────────────────────────────────────────
+function auth() {
+    if (document.getElementById('pin').value === PIN) {
+        document.getElementById('lock').style.display = 'none';
+        mostrarScreen('screen-list');
+        initFirebase();
+    } else {
+        document.getElementById('lock-err').style.display = 'block';
+        document.getElementById('pin').value = '';
+    }
+}
+window.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('lock').style.display = 'flex';
+    document.getElementById('pin').value = '';
+});
+window.addEventListener('pageshow', () => {
+    document.getElementById('lock').style.display = 'flex';
+    document.getElementById('pin').value = '';
+});
+
+// ── FIREBASE ──────────────────────────────────────
+function initFirebase() {
+    firebase.initializeApp(FB_CFG, "mob3");
+    db      = firebase.app("mob3").database();
+    storage = firebase.app("mob3").storage();
+    escuchar();
+}
+
+function escuchar() {
+    const hoy = new Date().toISOString().split('T')[0];
+    let propios = {};
+    let compartidos = {};
+
+    function recalc() {
+        allClients = { ...compartidos, ...propios };
+        let activos=0, hoyTotal=0, pendientes=0;
+        Object.values(allClients).forEach(v => {
+            if (v.tipo === 'ACTIVO') {
+                activos++;
+                (v.cuotas||[]).forEach(cuo => {
+                    if (cuo.pagada && cuo.fecha_ISO === hoy)
+                        hoyTotal += parseFloat(cuo.valorPagado||0);
+                });
+            }
+            if (v.tipo === 'PENDIENTE') pendientes++;
+        });
+        document.getElementById('ls-activos').textContent = activos;
+        document.getElementById('ls-hoy').textContent     = '$'+hoyTotal.toFixed(2);
+        const b = document.getElementById('badge-pend');
+        b.textContent   = pendientes;
+        b.style.display = pendientes > 0 ? 'inline' : 'none';
+        renderLista();
+        if (currentId && allClients[currentId]) renderPanel(currentId);
+    }
+
+    // Solicitudes compartidas del formulario
+    db.ref('clientes').on('value', snap => {
+        compartidos = {};
+        snap.forEach(ch => {
+            const v = ch.val();
+            if (v && v.tipo === 'PENDIENTE')
+                compartidos[ch.key] = { ...v, _key: ch.key, _origen: 'clientes' };
+        });
+        recalc();
+    });
+
+    // Clientes propios INVER 3
+    db.ref('clientes3').on('value', snap => {
+        propios = {};
+        snap.forEach(ch => {
+            const v = ch.val();
+            propios[ch.key] = { ...v, _key: ch.key, _origen: 'clientes3' };
+        });
+        recalc();
+    });
+}
+
+// ── NAVEGACIÓN ────────────────────────────────────
+function mostrarScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('activa'));
+    const el = document.getElementById(id);
+    if (el) el.classList.add('activa');
+    // scroll al top del área scrolleable de la pantalla que aparece
+    const body = el?.querySelector('.panel-scroll, .extra-scroll, .client-list-mob');
+    if (body) body.scrollTop = 0;
+}
+
+function irLista() {
+    mostrarScreen('screen-list');
+    currentId = null;
+}
+function irPanel(id) {
+    currentId = id;
+    renderPanel(id);
+    mostrarScreen('screen-panel');
+}
+function irExtra(modo) {
+    if (modo === 'solicitudes') renderSolicitudes();
+    else if (modo === 'cobros') renderCobrosDelDia();
+    else renderNuevo();
+    mostrarScreen('screen-extra');
+}
+
+// ── COBROS DEL DÍA (MÓVIL) ────────────────────────
+function parseFechaProgr(str) {
+    if (!str) return null;
+    if (str.includes('-') && str.length === 10) {
+        const d = new Date(str + 'T00:00:00'); d.setHours(0,0,0,0); return d;
+    }
+    if (str.includes('/')) {
+        const p = str.split('/');
+        const d = new Date(`${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}T00:00:00`);
+        d.setHours(0,0,0,0);
+        if (!isNaN(d)) return d;
+    }
+    return null;
+}
+
+function renderCobrosDelDia() {
+    document.getElementById('extra-title').textContent = '💵 Cobros del Día';
+    const wrap = document.getElementById('extra-scroll');
+
+    const HOY = new Date(); HOY.setHours(0,0,0,0);
+    const HOY_ISO = HOY.toISOString().split('T')[0];
+    const fechaLabel = HOY.toLocaleDateString('es-SV', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+
+    const mora=[], hoy=[], pagados=[];
+    Object.entries(allClients).forEach(([id, c]) => {
+        if (c.tipo !== 'ACTIVO') return;
+        const cuotas = c.cuotas || [];
+        const yaPago = cuotas.some(q => q.pagada && q.fecha_ISO === HOY_ISO);
+        if (yaPago) { pagados.push({id,c}); return; }
+        let maxAtraso = 0, tocaHoyFlag = false, cuotaPend = null;
+        for (const cuo of cuotas) {
+            if (cuo.pagada) continue;
+            if (!cuotaPend) cuotaPend = cuo;
+            const f = parseFechaProgr(cuo.fecha_prog || cuo.fecha_prog_sv);
+            if (!f) continue;
+            const diff = Math.floor((HOY - f) / 86400000);
+            if (diff > 0) maxAtraso = Math.max(maxAtraso, diff);
+            if (diff === 0) tocaHoyFlag = true;
+        }
+        if (maxAtraso > 0)    mora.push({id,c,dias:maxAtraso,cuotaPend});
+        else if (tocaHoyFlag) hoy.push({id,c,cuotaPend});
+    });
+    mora.sort((a,b) => b.dias - a.dias);
+
+    const rowMora = x => {
+        const m = x.cuotaPend ? parseFloat(x.cuotaPend.valorPagado||0).toFixed(2) : '—';
+        const s = parseFloat(x.c.saldo||0).toFixed(2);
+        return `<div style="background:var(--surface2);border:1px solid var(--border);border-left:3px solid var(--danger);
+                    border-radius:0.6rem;padding:0.75rem 1rem;display:flex;justify-content:space-between;align-items:center;gap:0.75rem">
+            <div style="flex:1;min-width:0">
+                <div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.2rem">
+                    <span style="background:rgba(239,68,68,0.15);color:var(--danger);font-size:0.6rem;font-weight:800;
+                                 letter-spacing:0.08em;text-transform:uppercase;padding:0.15rem 0.5rem;border-radius:2rem;
+                                 border:1px solid rgba(239,68,68,0.25)">⚠ ${x.dias} día${x.dias!==1?'s':''} atraso</span>
+                </div>
+                <div style="font-weight:800;font-size:0.9rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${x.c.nombre||'—'}</div>
+                <div style="display:flex;gap:0.6rem;margin-top:0.2rem">
+                    <span style="font-size:0.65rem;color:var(--muted2)">Cuota: <strong style="color:var(--text)">$${m}</strong></span>
+                    <span style="font-size:0.65rem;color:var(--muted2)">Saldo: <strong style="color:var(--danger)">$${s}</strong></span>
+                </div>
+            </div>
+            <button onclick="irPanel('${x.id}')" style="background:rgba(239,68,68,0.15);color:var(--danger);border:1px solid rgba(239,68,68,0.3);
+                    border-radius:0.5rem;padding:0.4rem 0.75rem;font-size:0.7rem;font-weight:800;cursor:pointer">Ver</button>
+        </div>`;
+    };
+
+    const rowHoy = x => {
+        const m = x.cuotaPend ? parseFloat(x.cuotaPend.valorPagado||0).toFixed(2) : '—';
+        const s = parseFloat(x.c.saldo||0).toFixed(2);
+        return `<div style="background:var(--surface2);border:1px solid var(--border);border-left:3px solid var(--accent);
+                    border-radius:0.6rem;padding:0.75rem 1rem;display:flex;justify-content:space-between;align-items:center;gap:0.75rem">
+            <div style="flex:1;min-width:0">
+                <div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.2rem">
+                    <span style="background:var(--accent-dim);color:var(--accent);font-size:0.6rem;font-weight:800;
+                                 letter-spacing:0.08em;text-transform:uppercase;padding:0.15rem 0.5rem;border-radius:2rem;
+                                 border:1px solid var(--accent-border)">HOY</span>
+                </div>
+                <div style="font-weight:800;font-size:0.9rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${x.c.nombre||'—'}</div>
+                <div style="display:flex;gap:0.6rem;margin-top:0.2rem">
+                    <span style="font-size:0.65rem;color:var(--muted2)">Cuota: <strong style="color:var(--text)">$${m}</strong></span>
+                    <span style="font-size:0.65rem;color:var(--muted2)">Saldo: <strong style="color:var(--danger)">$${s}</strong></span>
+                </div>
+            </div>
+            <button onclick="irPanel('${x.id}')" style="background:var(--accent-dim);color:var(--accent);border:1px solid var(--accent-border);
+                    border-radius:0.5rem;padding:0.4rem 0.75rem;font-size:0.7rem;font-weight:800;cursor:pointer">Ver</button>
+        </div>`;
+    };
+
+    const rowPagado = x => {
+        const q = (x.c.cuotas||[]).find(q => q.pagada && q.fecha_ISO === HOY_ISO);
+        const m = q ? parseFloat(q.valorPagado||0).toFixed(2) : '—';
+        return `<div style="background:rgba(16,185,129,0.04);border:1px solid rgba(16,185,129,0.2);border-left:3px solid #10b981;
+                    border-radius:0.6rem;padding:0.65rem 1rem;display:flex;justify-content:space-between;align-items:center;gap:0.75rem;opacity:0.75">
+            <div style="flex:1;min-width:0">
+                <div style="font-weight:800;font-size:0.85rem;color:var(--text)">${x.c.nombre||'—'}</div>
+                <div style="font-size:0.65rem;color:var(--muted2);margin-top:0.1rem">Cobrado: <strong style="color:#10b981">$${m}</strong></div>
+            </div>
+            <span style="font-size:0.7rem;color:#10b981;font-weight:800">✓ Pagado</span>
+        </div>`;
+    };
+
+    const totalPend = mora.length + hoy.length;
+
+    wrap.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.5rem;margin-bottom:0.25rem">
+        <div style="background:var(--accent-dim);border:1px solid var(--accent-border);border-radius:0.6rem;padding:0.5rem;text-align:center">
+            <div style="font-size:0.5rem;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent);margin-bottom:0.1rem">Por cobrar</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-weight:800;font-size:1.2rem;color:var(--accent)">${totalPend}</div>
+        </div>
+        <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:0.6rem;padding:0.5rem;text-align:center">
+            <div style="font-size:0.5rem;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--danger);margin-bottom:0.1rem">En mora</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-weight:800;font-size:1.2rem;color:var(--danger)">${mora.length}</div>
+        </div>
+        <div style="background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.2);border-radius:0.6rem;padding:0.5rem;text-align:center">
+            <div style="font-size:0.5rem;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:#10b981;margin-bottom:0.1rem">Pagados</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-weight:800;font-size:1.2rem;color:#10b981">${pagados.length}</div>
+        </div>
+    </div>
+    <div style="font-size:0.6rem;color:var(--muted2);text-align:center;text-transform:capitalize;margin-bottom:0.5rem">${fechaLabel}</div>
+
+    ${mora.length > 0 ? `
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:0.75rem;overflow:hidden">
+        <div style="padding:0.6rem 1rem;background:rgba(239,68,68,0.07);border-bottom:1px solid var(--border)">
+            <span style="font-size:0.65rem;font-weight:800;color:var(--danger);text-transform:uppercase;letter-spacing:0.08em">⚠️ En Mora — ${mora.length} cliente${mora.length!==1?'s':''}</span>
+        </div>
+        <div style="padding:0.75rem;display:flex;flex-direction:column;gap:0.5rem">${mora.map(rowMora).join('')}</div>
+    </div>` : ''}
+
+    ${hoy.length > 0 ? `
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:0.75rem;overflow:hidden">
+        <div style="padding:0.6rem 1rem;background:var(--accent-dim);border-bottom:1px solid var(--border)">
+            <span style="font-size:0.65rem;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:0.08em">📅 Cobros de Hoy — ${hoy.length} cliente${hoy.length!==1?'s':''}</span>
+        </div>
+        <div style="padding:0.75rem;display:flex;flex-direction:column;gap:0.5rem">${hoy.map(rowHoy).join('')}</div>
+    </div>` : ''}
+
+    ${totalPend === 0 ? `
+    <div style="text-align:center;padding:2.5rem 1rem;color:var(--muted2)">
+        <div style="font-size:2.5rem;margin-bottom:0.75rem">🎉</div>
+        <p style="font-size:0.85rem;font-weight:600">¡No hay cobros pendientes para hoy!</p>
+    </div>` : ''}
+
+    ${pagados.length > 0 ? `
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:0.75rem;overflow:hidden">
+        <div style="padding:0.6rem 1rem;background:rgba(16,185,129,0.06);border-bottom:1px solid var(--border)">
+            <span style="font-size:0.65rem;font-weight:800;color:#10b981;text-transform:uppercase;letter-spacing:0.08em">✅ Pagados Hoy — ${pagados.length} cliente${pagados.length!==1?'s':''}</span>
+        </div>
+        <div style="padding:0.75rem;display:flex;flex-direction:column;gap:0.4rem">${pagados.map(rowPagado).join('')}</div>
+    </div>` : ''}`;
+}
+
+// ── LISTA ─────────────────────────────────────────
+function filtrarMob() {
+    const q = document.getElementById('mob-search').value.toLowerCase();
+    document.querySelectorAll('.cli-item').forEach(el => {
+        el.style.display = (el.dataset.search||'').includes(q) ? '' : 'none';
+    });
+}
+
+function renderLista() {
+    const lista  = document.getElementById('mob-list');
+    const items  = Object.values(allClients)
+        .filter(c => c.tipo === 'ACTIVO')
+        .sort((a,b) => (a.nombre||'').localeCompare(b.nombre||''));
+
+    if (!items.length) {
+        lista.innerHTML = '<div class="empty-mob">No hay clientes activos</div>';
+        return;
+    }
+    lista.innerHTML = items.map(c => {
+        const saldo    = parseFloat(c.saldo||0);
+        const saldoCls = saldo <= 0 ? 'green' : 'red';
+        const saldoTxt = saldo <= 0 ? 'Saldado' : '$'+saldo.toFixed(2);
+        const inicial  = (c.nombre||'?')[0].toUpperCase();
+        return `
+        <div class="cli-item" data-search="${(c.nombre||'').toLowerCase()} ${c.dui||''}"
+             onclick="irPanel('${c._key}')">
+            <div class="cli-avatar">${inicial}</div>
+            <div class="cli-info">
+                <div class="cli-nombre">${c.nombre||'—'}</div>
+                <div class="cli-sub">${c.dui||'sin DUI'} · ${(c.frecuencia||'diario').toUpperCase()}</div>
+            </div>
+            <div class="cli-right">
+                <div class="cli-saldo ${saldoCls}">${saldoTxt}</div>
+                <div class="cli-arrow">›</div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+// ── PANEL CLIENTE ─────────────────────────────────
+function renderPanel(id) {
+    const s = allClients[id];
+    if (!s) return;
+
+    document.getElementById('panel-title').textContent = s.nombre||'—';
+    document.getElementById('btn-ws').href =
+        `https://wa.me/503${s.tel||''}?text=${encodeURIComponent('Hola '+s.nombre+', te contactamos de CrediListo.')}`;
+
+    const total  = parseFloat(s.total||(parseFloat(s.monto||0)*1.2));
+    const saldo  = parseFloat(s.saldo!==undefined ? s.saldo : total);
+    const pagado = total - saldo;
+
+    const scroll = document.getElementById('panel-scroll');
+    scroll.innerHTML = `
+    <!-- STATS -->
+    <div class="mob-stats">
+        <div class="mob-stat"><div class="mob-stat-lbl">Total</div><div class="mob-stat-val sky">$${total.toFixed(2)}</div></div>
+        <div class="mob-stat"><div class="mob-stat-lbl">Pagado</div><div class="mob-stat-val green">$${pagado.toFixed(2)}</div></div>
+        <div class="mob-stat"><div class="mob-stat-lbl">Deuda</div><div class="mob-stat-val ${saldo>0?'red':'green'}">$${saldo.toFixed(2)}</div></div>
+    </div>
+
+    <!-- CUOTAS -->
+    <div class="mob-section">
+        <div class="mob-sec-head">
+            <span class="mob-sec-title">Pagos · ${(s.frecuencia||'diario').toUpperCase()}</span>
+        </div>
+        <div class="mob-sec-body" id="mob-cuotas"></div>
+    </div>
+
+    <!-- FICHA -->
+    <div class="mob-section">
+        <div class="mob-sec-head">
+            <span class="mob-sec-title">Ficha del cliente</span>
+            <button onclick="guardarFichaMob()" style="background:var(--accent);color:#fff;border:none;border-radius:0.4rem;padding:0.3rem 0.65rem;font-size:0.6rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer">Guardar</button>
+        </div>
+        <div class="mob-sec-body">
+            <div class="ficha-mob" id="mob-ficha"></div>
+        </div>
+    </div>
+
+    <!-- DOCUMENTOS -->
+    <div class="mob-section">
+        <div class="mob-sec-head"><span class="mob-sec-title">Documentos</span></div>
+        <div class="mob-sec-body">
+            <div class="docs-mob" id="mob-docs"></div>
+        </div>
+    </div>
+
+    <!-- ACCIONES -->
+    <button class="mob-btn-full danger" style="margin-bottom:0.85rem" onclick="eliminarClienteMob()">Eliminar cliente</button>
+    <div style="height:2rem"></div>`;
+
+    renderCuotasMob(s);
+    renderFichaMob(s);
+    renderDocsMob(s);
+}
+
+function renderCuotasMob(s) {
+    const wrap  = document.getElementById('mob-cuotas');
+    if (!wrap) return;
+    const cuotas = s.cuotas||[];
+    if (!cuotas.length) { wrap.innerHTML = '<p style="font-size:0.8rem;color:var(--muted)">Sin cuotas.</p>'; return; }
+    wrap.innerHTML = cuotas.map((c,i) => {
+        const pag     = !!c.pagada;
+        const fechaProg = c.fecha_prog || '';
+        const fechaPagada = c.fecha_ISO || '';
+        return `<div class="cuota-row-mob ${pag?'pagada':''}">
+            <div class="cuota-row-top">
+                <span class="cuota-n-mob">#${c.n||i+1}</span>
+                <span class="cuota-estado-mob ${pag?'ok':'pend'}">
+                    ${pag ? '✓ Pagado · '+( c.fecha||c.fecha_ISO||'') : fechaProg ? '📅 '+new Date(fechaProg+'T12:00:00').toLocaleDateString('es-SV',{day:'2-digit',month:'short'}) : 'Pendiente'}
+                </span>
+            </div>
+            ${pag ? '' : `<div class="cuota-row-bottom">
+                <input type="number" class="cuota-inp-mob" id="mv-${i}"
+                       value="${c.valorPagado||0}" step="0.01" placeholder="$0.00">
+                <input type="date"   class="cuota-date-mob" id="mf-${i}"
+                       value="${new Date().toISOString().split('T')[0]}">
+                <button class="cuota-btn-mob pagar" onclick="pagarMob(${i})">✓ Pagar</button>
+            </div>`}
+        </div>`;
+    }).join('');
+}
+
+async function pagarMob(i) {
+    const monto = parseFloat(document.getElementById('mv-'+i).value);
+    const fecha = document.getElementById('mf-'+i).value || new Date().toISOString().split('T')[0];
+    if (isNaN(monto)||monto<=0) return toast('Monto inválido','error');
+    const snap = await db.ref('clientes3/'+currentId).once('value');
+    let s = snap.val();
+    s.cuotas[i].pagada      = true;
+    s.cuotas[i].valorPagado = monto;
+    s.cuotas[i].fecha_ISO   = fecha;
+    s.cuotas[i].fecha       = fecha.split('-').reverse().join('/');
+    let tot = 0;
+    s.cuotas.forEach(c => { if(c.pagada) tot += parseFloat(c.valorPagado||0); });
+    s.saldo = (parseFloat(s.total)-tot).toFixed(2);
+    await db.ref('clientes3/'+currentId).set(s);
+    toast('✓ Pago registrado','success');
+}
+
+function renderFichaMob(s) {
+    const g = document.getElementById('mob-ficha');
+    if (!g) return;
+    const campo = (lbl,id,val,tipo='text') =>
+        `<div class="ff-mob"><span class="ff-lbl-mob">${lbl}</span>
+         <input class="ff-inp-mob" type="${tipo}" id="mf-${id}" value="${val||''}"></div>`;
+    const sel = (lbl,id,val,opts) =>
+        `<div class="ff-mob"><span class="ff-lbl-mob">${lbl}</span>
+         <select class="ff-sel-mob" id="mf-${id}">${opts.map(o=>`<option value="${o}" ${val==o?'selected':''}>${o}</option>`).join('')}</select></div>`;
+    const ro = (lbl,val) =>
+        `<div class="ff-mob"><span class="ff-lbl-mob">${lbl}</span><div class="ff-ro-mob">${val||'—'}</div></div>`;
+
+    g.innerHTML =
+        campo('Nombre','nombre',s.nombre) +
+        campo('DUI','dui',s.dui) +
+        campo('WhatsApp','tel',s.tel,'tel') +
+        campo('Contraseña portal','pass',s.pass) +
+        campo('Dirección vivienda','dirCasa',s.dirCasa||s.dirVivienda) +
+        campo('Negocio','negocio',s.negocio) +
+        campo('Dir. negocio','dirNeg',s.dirNeg||s.dirNegocio) +
+        campo('Ingresos','ingresos',s.ingresos) +
+        campo('Propósito','inversion',s.inversion) +
+        campo('Referencia nombre','refNom',s.refNom||s.refNombre) +
+        campo('Referencia tel','refTel',s.refTel,'tel') +
+        sel('Monto','monto',String(s.monto),['50','100','150','200','250','300','400','500']) +
+        sel('Frecuencia','frecuencia',s.frecuencia,['diario','semanal']) +
+        ro('Total (20%)', '$'+parseFloat(s.total||0).toFixed(2)) +
+        ro('Fecha inicio', s.fechaInicio||s.fecha);
+}
+
+async function guardarFichaMob() {
+    const g = id => (document.getElementById('mf-'+id)||{}).value||'';
+    await db.ref('clientes3/'+currentId).update({
+        nombre: g('nombre').toUpperCase(), dui: g('dui'), tel: g('tel'),
+        pass: g('pass'), dirCasa: g('dirCasa'), negocio: g('negocio'),
+        dirNeg: g('dirNeg'), ingresos: g('ingresos'), inversion: g('inversion'),
+        refNom: g('refNom'), refTel: g('refTel'), monto: g('monto'), frecuencia: g('frecuencia'),
+    });
+    toast('✓ Ficha guardada','success');
+}
+
+async function eliminarClienteMob() {
+    if (!confirm('¿Eliminar a '+(allClients[currentId]?.nombre||'este cliente')+'?')) return;
+    await db.ref('clientes3/'+currentId).remove();
+    toast('Cliente eliminado','error');
+    irLista();
+}
+
+// ── DOCUMENTOS ────────────────────────────────────
+function renderDocsMob(s) {
+    const g = document.getElementById('mob-docs');
+    if (!g) return;
+    const tipos  = ['contrato','letra','dui_frontal','dui_reverso'];
+    const labels = {contrato:'Contrato',letra:'Letra',dui_frontal:'DUI Front.',dui_reverso:'DUI Rev.'};
+    const iconos = {contrato:'📄',letra:'📋',dui_frontal:'🪪',dui_reverso:'🔄'};
+    g.innerHTML = tipos.map(tipo => {
+        const url = s['doc_'+tipo]||'';
+        return `<div class="doc-slot-mob" id="dslot-${tipo}">
+            <div class="doc-slot-lbl-mob">${labels[tipo]}</div>
+            <div class="doc-prev-mob" onclick="document.getElementById('fi-${tipo}').click()">
+                ${url
+                    ? `<img src="${url}" onerror="this.style.display='none'">`
+                    : `<div class="doc-ph"><span>${iconos[tipo]}</span>Subir</div>`}
+            </div>
+            <div class="doc-up-bar"><div class="doc-up-fill" id="dbar-${tipo}"></div></div>
+            <div class="doc-act-mob">
+                <button class="doc-btn-mob" onclick="document.getElementById('fi-${tipo}').click()">
+                    ${url?'↑ Cambiar':'↑ Subir'}
+                </button>
+                ${url?`<button class="doc-btn-mob blue" onclick="verDocMob('${url}')">Ver</button>`:''}
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function verDocMob(url) {
+    const m = document.createElement('div');
+    m.style.cssText='position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,0.93);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;padding:1rem';
+    m.onclick=()=>m.remove();
+    m.innerHTML=`<img src="${url}" style="max-width:95vw;max-height:80vh;object-fit:contain;border-radius:0.5rem">
+    <div style="display:flex;gap:0.75rem">
+        <a href="${url}" target="_blank" style="background:#0ea5e9;color:#fff;padding:0.55rem 1.25rem;border-radius:0.5rem;font-weight:800;font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;text-decoration:none">Abrir</a>
+        <button onclick="event.stopPropagation();this.closest('div[style]').remove()" style="background:rgba(255,255,255,0.1);color:#fff;border:1px solid rgba(255,255,255,0.2);padding:0.55rem 1.25rem;border-radius:0.5rem;font-weight:800;font-size:0.7rem;cursor:pointer">Cerrar</button>
+    </div>`;
+    document.body.appendChild(m);
+}
+
+async function subirDoc(input, tipo) {
+    if (!input.files||!input.files[0]) return;
+    const file = input.files[0];
+    if (file.size > 20*1024*1024) { toast('Máx 20 MB','error'); input.value=''; return; }
+    const bar = document.getElementById('dbar-'+tipo);
+    const ext  = file.name.split('.').pop();
+    const path = `clientes3/${currentId}/${tipo}_${Date.now()}.${ext}`;
+    const task = storage.ref(path).put(file);
+    task.on('state_changed',
+        s => { if(bar) bar.style.width=(s.bytesTransferred/s.totalBytes*100)+'%'; },
+        e => { toast('Error: '+e.message,'error'); input.value=''; },
+        async () => {
+            const url = await task.snapshot.ref.getDownloadURL();
+            await db.ref('clientes3/'+currentId).update({['doc_'+tipo]:url});
+            if(bar) setTimeout(()=>{bar.style.width='0';},800);
+            toast('✓ '+labels_doc[tipo]+' guardado','success');
+            input.value='';
+        }
+    );
+}
+const labels_doc = {contrato:'Contrato',letra:'Letra de cambio',dui_frontal:'DUI frontal',dui_reverso:'DUI reverso'};
+
+function renderSolicitudes() {
+    document.getElementById('extra-title').textContent = 'Solicitudes pendientes';
+    const wrap = document.getElementById('extra-scroll');
+    const pend = Object.values(allClients).filter(c=>c.tipo==='PENDIENTE');
+
+    if (!pend.length) {
+        wrap.innerHTML = '<div class="empty-mob" style="padding-top:3rem">✅<br><br>Sin solicitudes pendientes</div>';
+        return;
+    }
+
+    wrap.innerHTML = pend.map(s => {
+        const m    = parseFloat(s.monto)||0;
+        const tot  = (m*1.2).toFixed(2);
+        const nC   = (s.frecuencia||'diario')==='semanal' ? 4 : 30;
+        const cuot = m ? (m*1.2/nC).toFixed(2) : '—';
+        const campos = [
+            ['DUI',          s.dui||'—'],
+            ['WhatsApp',     s.tel||'—'],
+            ['Monto',        m ? '$'+m : '—'],
+            ['Frecuencia',   (s.frecuencia||'diario').toUpperCase()],
+            ['Cuota',        '$'+cuot],
+            ['Total (20%)',  '$'+tot],
+            ['Dirección',    s.dirCasa||s.dirVivienda||'—'],
+            ['Negocio',      s.negocio||'—'],
+            ['Propósito',    s.inversion||'—'],
+            ['Referencia',   (s.refNom||s.refNombre||'—')],
+            ['Tel. Ref.',    s.refTel||'—'],
+        ];
+        return `
+        <div class="sol-card">
+            <div class="sol-head">
+                <div class="sol-nombre">${s.nombre||'Sin nombre'}</div>
+                <div class="sol-meta">Registrado: ${s.fecha||'—'}</div>
+            </div>
+            <div class="sol-body">
+                ${campos.map(([l,v])=>`
+                <div class="sol-dato">
+                    <div class="sol-lbl">${l}</div>
+                    <div class="sol-val">${v}</div>
+                </div>`).join('')}
+            </div>
+            <div class="sol-actions">
+                <button class="sol-btn ok"  onclick="abrirModalAprob('${s._key}')">✓ Aprobar</button>
+                <button class="sol-btn no"  onclick="rechazar('${s._key}')">✗ Rechazar</button>
+            </div>
+        </div>`;
+    }).join('') + '<div style="height:2rem"></div>';
+}
+
+async function rechazar(id) {
+    const s = allClients[id];
+    if (!confirm('¿Rechazar solicitud de '+(s?.nombre||'?')+'?')) return;
+    const origen = allClients[id]?._origen || 'clientes3';
+    if (origen === 'clientes') { await db.ref('clientes/'+id).remove(); }
+    else { await db.ref('clientes3/'+id).remove(); }
+    toast('Solicitud rechazada','error');
+    renderSolicitudes();
+}
+
+// ── MODAL APROBACIÓN ──────────────────────────────
+function abrirModalAprob(id) {
+    aprobandoId   = id;
+    docAprobFiles = {contrato:null,letra:null,dui_frontal:null,dui_reverso:null};
+    const s       = allClients[id];
+    if (!s) return;
+
+    const hoy     = new Date().toISOString().split('T')[0];
+    const monto   = parseFloat(s.monto)||0;
+    const total   = monto*1.2;
+    const esS     = (s.frecuencia||'diario')==='semanal';
+    const nC      = esS ? 4 : 30;
+    const cuota   = (total/nC).toFixed(2);
+
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.id = 'modal-aprob';
+
+    overlay.innerHTML = `
+    <div class="modal-sheet">
+        <div class="modal-handle"></div>
+        <div class="modal-title">Aprobar Crédito</div>
+        <div class="modal-sub">${s.nombre||'—'} · $${s.monto} · ${(s.frecuencia||'diario').toUpperCase()}</div>
+        <div class="modal-body">
+
+            <!-- resumen -->
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.5rem">
+                ${[['Monto','$'+monto.toFixed(2)],['Total (20%)','$'+total.toFixed(2)],['Cuota','$'+cuota]].map(([l,v])=>`
+                <div style="background:var(--surface2);border:1px solid var(--border);border-radius:0.6rem;padding:0.65rem">
+                    <div style="font-size:0.5rem;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-bottom:0.2rem">${l}</div>
+                    <div style="font-family:'JetBrains Mono',monospace;font-weight:700;font-size:0.85rem;color:var(--accent)">${v}</div>
+                </div>`).join('')}
+            </div>
+
+            <!-- fecha -->
+            <div class="modal-field">
+                <label class="modal-lbl">Fecha de desembolso</label>
+                <input type="date" id="ap-fecha" class="modal-inp" value="${hoy}" onchange="actualizarFechasM()">
+            </div>
+
+            <!-- fechas preview -->
+            <div>
+                <div style="font-size:0.6rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted2);margin-bottom:0.4rem">
+                    Fechas programadas (${nC} ${esS?'sem.':'días'})
+                </div>
+                <div class="fechas-preview" id="ap-fechas-wrap"></div>
+            </div>
+
+            <!-- contraseña -->
+            <div class="modal-field">
+                <label class="modal-lbl">Contraseña para portal cliente</label>
+                <input type="text" id="ap-pass" class="modal-inp" value="${s.pass||'1234'}" style="letter-spacing:0.3em">
+            </div>
+
+            <!-- documentos -->
+            <div>
+                <div style="font-size:0.6rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted2);margin-bottom:0.5rem">Documentos (opcional)</div>
+                <div class="docs-ap-grid">
+                    ${['contrato','letra','dui_frontal','dui_reverso'].map(tipo=>{
+                        const ic={contrato:'📄',letra:'📋',dui_frontal:'🪪',dui_reverso:'🔄'};
+                        const lb={contrato:'Contrato',letra:'Letra',dui_frontal:'DUI Front.',dui_reverso:'DUI Rev.'};
+                        return `<label class="doc-ap-slot" for="ap-fi-${tipo}">
+                            <div class="doc-ap-prev" id="ap-prev-${tipo}">
+                                <span class="doc-ap-icon">${ic[tipo]}</span>
+                            </div>
+                            <div class="doc-ap-lbl">${lb[tipo]}</div>
+                            <div class="doc-ap-name" id="ap-nm-${tipo}">Toca para subir</div>
+                            <input type="file" id="ap-fi-${tipo}" accept="image/*,application/pdf" style="display:none"
+                                   onchange="prevDocM(this,'${tipo}')">
+                        </label>`;
+                    }).join('')}
+                </div>
+                <div class="ap-bar-wrap" style="margin-top:0.75rem"><div class="ap-bar" id="ap-bar"></div></div>
+                <div class="ap-msg" id="ap-msg"></div>
+            </div>
+
+            <button id="ap-confirm" onclick="confirmarAprobM()"
+                    style="width:100%;padding:0.9rem;background:var(--accent);color:#fff;border:none;
+                           border-radius:0.75rem;font-family:'Syne',sans-serif;font-weight:800;
+                           font-size:0.75rem;letter-spacing:0.12em;text-transform:uppercase;cursor:pointer">
+                ✓ Confirmar Aprobación
+            </button>
+            <button onclick="document.getElementById('modal-aprob').remove()"
+                    style="width:100%;padding:0.65rem;background:transparent;border:1px solid var(--border2);
+                           border-radius:0.75rem;font-size:0.7rem;font-weight:700;color:var(--muted2);cursor:pointer">
+                Cancelar
+            </button>
+        </div>
+    </div>`;
+
+    document.body.appendChild(overlay);
+    actualizarFechasM();
+}
+
+function actualizarFechasM() {
+    const s    = allClients[aprobandoId];
+    const fecha = document.getElementById('ap-fecha')?.value;
+    if (!s||!fecha) return;
+    const esS  = (s.frecuencia||'diario')==='semanal';
+    const nC   = esS ? 4 : 30;
+    const base = new Date(fecha+'T12:00:00');
+    const wrap = document.getElementById('ap-fechas-wrap');
+    if (!wrap) return;
+    wrap.innerHTML = Array.from({length:nC},(_,i)=>{
+        const d=new Date(base); d.setDate(d.getDate()+(esS?(i+1)*7:(i+1)));
+        return `<span class="fp-chip">#${i+1} ${d.toLocaleDateString('es-SV',{day:'2-digit',month:'short'})}</span>`;
+    }).join('');
+}
+
+function prevDocM(input, tipo) {
+    if (!input.files||!input.files[0]) return;
+    const file = input.files[0];
+    docAprobFiles[tipo] = file;
+    const prev = document.getElementById('ap-prev-'+tipo);
+    const nm   = document.getElementById('ap-nm-'+tipo);
+    if (file.type.startsWith('image/')) {
+        const url = URL.createObjectURL(file);
+        prev.innerHTML = `<img src="${url}" style="width:100%;max-height:55px;object-fit:cover;border-radius:0.35rem;margin-bottom:0.25rem">`;
+    }
+    nm.textContent  = file.name.length>16 ? file.name.substring(0,14)+'…' : file.name;
+    nm.style.color  = 'var(--accent)';
+}
+
+async function confirmarAprobM() {
+    const s      = allClients[aprobandoId];
+    if (!s) return;
+    const btn    = document.getElementById('ap-confirm');
+    const bar    = document.getElementById('ap-bar');
+    const msg    = document.getElementById('ap-msg');
+    const fecha  = document.getElementById('ap-fecha').value;
+    const pass   = document.getElementById('ap-pass').value || '1234';
+    if (!fecha) { toast('Selecciona fecha','error'); return; }
+
+    btn.disabled   = true; btn.textContent = 'Procesando…';
+
+    const esS  = (s.frecuencia||'diario')==='semanal';
+    const nC   = esS ? 4 : 30;
+    const m    = parseFloat(s.monto)||0;
+    const tot  = parseFloat((m*1.2).toFixed(2));
+    const cuot = parseFloat((tot/nC).toFixed(2));
+    const base = new Date(fecha+'T12:00:00');
+
+    const cuotas = Array.from({length:nC},(_,i)=>{
+        const d=new Date(base); d.setDate(d.getDate()+(esS?(i+1)*7:(i+1)));
+        const iso=d.toISOString().split('T')[0];
+        return {n:i+1,valorPagado:cuot,pagada:false,fecha:'',fecha_ISO:'',
+                fecha_prog:iso,fecha_prog_sv:d.toLocaleDateString('es-SV')};
+    });
+
+    let urls = {contrato:s.doc_contrato||'',letra:s.doc_letra||'',
+                dui_frontal:s.doc_dui_frontal||'',dui_reverso:s.doc_dui_reverso||''};
+
+    const tiposList = ['contrato','letra','dui_frontal','dui_reverso'];
+    const progStep  = 80 / tiposList.length;
+
+    try {
+        for (let i=0; i<tiposList.length; i++) {
+            const tipo = tiposList[i];
+            if (!docAprobFiles[tipo]) continue;
+            msg.textContent = 'Subiendo '+tipo.replace('_',' ')+'…';
+            const file = docAprobFiles[tipo];
+            const ext  = file.name.split('.').pop();
+            const path = `clientes3/${aprobandoId}/${tipo}_${Date.now()}.${ext}`;
+            urls[tipo]  = await new Promise((res,rej)=>{
+                const task = storage.ref(path).put(file);
+                task.on('state_changed',
+                    sn=>{ bar.style.width=(i*progStep+sn.bytesTransferred/sn.totalBytes*progStep)+'%'; },
+                    rej, async()=>res(await task.snapshot.ref.getDownloadURL())
+                );
+            });
+            bar.style.width = ((i+1)*progStep)+'%';
+        }
+
+        msg.textContent = 'Guardando…';
+        const fechaSV = new Date(fecha+'T12:00:00').toLocaleDateString('es-SV');
+
+        const origenSol = allClients[aprobandoId]?._origen || 'clientes3';
+        if (origenSol === 'clientes') await db.ref('clientes/'+aprobandoId).remove();
+        await db.ref('clientes3/'+aprobandoId).set({
+            id: s.id||aprobandoId, nombre:s.nombre||'', dui:s.dui||'', tel:s.tel||'',
+            dirCasa:s.dirCasa||s.dirVivienda||'', negocio:s.negocio||'',
+            dirNeg:s.dirNeg||s.dirNegocio||'', ingresos:s.ingresos||'',
+            inversion:s.inversion||'', refNom:s.refNom||s.refNombre||'', refTel:s.refTel||'',
+            monto:s.monto||'', frecuencia:s.frecuencia||'diario', fecha:s.fecha||fechaSV,
+            tipo:'ACTIVO', pass, total:tot, saldo:tot, fechaInicio:fechaSV, cuotas,
+            doc_contrato:urls.contrato, doc_letra:urls.letra,
+            doc_dui_frontal:urls.dui_frontal, doc_dui_reverso:urls.dui_reverso,
+        });
+
+        bar.style.width = '100%';
+        msg.textContent  = '¡Aprobado!';
+        document.getElementById('modal-aprob')?.remove();
+        toast('✓ Crédito aprobado — '+(s.nombre||''),'success');
+        setTimeout(()=>irPanel(aprobandoId), 400);
+    } catch(err) {
+        msg.textContent  = 'Error: '+err.message;
+        msg.style.color  = 'var(--danger)';
+        toast('Error: '+err.message,'error');
+        btn.disabled     = false; btn.textContent = '✓ Confirmar Aprobación';
+        bar.style.width  = '0';
+    }
+}
+
+// ── NUEVO CLIENTE ─────────────────────────────────
+function renderNuevo() {
+    document.getElementById('extra-title').textContent = 'Nuevo Cliente';
+    const wrap = document.getElementById('extra-scroll');
+    wrap.innerHTML = `
+    <div class="mob-section" style="margin-bottom:0.85rem">
+        <div class="mob-sec-head"><span class="mob-sec-title">Datos personales</span></div>
+        <div class="mob-sec-body">
+            <div class="ficha-mob">
+                ${[['Nombre completo','nn-nombre','text'],['DUI','nn-dui','text'],
+                   ['WhatsApp','nn-tel','tel'],['Contraseña portal','nn-pass','text'],
+                   ['Dirección vivienda','nn-dirCasa','text'],['Negocio','nn-negocio','text'],
+                   ['Dir. negocio','nn-dirNeg','text'],['Ingresos','nn-ingresos','text'],
+                   ['Propósito','nn-inversion','text'],['Referencia nombre','nn-refNom','text'],
+                   ['Referencia tel','nn-refTel','tel'],
+                ].map(([l,id,t])=>`<div class="ff-mob"><span class="ff-lbl-mob">${l}</span>
+                    <input class="ff-inp-mob" type="${t}" id="${id}" ${id==='nn-pass'?'value="1234"':''}></div>`).join('')}
+            </div>
+        </div>
+    </div>
+
+    <div class="mob-section" style="margin-bottom:0.85rem">
+        <div class="mob-sec-head"><span class="mob-sec-title">Condiciones del crédito</span></div>
+        <div class="mob-sec-body">
+            <div class="ficha-mob">
+                <div class="ff-mob"><span class="ff-lbl-mob">Monto</span>
+                    <select class="ff-sel-mob" id="nn-monto" onchange="prevNuevo()">
+                        ${['50','100','150','200','250','300','400','500'].map(v=>`<option value="${v}" ${v==='200'?'selected':''}>\$${v}</option>`).join('')}
+                    </select></div>
+                <div class="ff-mob"><span class="ff-lbl-mob">Frecuencia</span>
+                    <select class="ff-sel-mob" id="nn-frecuencia" onchange="prevNuevo()">
+                        <option value="diario">Diario (30 pagos)</option>
+                        <option value="semanal">Semanal (4 pagos)</option>
+                    </select></div>
+                <div class="ff-mob"><span class="ff-lbl-mob">Total (20%)</span>
+                    <div class="ff-ro-mob" id="nn-ptotal">$240.00</div></div>
+                <div class="ff-mob"><span class="ff-lbl-mob">Cuota</span>
+                    <div class="ff-ro-mob" id="nn-pcuota">$8.00 diario</div></div>
+            </div>
+        </div>
+    </div>
+
+    <button class="mob-btn-full primary" style="margin-bottom:0.6rem" onclick="guardarNuevoMob()">✓ Registrar como ACTIVO</button>
+    <button class="mob-btn-full ghost"   style="margin-bottom:0.6rem" onclick="guardarPendienteMob()">Guardar como Pendiente</button>
+    <p style="font-size:0.65rem;color:var(--muted2);text-align:center;padding:0.5rem 0 2rem">
+        💡 Los documentos y fotos de DUI se agregan desde la ficha del cliente.
+    </p>`;
+
+    prevNuevo();
+}
+
+function prevNuevo() {
+    const m = parseFloat(document.getElementById('nn-monto')?.value||200);
+    const f = document.getElementById('nn-frecuencia')?.value||'diario';
+    const t = m*1.2; const n = f==='semanal'?4:30;
+    const pt=document.getElementById('nn-ptotal'); const pc=document.getElementById('nn-pcuota');
+    if(pt) pt.textContent='$'+t.toFixed(2);
+    if(pc) pc.textContent='$'+(t/n).toFixed(2)+' '+f;
+}
+
+function getDatosNuevo() {
+    const g=id=>(document.getElementById(id)||{}).value||'';
+    return {
+        nombre:g('nn-nombre').toUpperCase(),dui:g('nn-dui'),tel:g('nn-tel'),
+        pass:g('nn-pass')||'1234',dirCasa:g('nn-dirCasa'),negocio:g('nn-negocio'),
+        dirNeg:g('nn-dirNeg'),ingresos:g('nn-ingresos'),inversion:g('nn-inversion'),
+        refNom:g('nn-refNom'),refTel:g('nn-refTel'),
+        monto:g('nn-monto'),frecuencia:g('nn-frecuencia'),
+        fecha:new Date().toLocaleDateString('es-SV'),
+    };
+}
+
+async function guardarNuevoMob() {
+    const d=getDatosNuevo();
+    if(!d.nombre||!d.dui){toast('Nombre y DUI obligatorios','error');return;}
+    const m=parseFloat(d.monto), tot=parseFloat((m*1.2).toFixed(2));
+    const nC=d.frecuencia==='semanal'?4:30, cuot=parseFloat((tot/nC).toFixed(2));
+    const cuotas=Array.from({length:nC},(_,i)=>({n:i+1,valorPagado:cuot,pagada:false,fecha:''}));
+    const id=Date.now();
+    await db.ref('clientes3/'+id).set({...d,id,tipo:'ACTIVO',total:tot,saldo:tot,
+        fechaInicio:new Date().toLocaleDateString('es-SV'),cuotas});
+    toast('✓ Cliente registrado','success');
+    renderNuevo();
+}
+
+async function guardarPendienteMob() {
+    const d=getDatosNuevo();
+    if(!d.nombre||!d.dui){toast('Nombre y DUI obligatorios','error');return;}
+    const id=Date.now();
+    await db.ref('clientes3/'+id).set({...d,id,tipo:'PENDIENTE'});
+    toast('Guardado como Pendiente','success');
+    irExtra('solicitudes');
+}
+
+// ── TOAST ─────────────────────────────────────────
+function toast(msg, type='success') {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.className = 'toast show ' + type;
+    setTimeout(()=>{ t.className='toast'; }, 3000);
+}
+</script>
+</body>
+</html>
