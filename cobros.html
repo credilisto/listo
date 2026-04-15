@@ -106,7 +106,7 @@
             <div class="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Operación</div>
             <div class="flex gap-1.5 mb-3">
                 <button id="cm-add" class="modo-btn m-add" onclick="seleccionarModo('add')">➕ Añadir</button>
-                <button id="cm-set" class="modo-btn"       onclick="seleccionarModo('set')">✏️ Establecer</button>
+                <button id="cm-set" class="modo-btn"       onclick="seleccionarModo('set')">➖ Restar</button>
             </div>
 
             <!-- Input -->
@@ -354,9 +354,9 @@
             btn.textContent='✓ Añadir a Caja Chica';
         } else {
             bS.className='modo-btn m-set'; bA.className='modo-btn';
-            lbl.textContent='Nuevo saldo a establecer ($)';
+            lbl.textContent='Monto a restar ($)';
             btn.style.background='linear-gradient(to right,#f59e0b,#d97706)';
-            btn.textContent='✏️ Establecer Saldo';
+            btn.textContent='➖ Restar de Caja Chica';
         }
     }
 
@@ -369,13 +369,24 @@
         try {
             const snap = await db.ref(ruta).once('value');
             const cfg  = snap.val() || {};
-            const nueva = cajaModoSeleccionado === 'add'
-                ? parseFloat((parseFloat(cfg.cajaChica||0) + monto).toFixed(2))
-                : parseFloat(monto.toFixed(2));
+            const cajaActual = parseFloat(cfg.cajaChica || 0);
+            let nueva;
+            if (cajaModoSeleccionado === 'add') {
+                nueva = parseFloat((cajaActual + monto).toFixed(2));
+            } else {
+                if (monto > cajaActual + 0.01) {
+                    msgEl.textContent = `Saldo insuficiente. Disponible: $${cajaActual.toFixed(2)}`;
+                    msgEl.style.color = '#ef4444';
+                    msgEl.style.display = 'block';
+                    setTimeout(() => { msgEl.style.display='none'; }, 3500);
+                    return;
+                }
+                nueva = parseFloat((cajaActual - monto).toFixed(2));
+            }
             await db.ref(ruta).update({ cajaChica: nueva });
             document.getElementById('caja-actual').textContent = '$' + nueva.toFixed(2);
             document.getElementById('caja-monto-input').value  = '';
-            const accion = cajaModoSeleccionado==='add' ? `+$${monto.toFixed(2)} añadidos` : `Saldo fijado en $${nueva.toFixed(2)}`;
+            const accion = cajaModoSeleccionado==='add' ? `+$${monto.toFixed(2)} añadidos` : `-$${monto.toFixed(2)} restados`;
             msgEl.textContent = `✓ ${label} · ${accion}`;
             msgEl.style.color = '#10b981';
             msgEl.style.display = 'block';
