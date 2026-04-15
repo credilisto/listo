@@ -311,7 +311,7 @@
 
         .cuota-row {
             display: grid;
-            grid-template-columns: 28px 1fr 120px 130px 80px;
+            grid-template-columns: 28px 1fr 130px 110px 120px 80px;
             gap: 0.5rem; align-items: center;
             padding: 0.5rem 0.75rem;
             border-radius: 0.5rem;
@@ -365,6 +365,7 @@
         .cuota-btn.pagar { background: var(--accent); color: #ffffff; }
         .cuota-btn.pagar:hover { opacity: 0.85; }
         .cuota-btn.pagado { background: var(--accent-dim); color: var(--accent); cursor: default; }
+        .cuota-dia-label { font-size: 0.62rem; font-weight: 700; color: var(--accent); background: var(--accent-dim); border-radius: 0.35rem; padding: 0.2rem 0.4rem; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
         /* FICHA DATOS */
         .ficha-grid {
@@ -465,7 +466,7 @@
             .stats-row { grid-template-columns: 1fr 1fr; }
             .ficha-grid { grid-template-columns: 1fr; }
             .docs-grid { grid-template-columns: 1fr; }
-            .cuota-row { grid-template-columns: 24px 1fr 90px 100px 70px; }
+            .cuota-row { grid-template-columns: 24px 1fr 110px 90px 100px 70px; }
         }
 
         /* TOAST */
@@ -940,9 +941,10 @@ function renderPanel(id) {
             <div class="section-title">Registro de Pagos — ${(s.frecuencia||'diario').toUpperCase()}</div>
         </div>
         <div class="section-body">
-            <div style="display:grid;grid-template-columns:28px 1fr 120px 130px 80px;gap:0.5rem;padding:0 0.75rem 0.5rem;margin-bottom:0.25rem">
+            <div style="display:grid;grid-template-columns:28px 1fr 130px 110px 120px 80px;gap:0.5rem;padding:0 0.75rem 0.5rem;margin-bottom:0.25rem">
                 <span style="font-size:0.55rem;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em">#</span>
                 <span style="font-size:0.55rem;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em">Estado</span>
+                <span style="font-size:0.55rem;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:0.1em">Día</span>
                 <span style="font-size:0.55rem;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em">Monto ($)</span>
                 <span style="font-size:0.55rem;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em">Fecha</span>
                 <span></span>
@@ -1002,12 +1004,36 @@ function renderCuotas(s) {
         wrap.innerHTML = '<p style="font-size:0.75rem;color:var(--muted);padding:0.5rem">Sin cuotas registradas.</p>';
         return;
     }
+
+function diaSemanaDeProgr(c) {
+    const dias = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+    const fStr = c.fecha_prog || c.fecha_prog_sv || c.fecha_ISO || '';
+    if (!fStr) return '';
+    // Intentar parsear dd/mm/yyyy o yyyy-mm-dd
+    let d;
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(fStr)) {
+        const [dd, mm, yyyy] = fStr.split('/');
+        d = new Date(`${yyyy}-${mm}-${dd}T12:00:00`);
+    } else if (/^\d{4}-\d{2}-\d{2}$/.test(fStr)) {
+        d = new Date(fStr + 'T12:00:00');
+    } else {
+        return '';
+    }
+    if (isNaN(d)) return '';
+    const dia = dias[d.getDay()];
+    const dd = String(d.getDate()).padStart(2,'0');
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    const yy = String(d.getFullYear()).slice(-2);
+    return `${dia} ${dd}/${mm}/${yy}`;
+}
     wrap.innerHTML = cuotas.map((c, i) => {
         const pagada = !!c.pagada;
+        const diaLabel = diaSemanaDeProgr(c);
         return `
         <div class="cuota-row ${pagada ? 'pagada' : ''}">
             <span class="cuota-n">${c.n||i+1}</span>
             <span class="cuota-estado ${pagada ? 'ok' : 'pending'}">${pagada ? '✓ Pagado' : '· Pendiente'}</span>
+            ${diaLabel ? `<span class="cuota-dia-label">${diaLabel}</span>` : '<span></span>'}
             <input type="number" class="cuota-input" id="v-${i}" value="${c.valorPagado||0}" step="0.01"
                    ${pagada ? 'disabled' : ''}>
             <input type="date" class="cuota-date" id="f-${i}" value="${c.fecha_ISO||''}"

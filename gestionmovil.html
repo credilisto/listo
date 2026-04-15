@@ -228,6 +228,7 @@
         .cuota-row-top {
             display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.5rem;
         }
+        .cuota-dia-mob { font-size: 0.65rem; font-weight: 700; color: var(--accent); background: var(--accent-dim); border-radius: 0.3rem; padding: 0.15rem 0.4rem; margin-left: auto; white-space: nowrap; }
         .cuota-n-mob {
             font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; font-weight: 700;
             color: var(--muted); min-width: 22px; text-align: center;
@@ -893,16 +894,39 @@ function renderCuotasMob(s) {
     if (!wrap) return;
     const cuotas = s.cuotas||[];
     if (!cuotas.length) { wrap.innerHTML = '<p style="font-size:0.8rem;color:var(--muted)">Sin cuotas.</p>'; return; }
+
+function diaSemanaDeProgr(c) {
+    const dias = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+    const fStr = c.fecha_prog || c.fecha_prog_sv || c.fecha_ISO || '';
+    if (!fStr) return '';
+    let d;
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(fStr)) {
+        const [dd, mm, yyyy] = fStr.split('/');
+        d = new Date(`${yyyy}-${mm}-${dd}T12:00:00`);
+    } else if (/^\d{4}-\d{2}-\d{2}$/.test(fStr)) {
+        d = new Date(fStr + 'T12:00:00');
+    } else {
+        return '';
+    }
+    if (isNaN(d)) return '';
+    const dia = dias[d.getDay()];
+    const dd2 = String(d.getDate()).padStart(2,'0');
+    const mm2 = String(d.getMonth()+1).padStart(2,'0');
+    const yy  = String(d.getFullYear()).slice(-2);
+    return `${dia} ${dd2}/${mm2}/${yy}`;
+}
     wrap.innerHTML = cuotas.map((c,i) => {
         const pag     = !!c.pagada;
         const fechaProg = c.fecha_prog || '';
         const fechaPagada = c.fecha_ISO || '';
+        const diaLabel = diaSemanaDeProgr(c);
         return `<div class="cuota-row-mob ${pag?'pagada':''}">
             <div class="cuota-row-top">
                 <span class="cuota-n-mob">#${c.n||i+1}</span>
                 <span class="cuota-estado-mob ${pag?'ok':'pend'}">
                     ${pag ? '✓ Pagado · '+( c.fecha||c.fecha_ISO||'') : fechaProg ? '📅 '+new Date(fechaProg+'T12:00:00').toLocaleDateString('es-SV',{day:'2-digit',month:'short'}) : 'Pendiente'}
                 </span>
+                ${diaLabel ? `<span class="cuota-dia-mob">${diaLabel}</span>` : ''}
             </div>
             ${pag ? '' : `<div class="cuota-row-bottom">
                 <input type="number" class="cuota-inp-mob" id="mv-${i}"
