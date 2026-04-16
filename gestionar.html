@@ -1138,6 +1138,7 @@ async function pagarCuota(i) {
     const snapCfg = await db.ref('config/finanzas').once('value');
     const cfg = snapCfg.val() || {};
     const nuevaCaja = parseFloat((parseFloat(cfg.cajaChica || 0) + monto).toFixed(2));
+    if(s && s.cuotas && s.cuotas[i]) s.cuotas[i].cajaChicaMomento = nuevaCaja;
 
     await Promise.all([
         db.ref('clientes/' + currentId).set(s),
@@ -1545,7 +1546,7 @@ async function confirmarNuevoCredito() {
     // Leer config global actual
     const snapCfg = await db.ref('config/finanzas').once('value');
     const cfg = snapCfg.val() || {};
-    let cajaChica       = parseFloat(cfg.cajaChica || 0);
+    let cajaChica       = parseFloat(cfg.cajaChica || 0); if(isNaN(cajaChica)) cajaChica = 0;
     let capitalInvertido = parseFloat(cfg.capitalInvertido || 0);
 
     // Validar si alcanza la caja chica
@@ -2671,7 +2672,7 @@ async function confirmarAprobacion() {
     // Leer config global
     const snapCfg = await db.ref('config/finanzas').once('value');
     const cfg = snapCfg.val() || {};
-    let cajaChica        = parseFloat(cfg.cajaChica || 0);
+    let cajaChica        = parseFloat(cfg.cajaChica || 0); if(isNaN(cajaChica)) cajaChica = 0;
     let capitalInvertido = parseFloat(cfg.capitalInvertido || 0);
 
     const monto = parseFloat(document.getElementById('ap-monto')?.value) || parseFloat(s.monto) || 0;
@@ -3094,7 +3095,7 @@ async function guardarNuevoManual() {
     // Leer y validar finanzas globales
     const snapCfg = await db.ref('config/finanzas').once('value');
     const cfg = snapCfg.val() || {};
-    let cajaChica        = parseFloat(cfg.cajaChica || 0);
+    let cajaChica        = parseFloat(cfg.cajaChica || 0); if(isNaN(cajaChica)) cajaChica = 0;
     let capitalInvertido = parseFloat(cfg.capitalInvertido || 0);
 
     if (procedencia === 'recogido' && monto > cajaChica + 0.01) {

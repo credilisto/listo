@@ -546,11 +546,18 @@ async function initApp() {
     db = firebase.database();
 
     try {
-        const [s1, s2, s3] = await Promise.all([
+        const [s1, s2, s3, c1, c2, c3] = await Promise.all([
             db.ref('clientes').once('value'),
             db.ref('clientes2').once('value'),
-            db.ref('clientes3').once('value')
+            db.ref('clientes3').once('value'),
+            db.ref('config/finanzas').once('value'),
+            db.ref('config/finanzas2').once('value'),
+            db.ref('config/finanzas3').once('value')
         ]);
+        
+        window._globalCapInvertido = parseFloat((c1.val()||{}).capitalInvertido||0) + parseFloat((c2.val()||{}).capitalInvertido||0) + parseFloat((c3.val()||{}).capitalInvertido||0);
+        window._globalCajaChica = parseFloat((c1.val()||{}).cajaChica||0) + parseFloat((c2.val()||{}).cajaChica||0) + parseFloat((c3.val()||{}).cajaChica||0);
+        
 
         // Build cobros list: each paid cuota becomes one row
         const cobros = [];
@@ -580,7 +587,8 @@ async function initApp() {
                         montoCredito: $n(c.monto),
                         totalCredito: $n(c.total) || $n(c.monto) * 1.2,
                         gananciaCredito: ($n(c.total) || $n(c.monto)*1.2) - $n(c.monto),
-                        clienteTipo:  c.tipo || 'ACTIVO'
+                        clienteTipo:  c.tipo || 'ACTIVO',
+                        cajaChicaMomento: $n(cuo.cajaChicaMomento)
                     });
                 });
             });
@@ -731,7 +739,18 @@ function buildHTML(cobros) {
     </div>`;
 
     /* CAPITAL SPLIT */
-    html += `<div class="sec"><span class="sec-label">Ganancia · Capital Propio vs Reinvertido</span><div class="sec-line"></div></div>`;
+    html += `<div class="sec"><span class="sec-label">Resumen Capital Invertido</span><div class="sec-line"></div></div>
+    <div style="display:flex;gap:1rem;margin-bottom:1rem">
+        <div class="reinv-block cap-propio" style="flex:1">
+            <div class="reinv-block-title">🏦 Total Capital Invertido (Base)</div>
+            <div class="reinv-row-val" style="color:var(--accent);font-size:1.4rem">${fmt$(window._globalCapInvertido)}</div>
+        </div>
+        <div class="reinv-block cap-reinv" style="flex:1">
+            <div class="reinv-block-title">♻️ Total Caja Chica (Reinvertido / Flujo)</div>
+            <div class="reinv-row-val" style="color:#10b981;font-size:1.4rem">${fmt$(window._globalCajaChica)}</div>
+        </div>
+    </div>
+    <div class="sec"><span class="sec-label">Ganancia · Capital Propio vs Reinvertido</span><div class="sec-line"></div></div>`;
     html += `<div class="reinv-grid">
         <div class="reinv-block cap-propio">
             <div class="reinv-block-title">🏦 Capital Inicial / Propio</div>
@@ -889,6 +908,7 @@ function buildTableRows(list) {
             </td>
             <td style="text-align:right">
                 <span class="mono" style="color:var(--green)">${fmt$(c.monto)}</span>
+                <div style="font-size:0.5rem;color:var(--muted);margin-top:0.15rem">Caja: ${fmt$(c.cajaChicaMomento)}</div>
             </td>
             <td style="text-align:right;font-size:0.62rem">${c.fechaDisplay}</td>
         </tr>`;

@@ -370,6 +370,7 @@
             const snap = await db.ref(ruta).once('value');
             const cfg  = snap.val() || {};
             const cajaActual = parseFloat(cfg.cajaChica || 0);
+            if(isNaN(cajaActual)) cajaActual = 0;
             let nueva;
             if (cajaModoSeleccionado === 'add') {
                 nueva = parseFloat((cajaActual + monto).toFixed(2));
@@ -604,6 +605,7 @@
             const snapCfg=await db.ref(rutaFin).once('value');
             const cfg=snapCfg.val()||{};
             const nuevaCaja=parseFloat((parseFloat(cfg.cajaChica||0)+monto).toFixed(2));
+            if (s && s.cuotas && typeof cuotaActual !== 'undefined' && s.cuotas[cuotaActual]) s.cuotas[cuotaActual].cajaChicaMomento = nuevaCaja;
 
             await Promise.all([
                 db.ref(origenPago+'/'+clienteActualId).set(s),

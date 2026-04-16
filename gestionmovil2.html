@@ -923,6 +923,7 @@ async function pagarMob(i) {
     const snapCfg = await db.ref('config/finanzas2').once('value');
     const cfg = snapCfg.val() || {};
     const nuevaCaja = parseFloat((parseFloat(cfg.cajaChica||0) + monto).toFixed(2));
+    if(s && s.cuotas && s.cuotas[i]) s.cuotas[i].cajaChicaMomento = nuevaCaja;
 
     await Promise.all([
         db.ref('clientes2/'+currentId).set(s),
