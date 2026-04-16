@@ -557,12 +557,37 @@ async function initApp() {
         
         window._globalCapInvertido = parseFloat((c1.val()||{}).capitalInvertido||0) + parseFloat((c2.val()||{}).capitalInvertido||0) + parseFloat((c3.val()||{}).capitalInvertido||0);
         window._globalCajaChica = parseFloat((c1.val()||{}).cajaChica||0) + parseFloat((c2.val()||{}).cajaChica||0) + parseFloat((c3.val()||{}).cajaChica||0);
+        window._c1 = c1.val() || {};
+        window._c2 = c2.val() || {};
+        window._c3 = c3.val() || {};
         
 
         // Build cobros list: each paid cuota becomes one row
         const cobros = [];
 
         function extractCobros(snap, modKey) {
+            let hist = {};
+            if (modKey === 'clientes') hist = window._c1.historial || {};
+            if (modKey === 'clientes2') hist = window._c2.historial || {};
+            if (modKey === 'clientes3') hist = window._c3.historial || {};
+            Object.keys(hist).forEach(k => {
+                const h = hist[k];
+                cobros.push({
+                    clienteId: 'HIST_' + k,
+                    clienteNombre: 'Inyección',
+                    modKey,
+                    procedencia: 'inyeccion_manual',
+                    fechaISO: h.fecha_ISO,
+                    fechaDisplay: h.fecha_ISO,
+                    cuotaIdx: 0,
+                    totalCuotas: 0,
+                    monto: parseFloat(h.monto || 0),
+                    gananciaCredito: 0,
+                    tipo: 'INYECCION_MANUAL',
+                    cajaChicaMomento: 0
+                });
+            });
+            
             snap.forEach(child => {
                 const c = child.val();
                 if (!c) return;
@@ -739,60 +764,61 @@ function buildHTML(cobros) {
     </div>`;
 
     /* CAPITAL SPLIT */
-    html += `<div class="sec"><span class="sec-label">Resumen Capital Invertido</span><div class="sec-line"></div></div>
-    <div style="display:flex;gap:1rem;margin-bottom:1rem">
-        <div class="reinv-block cap-propio" style="flex:1">
-            <div class="reinv-block-title">🏦 Total Capital Invertido (Base)</div>
-            <div class="reinv-row-val" style="color:var(--accent);font-size:1.4rem">${fmt$(window._globalCapInvertido)}</div>
-        </div>
-        <div class="reinv-block cap-reinv" style="flex:1">
-            <div class="reinv-block-title">♻️ Total Caja Chica (Reinvertido / Flujo)</div>
-            <div class="reinv-row-val" style="color:#10b981;font-size:1.4rem">${fmt$(window._globalCajaChica)}</div>
-        </div>
-    </div>
-    <div class="sec"><span class="sec-label">Ganancia · Capital Propio vs Reinvertido</span><div class="sec-line"></div></div>`;
-    html += `<div class="reinv-grid">
-        <div class="reinv-block cap-propio">
-            <div class="reinv-block-title">🏦 Capital Inicial / Propio</div>
-            <div class="reinv-row">
-                <span class="reinv-row-label">Total cobrado</span>
-                <span class="reinv-row-val" style="color:var(--accent)">${fmt$(totalPropio)}</span>
-            </div>
-            <div class="reinv-row">
-                <span class="reinv-row-label">Ganancia estimada</span>
-                <span class="reinv-row-val" style="color:var(--green)">${fmt$(ganPropioEstim)}</span>
-            </div>
-            <div class="reinv-row">
-                <span class="reinv-row-label">Cuotas cobradas</span>
-                <span class="reinv-row-val" style="color:var(--muted2)">${cobrosPropio.length}</span>
-            </div>
-            <div class="reinv-row">
-                <span class="reinv-row-label">Rendimiento</span>
-                <span class="reinv-row-val" style="color:var(--green)">${totalPropio > 0 ? (ganPropioEstim/totalPropio*100).toFixed(1) : '0.0'}%</span>
-            </div>
-        </div>
-        <div class="reinv-block cap-reinv">
-            <div class="reinv-block-title">♻️ Capital Reinvertido (Caja Chica)</div>
-            <div class="reinv-row">
-                <span class="reinv-row-label">Total cobrado</span>
-                <span class="reinv-row-val" style="color:var(--amber)">${fmt$(totalReinv)}</span>
-            </div>
-            <div class="reinv-row">
-                <span class="reinv-row-label">Ganancia estimada</span>
-                <span class="reinv-row-val" style="color:var(--green)">${fmt$(ganReinvEstim)}</span>
-            </div>
-            <div class="reinv-row">
-                <span class="reinv-row-label">Cuotas cobradas</span>
-                <span class="reinv-row-val" style="color:var(--muted2)">${cobrosReinv.length}</span>
-            </div>
-            <div class="reinv-row">
-                <span class="reinv-row-label">Rendimiento</span>
-                <span class="reinv-row-val" style="color:var(--green)">${totalReinv > 0 ? (ganReinvEstim/totalReinv*100).toFixed(1) : '0.0'}%</span>
-            </div>
-        </div>
-    </div>`;
-
-    /* PARTNERS */
+    
+        const i1Props = ct.filter(c => c.modKey === 'clientes' && c.procedencia !== 'recogido' && c.tipo !== 'INYECCION_MANUAL');
+        const i1Reinv = ct.filter(c => c.modKey === 'clientes' && c.procedencia === 'recogido' && c.tipo !== 'INYECCION_MANUAL');
+        const i2Props = ct.filter(c => c.modKey === 'clientes2' && c.procedencia !== 'recogido' && c.tipo !== 'INYECCION_MANUAL');
+        const i2Reinv = ct.filter(c => c.modKey === 'clientes2' && c.procedencia === 'recogido' && c.tipo !== 'INYECCION_MANUAL');
+        const i3Props = ct.filter(c => c.modKey === 'clientes3' && c.procedencia !== 'recogido' && c.tipo !== 'INYECCION_MANUAL');
+        const i3Reinv = ct.filter(c => c.modKey === 'clientes3' && c.procedencia === 'recogido' && c.tipo !== 'INYECCION_MANUAL');
+        
+        function calcG(arr) {
+            let tc = 0; let g = 0;
+            arr.forEach(c => { tc += c.monto; g += (c.monto * (c.gananciaCredito / c.totalCredito)); });
+            return { tc, g, len: arr.length };
+        }
+        
+        function renderInverBlock(invNum, propArr, reinvArr, cfg) {
+            const p = calcG(propArr);
+            const r = calcG(reinvArr);
+            const capBase = parseFloat(cfg.capitalInvertido || 0);
+            const caja = parseFloat(cfg.cajaChica || 0);
+            
+            return `
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:1rem;padding:1.25rem;margin-bottom:1.5rem">
+                <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.1rem;color:var(--text);border-bottom:1px solid var(--border);padding-bottom:0.75rem;margin-bottom:1rem;display:flex;justify-content:space-between">
+                    <span>INVER ${invNum} — CONSOLIDADO</span>
+                    <span style="font-size:0.75rem;color:var(--muted);background:var(--surface2);padding:0.25rem 0.6rem;border-radius:1rem">
+                        Cap. Total: ${fmt$(capBase + caja)}
+                    </span>
+                </div>
+                
+                <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:1rem;margin-bottom:1rem">
+                    <div style="background:var(--surface2);border:1px solid var(--accent-border);border-radius:0.75rem;padding:1rem;border-top:3px solid var(--accent)">
+                        <div style="font-size:0.6rem;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:0.5rem">Capital Invertido (Base)</div>
+                        <div style="font-family:'JetBrains Mono',monospace;font-size:1.4rem;font-weight:800;color:var(--accent)">${fmt$(capBase)}</div>
+                        <div style="font-size:0.7rem;color:var(--text);margin-top:0.7rem;line-height:1.4">
+                            <div style="display:flex;justify-content:space-between"><span>Cobrado:</span> <span style="font-weight:700">${fmt$(p.tc)}</span></div>
+                            <div style="display:flex;justify-content:space-between"><span>Ganancia:</span> <span style="font-weight:700;color:var(--green)">${fmt$(p.g)}</span></div>
+                        </div>
+                    </div>
+                    
+                    <div style="background:var(--surface2);border:1px solid rgba(16,185,129,0.3);border-radius:0.75rem;padding:1rem;border-top:3px solid #10b981">
+                        <div style="font-size:0.6rem;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:0.5rem">Caja Chica (Reinvertido / Flujo)</div>
+                        <div style="font-family:'JetBrains Mono',monospace;font-size:1.4rem;font-weight:800;color:#10b981">${fmt$(caja)}</div>
+                        <div style="font-size:0.7rem;color:var(--text);margin-top:0.7rem;line-height:1.4">
+                            <div style="display:flex;justify-content:space-between"><span>Cobrado:</span> <span style="font-weight:700">${fmt$(r.tc)}</span></div>
+                            <div style="display:flex;justify-content:space-between"><span>Ganancia:</span> <span style="font-weight:700;color:var(--green)">${fmt$(r.g)}</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        }
+        
+        html += renderInverBlock('1', i1Props, i1Reinv, window._c1);
+        html += renderInverBlock('2', i2Props, i2Reinv, window._c2);
+        html += renderInverBlock('3', i3Props, i3Reinv, window._c3);
+        /* PARTNERS */
     if (Object.keys(partners).length) {
         html += `<div class="sec"><span class="sec-label">Ganancia por Socio (sobre cobros)</span><div class="sec-line"></div></div>`;
         html += `<div class="partners-grid">`;
