@@ -895,20 +895,42 @@ function renderCuotasMob(s) {
     const cuotas = s.cuotas||[];
     if (!cuotas.length) { wrap.innerHTML = '<p style="font-size:0.8rem;color:var(--muted)">Sin cuotas.</p>'; return; }
 
-function diaSemanaDeProgr(c) {
+function diaSemanaDeProgr(c, s) {
     const dias = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-    const fStr = c.fecha_prog || c.fecha_prog_sv || c.fecha_ISO || '';
-    if (!fStr) return '';
+    let fStr = c.fecha_prog || c.fecha_prog_sv;
+    
     let d;
-    if (/^\d{2}\/\d{2}\/\d{4}$/.test(fStr)) {
-        const [dd, mm, yyyy] = fStr.split('/');
-        d = new Date(`${yyyy}-${mm}-${dd}T12:00:00`);
-    } else if (/^\d{4}-\d{2}-\d{2}$/.test(fStr)) {
-        d = new Date(fStr + 'T12:00:00');
-    } else {
-        return '';
+    if (fStr) {
+        if (/^\d{2}\/\d{2}\/\d{4}$/.test(fStr)) {
+            const [dd, mm, yyyy] = fStr.split('/');
+            d = new Date(`${yyyy}-${mm}-${dd}T12:00:00`);
+        } else if (/^\d{4}-\d{2}-\d{2}$/.test(fStr)) {
+            d = new Date(fStr + 'T12:00:00');
+        }
     }
-    if (isNaN(d)) return '';
+    
+    // Si no tiene fecha pre-calculada, inferirla calculando a partir del inicio:
+    if (!d || isNaN(d)) {
+        let inicioStr = s.fechaInicio || s.fecha || getFechaHoySV();
+        let inicioD;
+        if (/^\d{2}\/\d{2}\/\d{4}$/.test(inicioStr)) {
+            const [dd, mm, yyyy] = inicioStr.split('/');
+            inicioD = new Date(`${yyyy}-${mm}-${dd}T12:00:00`);
+        } else {
+            inicioD = new Date(inicioStr + 'T12:00:00');
+        }
+        
+        if (!isNaN(inicioD)) {
+            const n = parseInt(c.n) || 1;
+            const frec = s.frecuencia || 'diario';
+            const diasSuma = frec === 'semanal' ? (n * 7) : n;
+            inicioD.setDate(inicioD.getDate() + diasSuma);
+            d = inicioD;
+        }
+    }
+    
+    if (!d || isNaN(d)) return 'Error';
+    
     const dia = dias[d.getDay()];
     const dd2 = String(d.getDate()).padStart(2,'0');
     const mm2 = String(d.getMonth()+1).padStart(2,'0');
@@ -919,7 +941,10 @@ function diaSemanaDeProgr(c) {
         const pag     = !!c.pagada;
         const fechaProg = c.fecha_prog || '';
         const fechaPagada = c.fecha_ISO || '';
-        const diaLabel = diaSemanaDeProgr(c);
+        const diaLabel = diaSemanaDeProgr(c, s);
+          const frec = s.frecuencia || 'diario';
+          const nTotal = (frec === 'semanal' ? 4 : 30);
+          const cuotaDefault = (parseFloat(s.total || 0) / nTotal).toFixed(2);
         return `<div class="cuota-row-mob ${pag?'pagada':''}">
             <div class="cuota-row-top">
                 <span class="cuota-n-mob">#${c.n||i+1}</span>

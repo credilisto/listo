@@ -602,14 +602,15 @@
 // ─── FUNCIÓN GLOBAL PARA FECHA CORRECTA DE EL SALVADOR ────────────────────
 // Soluciona el problema donde cobros después de 5 PM aparecían como día siguiente
 function getFechaHoySV() {
-    const opciones = { 
-        year: 'numeric', 
-        month: '2-digit', 
-        day: '2-digit',
-        timeZone: 'America/El_Salvador' 
-    };
-    const formatter = new Intl.DateTimeFormat('sv-SE', opciones);
-    return formatter.format(new Date());
+    const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/El_Salvador',
+        year: 'numeric', month: '2-digit', day: '2-digit'
+    });
+    const parts = formatter.formatToParts(new Date());
+    const m = parts.find(p => p.type === 'month').value;
+    const d = parts.find(p => p.type === 'day').value;
+    const y = parts.find(p => p.type === 'year').value;
+    return `${y}-${m}-${d}`;
 }
 
 // ─── CONFIG ──────────────────────────────────────────────────────────────
@@ -1028,15 +1029,18 @@ function diaSemanaDeProgr(c) {
 }
     wrap.innerHTML = cuotas.map((c, i) => {
         const pagada = !!c.pagada;
-        const diaLabel = diaSemanaDeProgr(c);
+        const diaLabel = diaSemanaDeProgr(c, s);
+          const frec = s.frecuencia || 'diario';
+          const nTotal = (frec === 'semanal' ? 4 : 30);
+          const cuotaDefault = (parseFloat(s.total || 0) / nTotal).toFixed(2);
         return `
         <div class="cuota-row ${pagada ? 'pagada' : ''}">
             <span class="cuota-n">${c.n||i+1}</span>
             <span class="cuota-estado ${pagada ? 'ok' : 'pending'}">${pagada ? '✓ Pagado' : '· Pendiente'}</span>
             ${diaLabel ? `<span class="cuota-dia-label">${diaLabel}</span>` : '<span></span>'}
-            <input type="number" class="cuota-input" id="v-${i}" value="${c.valorPagado||0}" step="0.01"
+            <input type="number" class="cuota-input" id="v-${i}" value="${c.valorPagado || cuotaDefault}" step="0.01"
                    ${pagada ? 'disabled' : ''}>
-            <input type="date" class="cuota-date" id="f-${i}" value="${c.fecha_ISO||''}"
+            <input type="date" class="cuota-date" id="f-${i}" value="${c.fecha_ISO || getFechaHoySV()}"
                    ${pagada ? 'disabled' : ''}>
             ${pagada
                 ? `<span class="cuota-btn pagado">Pagado</span>`
