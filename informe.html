@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Informe Financiero | CrediListo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&display=swap" rel="stylesheet">
+
+    <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-database-compat.js"></script>
+
+    <style>
+        :root {
+            --bg:           #0a0f1e;
+            --surface:      #111827;
+            --surface2:     #1a2235;
+            --surface3:     #1f2d45;
+            --border:       rgba(255,255,255,0.07);
+            --border2:      rgba(255,255,255,0.13);
+            --text:         #f1f5f9;
+            --muted:        #64748b;
+            --muted2:       #94a3b8;
+            --accent:       #38bdf8;
+            --accent-dim:   rgba(56,189,248,0.10);
+            --accent-brd:   rgba(56,189,248,0.25);
+            --green:        #4ade80;
+            --green-dim:    rgba(74,222,128,0.08);
+            --amber:        #fbbf24;
+            --amber-dim:    rgba(251,191,36,0.08);
+            --rose:         #fb7185;
+            --rose-dim:     rgba(251,113,133,0.08);
+            --purple:       #a78bfa;
+            --teal:         #2dd4bf;
+            --lazaro:       #38bdf8;
+            --emanuel:      #4ade80;
+            --magda:        #f472b6;
+            --walter:       #fb923c;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Instrument Sans', sans-serif;
+            min-height: 100vh;
+        }
+
+        /* ── LOCK ─────────────────────────────── */
+        #lock {
+            position: fixed; inset: 0; z-index: 9999;
+            background: linear-gradient(135deg, #0a0f1e 0%, #0f1f3a 50%, #0a0f1e 100%);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .lock-card { width: min(90vw, 340px); text-align: center; }
+        .lock-icon {
+            width: 60px; height: 60px;
+            background: var(--accent-dim); border: 1px solid var(--accent-brd);
+            border-radius: 1.2rem;
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 1.25rem; font-size: 1.6rem;
+        }
+        .lock-logo {
+            font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.5rem;
+            letter-spacing: -0.04em; color: var(--text); margin-bottom: 0.2rem;
+        }
+        .lock-logo em { color: var(--accent); font-style: normal; }
+        .lock-sub {
+            font-size: 0.58rem; font-weight: 600; letter-spacing: 0.2em;
+            text-transform: uppercase; color: var(--muted); margin-bottom: 0.5rem;
+        }
+        .lock-badge {
+            display: inline-block;
+            background: var(--accent-dim); border: 1px solid var(--accent-brd);
+            color: var(--accent); font-size: 0.52rem; font-weight: 800;
+            letter-spacing: 0.15em; text-transform: uppercase;
+            padding: 0.18rem 0.55rem; border-radius: 2rem; margin-bottom: 1.75rem;
+        }
+        .lock-input {
+            width: 100%; background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.15); border-radius: 0.75rem;
+            padding: 1rem; color: var(--text);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.7rem; font-weight: 700; text-align: center;
+            letter-spacing: 0.5em; outline: none;
+            transition: border-color 0.2s, background 0.2s; margin-bottom: 0.7rem;
+        }
+        .lock-input::placeholder { color: rgba(255,255,255,0.2); letter-spacing: 0.3em; font-size: 1.1rem; }
+        .lock-input:focus { border-color: var(--accent); background: rgba(56,189,248,0.05); }
+        .lock-btn {
+            width: 100%; background: var(--accent); color: #0a0f1e;
+            border: none; border-radius: 0.75rem; padding: 0.85rem;
+            font-family: 'Syne', sans-serif; font-weight: 800;
+            font-size: 0.68rem; letter-spacing: 0.15em; text-transform: uppercase;
+            cursor: pointer; transition: opacity 0.2s;
+        }
+        .lock-btn:hover { opacity: 0.85; }
+        #lock-err {
+            color: var(--rose); font-size: 0.62rem; font-weight: 600;
+            letter-spacing: 0.1em; text-transform: uppercase;
+            margin-top: 0.45rem; display: none;
+        }
+
+        /* ── APP ─────────────────────────────── */
+        #app { display: none; }
+
+        /* HEADER */
+        .header {
+            background: var(--surface); border-bottom: 1px solid var(--border);
+            padding: 0 1.5rem; display: flex; justify-content: space-between;
+            align-items: center; position: sticky; top: 0; z-index: 200; height: 54px;
+        }
+        .header-brand {
+            font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1rem;
+            letter-spacing: -0.03em; color: var(--text);
+        }
+        .header-brand em { color: var(--accent); font-style: normal; }
+        .header-right { display: flex; align-items: center; gap: 0.6rem; }
+        .header-tag {
+            font-size: 0.52rem; font-weight: 800; letter-spacing: 0.15em;
+            text-transform: uppercase; padding: 0.18rem 0.55rem;
+            border-radius: 2rem; background: var(--accent-dim);
+            color: var(--accent); border: 1px solid var(--accent-brd);
+        }
+        .back-btn {
+            font-size: 0.6rem; font-weight: 700; letter-spacing: 0.1em;
+            text-transform: uppercase; color: var(--muted);
+            text-decoration: none; padding: 0.35rem 0.7rem;
+            border: 1px solid var(--border2); border-radius: 0.5rem;
+            transition: color 0.15s, border-color 0.15s;
+        }
+        .back-btn:hover { color: var(--text); border-color: var(--border2); }
+
+        /* MAIN */
+        .main { padding: 1.5rem; max-width: 1050px; margin: 0 auto; }
+
+        /* PAGE TITLE */
+        .page-title {
+            margin-bottom: 1.5rem;
+        }
+        .page-title h1 {
+            font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.5rem;
+            letter-spacing: -0.03em; color: var(--text); margin-bottom: 0.25rem;
+        }
+        .page-title p {
+            font-size: 0.7rem; color: var(--muted); font-weight: 500;
+            letter-spacing: 0.04em;
+        }
+        .page-title p span { color: var(--accent); }
+
+        /* SECTION DIVIDER */
+        .sec {
+            display: flex; align-items: center; gap: 0.75rem;
+            margin: 1.75rem 0 1rem;
+        }
+        .sec-label {
+            font-size: 0.58rem; font-weight: 800; letter-spacing: 0.18em;
+            text-transform: uppercase; color: var(--muted); white-space: nowrap;
+        }
+        .sec-line { flex: 1; height: 1px; background: var(--border); }
+
+        /* CARDS GRID */
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+            gap: 0.75rem; margin-bottom: 0.5rem;
+        }
+        .card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 0.85rem; padding: 1rem 1.1rem;
+        }
+        .card-label {
+            font-size: 0.58rem; font-weight: 700; letter-spacing: 0.12em;
+            text-transform: uppercase; color: var(--muted); margin-bottom: 0.4rem;
+        }
+        .card-val {
+            font-family: 'JetBrains Mono', monospace; font-size: 1.3rem;
+            font-weight: 700; line-height: 1;
+        }
+        .card-sub {
+            font-size: 0.6rem; color: var(--muted); margin-top: 0.3rem;
+        }
+        .card-sub b { color: var(--muted2); }
+
+        /* HIGHLIGHT CARD */
+        .card-hi {
+            border-color: rgba(56,189,248,0.2);
+            background: linear-gradient(135deg, rgba(56,189,248,0.06) 0%, var(--surface) 100%);
+        }
+
+        /* COBROS TABLE */
+        .tbl-wrap {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 0.85rem; overflow: hidden; margin-bottom: 1rem;
+        }
+        .tbl-head {
+            background: var(--surface2); padding: 0.75rem 1rem;
+            display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+        }
+        .tbl-head-title {
+            font-size: 0.62rem; font-weight: 800; letter-spacing: 0.12em;
+            text-transform: uppercase; color: var(--text);
+        }
+        .tbl-head-badge {
+            font-size: 0.55rem; font-weight: 700; letter-spacing: 0.08em;
+            background: var(--accent-dim); color: var(--accent);
+            border: 1px solid var(--accent-brd); border-radius: 2rem;
+            padding: 0.15rem 0.5rem;
+        }
+
+        table { width: 100%; border-collapse: collapse; }
+        thead tr { background: rgba(255,255,255,0.03); }
+        thead th {
+            padding: 0.6rem 1rem; text-align: left;
+            font-size: 0.55rem; font-weight: 800; letter-spacing: 0.14em;
+            text-transform: uppercase; color: var(--muted);
+            border-bottom: 1px solid var(--border);
+        }
+        thead th:last-child,
+        thead th:nth-child(3),
+        thead th:nth-child(4) { text-align: right; }
+        tbody tr { border-bottom: 1px solid var(--border); transition: background 0.12s; }
+        tbody tr:last-child { border-bottom: none; }
+        tbody tr:hover { background: rgba(255,255,255,0.02); }
+        tbody td {
+            padding: 0.65rem 1rem;
+            font-size: 0.68rem; color: var(--muted2);
+        }
+        tbody td:last-child,
+        tbody td:nth-child(3),
+        tbody td:nth-child(4) { text-align: right; }
+        tbody td .name {
+            font-weight: 700; color: var(--text); font-size: 0.72rem;
+        }
+        tbody td .sub { font-size: 0.58rem; color: var(--muted); margin-top: 0.15rem; }
+        .mono { font-family: 'JetBrains Mono', monospace; font-weight: 600; }
+        .tag-inver {
+            font-size: 0.52rem; font-weight: 800; letter-spacing: 0.1em;
+            text-transform: uppercase; padding: 0.12rem 0.4rem;
+            border-radius: 0.3rem;
+        }
+        .tag-i1 { background: rgba(56,189,248,0.12); color: #38bdf8; }
+        .tag-i2 { background: rgba(244,114,182,0.12); color: #f472b6; }
+        .tag-i3 { background: rgba(251,146,60,0.12); color: #fb923c; }
+
+        .tag-proc {
+            font-size: 0.52rem; font-weight: 700; letter-spacing: 0.08em;
+            padding: 0.1rem 0.4rem; border-radius: 0.3rem;
+        }
+        .proc-reinv { background: rgba(251,191,36,0.12); color: var(--amber); }
+        .proc-propio { background: rgba(56,189,248,0.10); color: var(--accent); }
+
+        /* REINV SPLIT SECTION */
+        .reinv-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+            margin-bottom: 0.75rem;
+        }
+        @media (max-width: 600px) { .reinv-grid { grid-template-columns: 1fr; } }
+
+        .reinv-block {
+            border-radius: 0.85rem; padding: 1.1rem 1.25rem;
+            border: 1px solid;
+        }
+        .reinv-block.cap-propio {
+            background: linear-gradient(135deg, rgba(56,189,248,0.07) 0%, var(--surface) 100%);
+            border-color: rgba(56,189,248,0.2);
+        }
+        .reinv-block.cap-reinv {
+            background: linear-gradient(135deg, rgba(251,191,36,0.07) 0%, var(--surface) 100%);
+            border-color: rgba(251,191,36,0.2);
+        }
+        .reinv-block-title {
+            font-size: 0.58rem; font-weight: 800; letter-spacing: 0.14em;
+            text-transform: uppercase; margin-bottom: 0.85rem;
+        }
+        .reinv-block.cap-propio .reinv-block-title { color: var(--accent); }
+        .reinv-block.cap-reinv .reinv-block-title { color: var(--amber); }
+
+        .reinv-row {
+            display: flex; justify-content: space-between;
+            align-items: baseline; margin-bottom: 0.55rem;
+            padding-bottom: 0.55rem; border-bottom: 1px solid var(--border);
+        }
+        .reinv-row:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+        .reinv-row-label { font-size: 0.62rem; color: var(--muted); font-weight: 600; }
+        .reinv-row-val {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700; font-size: 0.82rem;
+        }
+
+        /* PARTNERS */
+        .partners-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
+            gap: 0.75rem;
+        }
+        .partner-card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 0.85rem; padding: 1rem 1.1rem;
+            position: relative; overflow: hidden;
+        }
+        .partner-card::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+        }
+        .pc-lazaro::before  { background: var(--lazaro); }
+        .pc-emanuel::before { background: var(--emanuel); }
+        .pc-magda::before   { background: var(--magda); }
+        .pc-walter::before  { background: var(--walter); }
+
+        .pc-name {
+            font-size: 0.6rem; font-weight: 800; letter-spacing: 0.12em;
+            text-transform: uppercase; margin-bottom: 0.15rem;
+        }
+        .pc-role { font-size: 0.58rem; color: var(--muted); margin-bottom: 0.55rem; }
+        .pc-total {
+            font-family: 'JetBrains Mono', monospace; font-size: 1.15rem;
+            font-weight: 700; margin-bottom: 0.3rem;
+        }
+        .pc-detail { font-size: 0.57rem; color: var(--muted); line-height: 1.6; }
+
+        /* MONTHLY */
+        .month-block {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 0.85rem; margin-bottom: 0.75rem; overflow: hidden;
+        }
+        .month-header {
+            background: var(--surface2); padding: 0.75rem 1rem;
+            display: flex; align-items: center; justify-content: space-between;
+            cursor: pointer; border-bottom: 1px solid var(--border);
+            transition: background 0.15s;
+        }
+        .month-header:hover { background: var(--surface3); }
+        .month-title {
+            font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.8rem;
+        }
+        .month-stats {
+            display: flex; align-items: center; gap: 1rem;
+        }
+        .month-stat { font-size: 0.6rem; color: var(--muted); }
+        .month-stat b { font-family: 'JetBrains Mono', monospace; font-weight: 700; color: var(--text); }
+        .month-arrow { font-size: 0.65rem; color: var(--muted); transition: transform 0.2s; }
+        .month-body { overflow: hidden; transition: max-height 0.3s ease; }
+
+        /* EMPTY */
+        .empty-state {
+            text-align: center; padding: 3rem 1rem;
+            font-size: 0.68rem; color: var(--muted); font-weight: 600;
+            letter-spacing: 0.08em; text-transform: uppercase;
+        }
+
+        /* LOADER */
+        .loader-wrap {
+            text-align: center; padding: 3rem 1rem;
+        }
+        .loader {
+            display: inline-block; width: 32px; height: 32px;
+            border: 3px solid var(--border2); border-top-color: var(--accent);
+            border-radius: 50%; animation: spin 0.7s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loader-label {
+            display: block; margin-top: 0.75rem;
+            font-size: 0.6rem; color: var(--muted); font-weight: 600;
+            letter-spacing: 0.1em; text-transform: uppercase;
+        }
+
+        /* TIMESTAMP */
+        .ts-row {
+            text-align: right; font-size: 0.57rem; color: var(--muted);
+            margin-bottom: 1.25rem; font-weight: 500;
+        }
+
+        /* FILTER TABS */
+        .filter-tabs {
+            display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 1rem;
+        }
+        .ftab {
+            font-size: 0.6rem; font-weight: 800; letter-spacing: 0.1em;
+            text-transform: uppercase; padding: 0.35rem 0.8rem;
+            border-radius: 0.5rem; border: 1px solid var(--border);
+            color: var(--muted); cursor: pointer; background: transparent;
+            transition: all 0.15s;
+        }
+        .ftab:hover { border-color: var(--border2); color: var(--muted2); }
+        .ftab.active-all { border-color: var(--accent-brd); color: var(--accent); background: var(--accent-dim); }
+        .ftab.active-i1 { border-color: rgba(56,189,248,0.35); color: #38bdf8; background: rgba(56,189,248,0.10); }
+        .ftab.active-i2 { border-color: rgba(244,114,182,0.35); color: #f472b6; background: rgba(244,114,182,0.10); }
+        .ftab.active-i3 { border-color: rgba(251,146,60,0.35); color: #fb923c; background: rgba(251,146,60,0.10); }
+
+        /* GANANCIA BADGE in table */
+        .gan-badge {
+            font-size: 0.55rem; font-weight: 700;
+            background: rgba(74,222,128,0.10); color: var(--green);
+            border: 1px solid rgba(74,222,128,0.2);
+            border-radius: 0.3rem; padding: 0.08rem 0.35rem; margin-left: 0.3rem;
+        }
+
+        /* totals row */
+        .tbl-total td {
+            background: var(--surface2); font-weight: 700;
+            font-size: 0.65rem; color: var(--text);
+            border-top: 1px solid var(--border2) !important;
+            padding: 0.65rem 1rem;
+        }
+        .tbl-total td .mono { font-size: 0.75rem; }
+    </style>
+</head>
+<body>
+
+<!-- ── LOCK SCREEN ───────────────────────────────── -->
+<div id="lock">
+    <div class="lock-card">
+        <div class="lock-icon">📊</div>
+        <div class="lock-logo">Credi<em>Listo</em></div>
+        <div class="lock-sub">Sistema de Créditos</div>
+        <div class="lock-badge">Informe Financiero</div>
+        <input type="password" id="pin-input" class="lock-input"
+               placeholder="••••" maxlength="4"
+               onkeydown="if(event.key==='Enter') checkPin()">
+        <button class="lock-btn" onclick="checkPin()">ACCEDER</button>
+        <div id="lock-err">PIN incorrecto</div>
+    </div>
+</div>
+
+<!-- ── APP ──────────────────────────────────────── -->
+<div id="app">
+    <div class="header">
+        <div class="header-brand">Credi<em>Listo</em></div>
+        <div class="header-right">
+            <div class="header-tag">Informe Financiero</div>
+            <a href="index.html" class="back-btn">← Inicio</a>
+        </div>
+    </div>
+
+    <div class="main">
+        <div class="page-title">
+            <h1>📊 Informe de Cobros</h1>
+            <p>Todos los pagos recibidos · Capital propio vs reinvertido · <span id="ts-label">cargando...</span></p>
+        </div>
+
+        <div id="app-content">
+            <div class="loader-wrap">
+                <span class="loader"></span>
+                <span class="loader-label">Cargando datos...</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+/* ── PIN ─────────────────────────────────────────── */
+const PINS = ['1234','0000','1111','2222','3333','4444','5555','6666','7777','8888','9999','1212','2580','1357'];
+
+function checkPin() {
+    const v = document.getElementById('pin-input').value.trim();
+    /* Accept the same PINs used in the rest of the system */
+    const VALID = ['2233','1111','0000','1234','2580','1357','7410'];
+    if (VALID.includes(v) || v.length === 4) { // same loose gate as cobros
+        document.getElementById('lock').style.display = 'none';
+        document.getElementById('app').style.display  = 'block';
+        initApp();
+    } else {
+        const err = document.getElementById('lock-err');
+        err.style.display = 'block';
+        setTimeout(() => { err.style.display = 'none'; }, 2500);
+    }
+}
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('pin-input').addEventListener('keydown', e => {
+        if (e.key === 'Enter') checkPin();
+    });
+    if (sessionStorage.getItem('informe_auth') === 'true') {
+        document.getElementById('lock').style.display = 'none';
+        document.getElementById('app').style.display  = 'block';
+        initApp();
+    }
+});
+
+/* ── FIREBASE ─────────────────────────────────────── */
+const FB_CFG = {
+    apiKey:      'AIzaSyC1GiJitT0QegrVe9o6CHCsvf7sEZELwRk',
+    authDomain:  'credilistosv.firebaseapp.com',
+    databaseURL: 'https://credilistosv-default-rtdb.firebaseio.com',
+    projectId:   'credilistosv',
+    storageBucket:'credilistosv.firebasestorage.app'
+};
+let db;
+
+/* ── CONFIG SPLITS ────────────────────────────────── */
+const SPLITS = {
+    clientes:  [{ name:'Lázaro', pct:17, color:'var(--lazaro)' }, { name:'Emanuel', pct:3, color:'var(--emanuel)' }],
+    clientes2: [{ name:'Magda',  pct:12, color:'var(--magda)'  }, { name:'Lázaro',  pct:4, color:'var(--lazaro)'  }, { name:'Emanuel', pct:4, color:'var(--emanuel)' }],
+    clientes3: [{ name:'Walter', pct:12, color:'var(--walter)' }, { name:'Lázaro',  pct:4, color:'var(--lazaro)'  }, { name:'Emanuel', pct:4, color:'var(--emanuel)' }]
+};
+const MOD_LABEL = { clientes:'INVER 1', clientes2:'INVER 2', clientes3:'INVER 3' };
+const MOD_TAG   = { clientes:'tag-i1',  clientes2:'tag-i2',  clientes3:'tag-i3'  };
+
+/* ── HELPERS ─────────────────────────────────────── */
+const $n = v => parseFloat(v || 0);
+const fmt$ = v => '$' + $n(v).toFixed(2);
+
+function parseDateISO(str) {
+    if (!str) return null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+        const [y,m,d] = str.split('-');
+        const dt = new Date(+y, +m-1, +d);
+        dt.setHours(0,0,0,0);
+        return dt;
+    }
+    if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(str)) {
+        const [d,m,y] = str.split('/');
+        const dt = new Date(+y, +m-1, +d);
+        dt.setHours(0,0,0,0);
+        return dt;
+    }
+    return null;
+}
+
+function monthKey(dt) {
+    if (!dt) return 'Sin fecha';
+    const M = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    return M[dt.getMonth()] + ' ' + dt.getFullYear();
+}
+
+function sortMonths(a, b) {
+    const M = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    const parse = s => { if (s === 'Sin fecha') return new Date(9999,0,1); const [mn,yr]=s.split(' '); return new Date(+yr, M.indexOf(mn), 1); };
+    return parse(a) - parse(b);
+}
+
+function formatDateSV(iso) {
+    if (!iso) return '—';
+    const dt = parseDateISO(iso);
+    if (!dt) return iso;
+    return dt.toLocaleDateString('es-SV', { day:'2-digit', month:'2-digit', year:'numeric' });
+}
+
+/* ── MAIN ─────────────────────────────────────────── */
+async function initApp() {
+    if (!firebase.apps.length) firebase.initializeApp(FB_CFG);
+    db = firebase.database();
+
+    try {
+        const [s1, s2, s3] = await Promise.all([
+            db.ref('clientes').once('value'),
+            db.ref('clientes2').once('value'),
+            db.ref('clientes3').once('value')
+        ]);
+
+        // Build cobros list: each paid cuota becomes one row
+        const cobros = [];
+
+        function extractCobros(snap, modKey) {
+            snap.forEach(child => {
+                const c = child.val();
+                if (!c) return;
+                const cuotas = c.cuotas || [];
+                cuotas.forEach((cuo, idx) => {
+                    if (!cuo.pagada) return;
+                    // Exclude inyecciones manuales de caja chica:
+                    // Las inyecciones manuales NO tienen cliente asociado con cuotas.
+                    // Solo tomamos cobros que vienen de cuotas reales de clientes.
+                    const monto = $n(cuo.valorPagado);
+                    if (monto <= 0) return;
+                    cobros.push({
+                        clienteId:    child.key,
+                        clienteNombre: c.nombre || c.name || child.key,
+                        modKey,
+                        cuotaIdx:     idx + 1,
+                        totalCuotas:  cuotas.length,
+                        monto,
+                        fechaISO:     cuo.fecha_ISO || '',
+                        fechaDisplay: cuo.fecha || formatDateSV(cuo.fecha_ISO) || '—',
+                        procedencia:  c.procedenciaCapital || 'propio',
+                        montoCredito: $n(c.monto),
+                        totalCredito: $n(c.total) || $n(c.monto) * 1.2,
+                        gananciaCredito: ($n(c.total) || $n(c.monto)*1.2) - $n(c.monto),
+                        clienteTipo:  c.tipo || 'ACTIVO'
+                    });
+                });
+            });
+        }
+
+        extractCobros(s1, 'clientes');
+        extractCobros(s2, 'clientes2');
+        extractCobros(s3, 'clientes3');
+
+        // Sort by fecha ASC
+        cobros.sort((a, b) => {
+            const da = parseDateISO(a.fechaISO);
+            const db_ = parseDateISO(b.fechaISO);
+            if (!da && !db_) return 0;
+            if (!da) return 1;
+            if (!db_) return -1;
+            return da - db_;
+        });
+
+        renderReport(cobros);
+    } catch (err) {
+        document.getElementById('app-content').innerHTML =
+            `<div class="empty-state">⚠️ Error al cargar datos. Verifica la conexión.</div>`;
+        console.error(err);
+    }
+}
+
+/* ── RENDER ───────────────────────────────────────── */
+let currentFilter = 'all';
+
+function renderReport(cobros) {
+    document.getElementById('ts-label').textContent =
+        'Actualizado: ' + new Date().toLocaleString('es-SV');
+
+    const el = document.getElementById('app-content');
+    el.innerHTML = buildHTML(cobros);
+
+    // Attach filter tabs
+    el.querySelectorAll('.ftab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            currentFilter = tab.dataset.filter;
+            el.querySelectorAll('.ftab').forEach(t => {
+                t.className = 'ftab';
+                if (t.dataset.filter === currentFilter) {
+                    t.classList.add('active-' + (currentFilter === 'all' ? 'all' : currentFilter.replace('clientes','i').replace('2','2').replace('3','3')));
+                }
+            });
+            const filtered = currentFilter === 'all' ? cobros : cobros.filter(c => c.modKey === currentFilter);
+            document.getElementById('cobros-table-body').innerHTML = buildTableRows(filtered);
+            document.getElementById('cobros-table-foot').innerHTML = buildTableFoot(filtered);
+        });
+    });
+
+    // Month toggles
+    el.querySelectorAll('.month-header').forEach(h => {
+        h.addEventListener('click', () => {
+            const body  = h.nextElementSibling;
+            const arrow = h.querySelector('.month-arrow');
+            const open  = body.style.maxHeight && body.style.maxHeight !== '0px';
+            body.style.maxHeight = open ? '0px' : body.scrollHeight + 'px';
+            arrow.style.transform = open ? '' : 'rotate(90deg)';
+        });
+    });
+}
+
+function buildHTML(cobros) {
+    /* ── GLOBAL STATS ── */
+    const totalCobrado    = cobros.reduce((s, c) => s + c.monto, 0);
+    const totalCobros     = cobros.length;
+
+    // Capital reinvertido: cobros cuya procedencia = 'recogido'
+    const cobrosReinv  = cobros.filter(c => c.procedencia === 'recogido');
+    const cobrosPropio = cobros.filter(c => c.procedencia !== 'recogido');
+
+    const totalReinv   = cobrosReinv.reduce((s, c)  => s + c.monto, 0);
+    const totalPropio  = cobrosPropio.reduce((s, c)  => s + c.monto, 0);
+
+    // Ganancia estimada por cobros:
+    // Cada cuota lleva su proporción de ganancia: (gananciaCredito / totalCuotas)
+    function ganEstimada(lista) {
+        return lista.reduce((s, c) => {
+            const ganPorCuota = c.gananciaCredito / Math.max(c.totalCuotas, 1);
+            return s + ganPorCuota;
+        }, 0);
+    }
+
+    const ganTotalEstim  = ganEstimada(cobros);
+    const ganReinvEstim  = ganEstimada(cobrosReinv);
+    const ganPropioEstim = ganEstimada(cobrosPropio);
+
+    /* ── PARTNERS (sobre capital cobrado) ── */
+    const partners = {};
+    cobros.forEach(c => {
+        SPLITS[c.modKey].forEach(s => {
+            if (!partners[s.name]) partners[s.name] = { name:s.name, color:s.color, total:0, byMod:{} };
+            // La ganancia del socio = pct% × monto del crédito, prorrateado por cuota
+            const aporteCuota = (c.montoCredito * s.pct / 100) / Math.max(c.totalCuotas, 1);
+            partners[s.name].total += aporteCuota;
+            if (!partners[s.name].byMod[c.modKey]) partners[s.name].byMod[c.modKey] = 0;
+            partners[s.name].byMod[c.modKey] += aporteCuota;
+        });
+    });
+
+    /* ── GROUP BY MONTH ── */
+    const byMonth = {};
+    cobros.forEach(c => {
+        const dt  = parseDateISO(c.fechaISO);
+        const key = monthKey(dt);
+        if (!byMonth[key]) byMonth[key] = { cobros:[], date:dt };
+        byMonth[key].cobros.push(c);
+    });
+    const sortedMonths = Object.keys(byMonth).sort(sortMonths);
+
+    /* ── HTML ── */
+    let html = '';
+
+    /* FILTER TABS */
+    html += `<div class="filter-tabs">
+        <button class="ftab active-all" data-filter="all">Todos</button>
+        <button class="ftab" data-filter="clientes">INVER 1</button>
+        <button class="ftab" data-filter="clientes2">INVER 2</button>
+        <button class="ftab" data-filter="clientes3">INVER 3</button>
+    </div>`;
+
+    /* GLOBAL SUMMARY CARDS */
+    html += `<div class="sec"><span class="sec-label">Resumen Global</span><div class="sec-line"></div></div>`;
+    html += `<div class="cards">
+        <div class="card card-hi">
+            <div class="card-label">💰 Total Cobrado</div>
+            <div class="card-val" style="color:var(--accent)">${fmt$(totalCobrado)}</div>
+            <div class="card-sub">${totalCobros} cuota${totalCobros!==1?'s':''} registrada${totalCobros!==1?'s':''}</div>
+        </div>
+        <div class="card">
+            <div class="card-label">✨ Ganancia Estimada</div>
+            <div class="card-val" style="color:var(--green)">${fmt$(ganTotalEstim)}</div>
+            <div class="card-sub">Prorrateada por cuotas cobradas</div>
+        </div>
+        <div class="card">
+            <div class="card-label">🏦 Capital Propio Cobrado</div>
+            <div class="card-val" style="color:var(--accent)">${fmt$(totalPropio)}</div>
+            <div class="card-sub">${cobrosPropio.length} cobro${cobrosPropio.length!==1?'s':''}</div>
+        </div>
+        <div class="card">
+            <div class="card-label">♻️ Capital Reinvertido Cobrado</div>
+            <div class="card-val" style="color:var(--amber)">${fmt$(totalReinv)}</div>
+            <div class="card-sub">${cobrosReinv.length} cobro${cobrosReinv.length!==1?'s':''}</div>
+        </div>
+    </div>`;
+
+    /* CAPITAL SPLIT */
+    html += `<div class="sec"><span class="sec-label">Ganancia · Capital Propio vs Reinvertido</span><div class="sec-line"></div></div>`;
+    html += `<div class="reinv-grid">
+        <div class="reinv-block cap-propio">
+            <div class="reinv-block-title">🏦 Capital Inicial / Propio</div>
+            <div class="reinv-row">
+                <span class="reinv-row-label">Total cobrado</span>
+                <span class="reinv-row-val" style="color:var(--accent)">${fmt$(totalPropio)}</span>
+            </div>
+            <div class="reinv-row">
+                <span class="reinv-row-label">Ganancia estimada</span>
+                <span class="reinv-row-val" style="color:var(--green)">${fmt$(ganPropioEstim)}</span>
+            </div>
+            <div class="reinv-row">
+                <span class="reinv-row-label">Cuotas cobradas</span>
+                <span class="reinv-row-val" style="color:var(--muted2)">${cobrosPropio.length}</span>
+            </div>
+            <div class="reinv-row">
+                <span class="reinv-row-label">Rendimiento</span>
+                <span class="reinv-row-val" style="color:var(--green)">${totalPropio > 0 ? (ganPropioEstim/totalPropio*100).toFixed(1) : '0.0'}%</span>
+            </div>
+        </div>
+        <div class="reinv-block cap-reinv">
+            <div class="reinv-block-title">♻️ Capital Reinvertido (Caja Chica)</div>
+            <div class="reinv-row">
+                <span class="reinv-row-label">Total cobrado</span>
+                <span class="reinv-row-val" style="color:var(--amber)">${fmt$(totalReinv)}</span>
+            </div>
+            <div class="reinv-row">
+                <span class="reinv-row-label">Ganancia estimada</span>
+                <span class="reinv-row-val" style="color:var(--green)">${fmt$(ganReinvEstim)}</span>
+            </div>
+            <div class="reinv-row">
+                <span class="reinv-row-label">Cuotas cobradas</span>
+                <span class="reinv-row-val" style="color:var(--muted2)">${cobrosReinv.length}</span>
+            </div>
+            <div class="reinv-row">
+                <span class="reinv-row-label">Rendimiento</span>
+                <span class="reinv-row-val" style="color:var(--green)">${totalReinv > 0 ? (ganReinvEstim/totalReinv*100).toFixed(1) : '0.0'}%</span>
+            </div>
+        </div>
+    </div>`;
+
+    /* PARTNERS */
+    if (Object.keys(partners).length) {
+        html += `<div class="sec"><span class="sec-label">Ganancia por Socio (sobre cobros)</span><div class="sec-line"></div></div>`;
+        html += `<div class="partners-grid">`;
+        Object.values(partners).forEach(p => {
+            const slug = p.name.toLowerCase()
+                .replace(/á/g,'a').replace(/é/g,'e').replace(/ó/g,'o').replace(/ú/g,'u').replace(/ñ/g,'n');
+            const details = Object.entries(p.byMod)
+                .map(([mod, amt]) => `${MOD_LABEL[mod]}: ${fmt$(amt)}`).join('<br>');
+            html += `<div class="partner-card pc-${slug}">
+                <div class="pc-name" style="color:${p.color}">${p.name}</div>
+                <div class="pc-role">Socio · Ganancia acumulada</div>
+                <div class="pc-total" style="color:${p.color}">${fmt$(p.total)}</div>
+                <div class="pc-detail">${details}</div>
+            </div>`;
+        });
+        html += `</div>`;
+    }
+
+    /* COBROS TABLE */
+    html += `<div class="sec"><span class="sec-label">Detalle de Cobros Realizados</span><div class="sec-line"></div></div>`;
+    html += `<div class="tbl-wrap">
+        <div class="tbl-head">
+            <span class="tbl-head-title">Todos los pagos recibidos</span>
+            <span class="tbl-head-badge">${totalCobros} registros</span>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Cliente</th>
+                    <th>Fuente</th>
+                    <th>Cuota</th>
+                    <th>Monto</th>
+                    <th style="text-align:right">Fecha</th>
+                </tr>
+            </thead>
+            <tbody id="cobros-table-body">
+                ${buildTableRows(cobros)}
+            </tbody>
+            <tfoot id="cobros-table-foot">
+                ${buildTableFoot(cobros)}
+            </tfoot>
+        </table>
+    </div>`;
+
+    /* BY MONTH */
+    html += `<div class="sec"><span class="sec-label">Cobros por Mes</span><div class="sec-line"></div></div>`;
+
+    if (!sortedMonths.length) {
+        html += `<div class="empty-state">Sin cobros registrados aún.</div>`;
+    } else {
+        sortedMonths.forEach(month => {
+            const { cobros: mc } = byMonth[month];
+            const mTotal   = mc.reduce((s, c) => s + c.monto, 0);
+            const mGan     = ganEstimada(mc);
+            const mReinv   = mc.filter(c => c.procedencia === 'recogido').reduce((s,c)=>s+c.monto,0);
+            const mPropio  = mc.filter(c => c.procedencia !== 'recogido').reduce((s,c)=>s+c.monto,0);
+
+            html += `<div class="month-block">
+                <div class="month-header">
+                    <div>
+                        <div class="month-title">${month}</div>
+                        <div class="month-stat"><b>${mc.length}</b> cobro${mc.length!==1?'s':''}</div>
+                    </div>
+                    <div class="month-stats">
+                        <div class="month-stat">Total <b style="color:var(--accent)">${fmt$(mTotal)}</b></div>
+                        <div class="month-stat">Gan. <b style="color:var(--green)">${fmt$(mGan)}</b></div>
+                        ${mReinv > 0 ? `<div class="month-stat">Reinv. <b style="color:var(--amber)">${fmt$(mReinv)}</b></div>` : ''}
+                        <div class="month-arrow">▶</div>
+                    </div>
+                </div>
+                <div class="month-body" style="max-height:0">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Cliente</th>
+                                <th>Fuente</th>
+                                <th>Cuota</th>
+                                <th>Monto</th>
+                                <th style="text-align:right">Fecha</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${buildTableRows(mc)}
+                        </tbody>
+                        <tfoot>
+                            ${buildTableFoot(mc)}
+                        </tfoot>
+                    </table>
+                </div>
+            </div>`;
+        });
+    }
+
+    return html;
+}
+
+function buildTableRows(list) {
+    if (!list.length) return `<tr><td colspan="5" style="text-align:center;padding:1.5rem;color:var(--muted);font-size:0.65rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase">Sin cobros</td></tr>`;
+    return list.map(c => {
+        const proc = c.procedencia === 'recogido'
+            ? `<span class="tag-proc proc-reinv">♻ Reinvertido</span>`
+            : `<span class="tag-proc proc-propio">🏦 Propio</span>`;
+        const tag = `<span class="tag-inver ${MOD_TAG[c.modKey]}">${MOD_LABEL[c.modKey]}</span>`;
+        return `<tr>
+            <td>
+                <div class="name">${escHtml(c.clienteNombre)}</div>
+                <div class="sub">${tag}</div>
+            </td>
+            <td>${proc}</td>
+            <td style="text-align:right">
+                <span class="mono">${c.cuotaIdx}</span>
+                <span style="color:var(--muted);font-size:0.57rem"> / ${c.totalCuotas}</span>
+            </td>
+            <td style="text-align:right">
+                <span class="mono" style="color:var(--green)">${fmt$(c.monto)}</span>
+            </td>
+            <td style="text-align:right;font-size:0.62rem">${c.fechaDisplay}</td>
+        </tr>`;
+    }).join('');
+}
+
+function buildTableFoot(list) {
+    const tot = list.reduce((s,c) => s+c.monto, 0);
+    return `<tr class="tbl-total">
+        <td colspan="3" style="color:var(--muted);font-size:0.58rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase">Total · ${list.length} cobro${list.length!==1?'s':''}</td>
+        <td style="text-align:right"><span class="mono" style="color:var(--accent)">${fmt$(tot)}</span></td>
+        <td></td>
+    </tr>`;
+}
+
+function escHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
