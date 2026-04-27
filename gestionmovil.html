@@ -586,18 +586,34 @@ function irExtra(modo) {
 }
 
 // ── COBROS DEL DÍA (MÓVIL) ────────────────────────
-function parseFechaProgr(str) {
+function parseDateRobust(str) {
     if (!str) return null;
-    if (str.includes('-') && str.length === 10) {
-        const d = new Date(str + 'T00:00:00'); d.setHours(0,0,0,0); return d;
+    str = str.trim();
+    // DD/MM/YYYY o D/M/YYYY o DD-MM-YYYY
+    let match = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    if (match) {
+        const d = new Date(parseInt(match[3]), parseInt(match[2]) - 1, parseInt(match[1]), 12, 0, 0);
+        return isNaN(d.getTime()) ? null : d;
     }
-    if (str.includes('/')) {
-        const p = str.split('/');
-        const d = new Date(`${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}T00:00:00`);
-        d.setHours(0,0,0,0);
-        if (!isNaN(d)) return d;
+    // YYYY-MM-DD
+    match = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (match) {
+        const d = new Date(parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]), 12, 0, 0);
+        return isNaN(d.getTime()) ? null : d;
     }
+    const fallback = new Date(str.includes('T') ? str : str + 'T12:00:00');
+    return isNaN(fallback.getTime()) ? null : fallback;
+}
+
+function parseFechaProgr(str) {
+    const d = parseDateRobust(str);
+    if (d) { d.setHours(0,0,0,0); return d; }
     return null;
+}
+
+function calcularRecargoMora(dias) {
+    if (dias <= 3) return 0;
+    return dias - 3;
 }
 
 function renderCobrosDelDia() {
@@ -661,14 +677,26 @@ function renderCobrosContentM(clientsObj, rama) {
     const mora=[], hoy=[], pagados=[];
     Object.entries(clientsObj).forEach(([id, c]) => {
         if (c.tipo !== 'ACTIVO') return;
+        if (parseFloat(c.saldo || 0) <= 0) return;
         const cuotas = c.cuotas || [];
         const yaPago = cuotas.some(q => q.pagada && q.fecha_ISO === HOY_ISO);
         if (yaPago) { pagados.push({id,c}); return; }
         let maxAtraso = 0, tocaHoyFlag = false, cuotaPend = null;
-        for (const cuo of cuotas) {
+        for (let i = 0; i < cuotas.length; i++) {
+            const cuo = cuotas[i];
             if (cuo.pagada) continue;
             if (!cuotaPend) cuotaPend = cuo;
-            const f = parseFechaProgr(cuo.fecha_prog || cuo.fecha_prog_sv);
+            
+            let f = null;
+            let inicioD = parseDateRobust(c.fechaInicio || c.fecha);
+            if (inicioD) {
+                const n = parseInt(cuo.n) || (i + 1);
+                const frec = (c.frecuencia || 'diario').toLowerCase();
+                const diasSuma = (frec === 'semanal') ? (n * 7) : n;
+                inicioD.setDate(inicioD.getDate() + diasSuma);
+                f = inicioD;
+            }
+            
             if (!f) continue;
             const diff = Math.floor((HOY - f) / 86400000);
             if (diff > 0) maxAtraso = Math.max(maxAtraso, diff);
@@ -687,20 +715,23 @@ function renderCobrosContentM(clientsObj, rama) {
         : null;
 
     const rowMora = x => {
+        const recargo = calcularRecargoMora(x.dias);
         const m = x.cuotaPend ? parseFloat(x.cuotaPend.valorPagado||0).toFixed(2) : '—';
+        const totalConMora = x.cuotaPend ? (parseFloat(x.cuotaPend.valorPagado||0) + recargo) : 0;
         const s = parseFloat(x.c.saldo||0).toFixed(2);
         const btn = esInver2 ? btnMora : `<button onclick="irPanel('${x.id}')" style="background:rgba(239,68,68,0.15);color:var(--danger);border:1px solid rgba(239,68,68,0.3);border-radius:0.5rem;padding:0.4rem 0.75rem;font-size:0.7rem;font-weight:800;cursor:pointer">Ver</button>`;
-        return `<div style="background:var(--surface2);border:1px solid var(--border);border-left:3px solid var(--danger);
-                    border-radius:0.6rem;padding:0.75rem 1rem;display:flex;justify-content:space-between;align-items:center;gap:0.75rem">
+        return `<div style="background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--danger);
+                    border-radius:0.6rem;padding:0.75rem 1rem;display:flex;justify-content:space-between;align-items:center;gap:0.75rem;margin-bottom:0.4rem">
             <div style="flex:1;min-width:0">
                 <div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.2rem">
                     <span style="background:rgba(239,68,68,0.15);color:var(--danger);font-size:0.6rem;font-weight:800;
                                  letter-spacing:0.08em;text-transform:uppercase;padding:0.15rem 0.5rem;border-radius:2rem;
                                  border:1px solid rgba(239,68,68,0.25)">⚠ ${x.dias} día${x.dias!==1?'s':''} atraso</span>
+                    ${recargo > 0 ? `<span style="background:rgba(180,83,9,0.18);color:#b45309;font-size:0.55rem;font-weight:800;padding:0.15rem 0.4rem;border-radius:0.3rem">Mora: $${recargo.toFixed(2)}</span>` : ''}
                 </div>
                 <div style="font-weight:800;font-size:0.9rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${x.c.nombre||'—'}</div>
                 <div style="display:flex;gap:0.6rem;margin-top:0.2rem">
-                    <span style="font-size:0.65rem;color:var(--muted2)">Cuota: <strong style="color:var(--text)">$${m}</strong></span>
+                    <span style="font-size:0.65rem;color:var(--muted2)">Cobrar: <strong style="color:var(--danger)">$${totalConMora.toFixed(2)}</strong></span>
                     <span style="font-size:0.65rem;color:var(--muted2)">Saldo: <strong style="color:var(--danger)">$${s}</strong></span>
                 </div>
             </div>
@@ -895,41 +926,26 @@ function renderCuotasMob(s) {
     const cuotas = s.cuotas||[];
     if (!cuotas.length) { wrap.innerHTML = '<p style="font-size:0.8rem;color:var(--muted)">Sin cuotas.</p>'; return; }
 
-function diaSemanaDeProgr(c, s) {
+function diaSemanaDeProgr(c, s, index) {
     const dias = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-    let fStr = c.fecha_prog || c.fecha_prog_sv;
+    const frec = (s?.frecuencia || 'diario').toLowerCase();
     
-    let d;
-    if (fStr) {
-        if (/^\d{2}\/\d{2}\/\d{4}$/.test(fStr)) {
-            const [dd, mm, yyyy] = fStr.split('/');
-            d = new Date(`${yyyy}-${mm}-${dd}T12:00:00`);
-        } else if (/^\d{4}-\d{2}-\d{2}$/.test(fStr)) {
-            d = new Date(fStr + 'T12:00:00');
-        }
+    let d = null;
+    if (c.pagada) {
+        d = parseDateRobust(c.fecha_prog || c.fecha_prog_sv || c.fecha_ISO);
     }
     
-    // Si no tiene fecha pre-calculada, inferirla calculando a partir del inicio:
-    if (!d || isNaN(d)) {
-        let inicioStr = s.fechaInicio || s.fecha || getFechaHoySV();
-        let inicioD;
-        if (/^\d{2}\/\d{2}\/\d{4}$/.test(inicioStr)) {
-            const [dd, mm, yyyy] = inicioStr.split('/');
-            inicioD = new Date(`${yyyy}-${mm}-${dd}T12:00:00`);
-        } else {
-            inicioD = new Date(inicioStr + 'T12:00:00');
-        }
-        
-        if (!isNaN(inicioD)) {
-            const n = parseInt(c.n) || 1;
-            const frec = s.frecuencia || 'diario';
-            const diasSuma = frec === 'semanal' ? (n * 7) : n;
+    if (!d) {
+        let inicioD = parseDateRobust(s?.fechaInicio || s?.fecha);
+        if (inicioD) {
+            const n = parseInt(c.n) || (index + 1);
+            const diasSuma = (frec === 'semanal') ? (n * 7) : n;
             inicioD.setDate(inicioD.getDate() + diasSuma);
             d = inicioD;
         }
     }
     
-    if (!d || isNaN(d)) return 'Error';
+    if (!d) return 'Error';
     
     const dia = dias[d.getDay()];
     const dd2 = String(d.getDate()).padStart(2,'0');
@@ -937,11 +953,30 @@ function diaSemanaDeProgr(c, s) {
     const yy  = String(d.getFullYear()).slice(-2);
     return `${dia} ${dd2}/${mm2}/${yy}`;
 }
-    wrap.innerHTML = cuotas.map((c,i) => {
-        const pag     = !!c.pagada;
-        const fechaProg = c.fecha_prog || '';
+
+function getFechaProgISO(c, s, index) {
+    const frec = (s?.frecuencia || 'diario').toLowerCase();
+    let d = null;
+    if (c.pagada) {
+        d = parseDateRobust(c.fecha_ISO || c.fecha_prog);
+    }
+    if (!d) {
+        let inicioD = parseDateRobust(s?.fechaInicio || s?.fecha);
+        if (inicioD) {
+            const n = parseInt(c.n) || (index + 1);
+            const diasSuma = (frec === 'semanal') ? (n * 7) : n;
+            inicioD.setDate(inicioD.getDate() + diasSuma);
+            d = inicioD;
+        }
+    }
+    if (!d) return getFechaHoySV();
+    return d.toISOString().split('T')[0];
+}
+    wrap.innerHTML = cuotas.map((c, i) => {
+        const pagada = !!c.pagada;
+        const diaLabel = diaSemanaDeProgr(c, s, i);
+        const fechaISO = c.fecha_ISO || getFechaProgISO(c, s, i);
         const fechaPagada = c.fecha_ISO || '';
-        const diaLabel = diaSemanaDeProgr(c, s);
           const frec = s.frecuencia || 'diario';
           const nTotal = (frec === 'semanal' ? 4 : 30);
           const cuotaDefault = (parseFloat(s.total || 0) / nTotal).toFixed(2);

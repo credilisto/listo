@@ -509,6 +509,7 @@
     <header class="header">
         <div class="header-brand">Credi<em>Listo</em> <span style="color:var(--muted);font-size:0.7rem;font-weight:500;letter-spacing:0.05em"> / Admin</span></div>
         <nav class="header-nav">
+            <button class="btn btn-ghost btn-sm" onclick="modalHistorialCobros()">📅 Historial</button>
             <button class="btn btn-ghost btn-sm" onclick="exportarCartera()">↓ Excel</button>
             <button class="btn btn-ghost btn-sm" onclick="location.href='index.html'">Inicio</button>
         </nav>
@@ -549,7 +550,13 @@
                 </div>
                 <div class="sidebar-stat" style="border-top:1px solid var(--border);padding-top:0.5rem">
                     <span class="stat-label">Caja Chica disponible</span>
-                    <span class="stat-val" id="saldo-caja" style="color:#10b981">$0.00</span>
+                    <div style="display:flex;align-items:center;gap:0.5rem">
+                        <span class="stat-val" id="saldo-caja" style="color:#10b981">$0.00</span>
+                        <button onclick="modalConfigurarFinanzas()" 
+                                style="background:var(--surface2);border:1px solid var(--border2);border-radius:0.4rem;
+                                       padding:0.2rem 0.4rem;font-size:0.55rem;font-weight:700;color:var(--muted2);cursor:pointer"
+                                title="Ajustar Caja Chica">⚙️ Ajuste</button>
+                    </div>
                 </div>
                 <div style="display:flex;flex-direction:column;gap:0.4rem;padding-top:0.5rem;border-top:1px solid var(--border)">
                     <!-- COBROS DEL DÍA — nuevo módulo -->
@@ -664,6 +671,25 @@ function getFechaHoySV() {
     return `${y}-${m}-${d}`;
 }
 
+function parseDateRobust(str) {
+    if (!str) return null;
+    str = str.trim();
+    // DD/MM/YYYY o D/M/YYYY o DD-MM-YYYY
+    let match = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    if (match) {
+        const d = new Date(parseInt(match[3]), parseInt(match[2]) - 1, parseInt(match[1]), 12, 0, 0);
+        return isNaN(d.getTime()) ? null : d;
+    }
+    // YYYY-MM-DD
+    match = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (match) {
+        const d = new Date(parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]), 12, 0, 0);
+        return isNaN(d.getTime()) ? null : d;
+    }
+    const fallback = new Date(str.includes('T') ? str : str + 'T12:00:00');
+    return isNaN(fallback.getTime()) ? null : fallback;
+}
+
 function initFirebase() {
     firebase.initializeApp(FB_CFG);
     db      = firebase.database();
@@ -747,13 +773,25 @@ function calcularCobrosHoy() {
     let cobrarHoy = 0, enMora = 0, pagadosHoy = 0;
     Object.values(allClients).forEach(c => {
         if (c.tipo !== 'ACTIVO') return;
+        if (parseFloat(c.saldo || 0) <= 0) return;
         const cuotas = c.cuotas || [];
         const yaPago = cuotas.some(q => q.pagada && q.fecha_ISO === HOY_ISO);
         if (yaPago) { pagadosHoy++; return; }
         let maxAtraso = 0, tocaHoyFlag = false;
-        for (const cuo of cuotas) {
+        for (let i = 0; i < cuotas.length; i++) {
+            const cuo = cuotas[i];
             if (cuo.pagada) continue;
-            const f = parseFechaProgr(cuo.fecha_prog || cuo.fecha_prog_sv);
+            
+            let f = null;
+            let inicioD = parseDateRobust(c.fechaInicio || c.fecha);
+            if (inicioD) {
+                const n = parseInt(cuo.n) || (i + 1);
+                const frec = (c.frecuencia || 'diario').toLowerCase();
+                const diasSuma = (frec === 'semanal') ? (n * 7) : n;
+                inicioD.setDate(inicioD.getDate() + diasSuma);
+                f = inicioD;
+            }
+            
             if (!f) continue;
             const diff = Math.floor((HOY - f) / 86400000);
             if (diff > 0) maxAtraso = Math.max(maxAtraso, diff);
@@ -946,6 +984,9 @@ function renderPanel(id) {
     <div class="section-card">
         <div class="section-head">
             <div class="section-title">Registro de Pagos — ${(s.frecuencia||'diario').toUpperCase()}</div>
+            ${(s.frecuencia === 'semanal' && s.tipo === 'ACTIVO') ? `
+                <button class="btn btn-blue btn-sm" onclick="agregarCobroExtra()" style="font-size:0.6rem">➕ Cobro Extra</button>
+            ` : ''}
         </div>
         <div class="section-body">
             <div style="display:grid;grid-template-columns:28px 1fr 130px 110px 120px 80px;gap:0.5rem;padding:0 0.75rem 0.5rem;margin-bottom:0.25rem">
@@ -1024,8 +1065,17 @@ function renderSemaforo(s) {
     const pendientes = cuotas.filter(c => !c.pagada);
     const enMora     = (() => {
         const hoy = new Date(getFechaHoySV() + 'T12:00:00');
-        return pendientes.filter(c => {
-            const f = parseFechaProgr(c.fecha_prog || c.fecha_prog_sv);
+        return cuotas.filter((c_cuo, i) => {
+            if (c_cuo.pagada) return false;
+            let f = null;
+            let inicioD = parseDateRobust(s.fechaInicio || s.fecha);
+            if (inicioD) {
+                const n = parseInt(c_cuo.n) || (i + 1);
+                const frec = (s.frecuencia || 'diario').toLowerCase();
+                const diasSuma = (frec === 'semanal') ? (n * 7) : n;
+                inicioD.setDate(inicioD.getDate() + diasSuma);
+                f = inicioD;
+            }
             return f && hoy > f;
         });
     })();
@@ -1083,54 +1133,61 @@ function renderCuotas(s) {
         return;
     }
 
-function diaSemanaDeProgr(c, s) {
+function diaSemanaDeProgr(c, s, index) {
     const dias = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-    let fStr = c.fecha_prog || c.fecha_prog_sv;
+    const frec = (s.frecuencia || 'diario').toLowerCase();
     
-    let d;
-    if (fStr) {
-        if (/^\d{2}\/\d{2}\/\d{4}$/.test(fStr)) {
-            const [dd, mm, yyyy] = fStr.split('/');
-            d = new Date(`${yyyy}-${mm}-${dd}T12:00:00`);
-        } else if (/^\d{4}-\d{2}-\d{2}$/.test(fStr)) {
-            d = new Date(fStr + 'T12:00:00');
-        }
+    let d = null;
+    // Si está pagada, intentamos usar su fecha grabada
+    if (c.pagada) {
+        d = parseDateRobust(c.fecha_prog || c.fecha_prog_sv || c.fecha_ISO);
     }
     
-    // Si no tiene fecha pre-calculada, inferirla calculando a partir del inicio:
-    if (!d || isNaN(d)) {
-        let inicioStr = s.fechaInicio || s.fecha || getFechaHoySV();
-        let inicioD;
-        if (/^\d{2}\/\d{2}\/\d{4}$/.test(inicioStr)) {
-            const [dd, mm, yyyy] = inicioStr.split('/');
-            inicioD = new Date(`${yyyy}-${mm}-${dd}T12:00:00`);
-        } else {
-            inicioD = new Date(inicioStr + 'T12:00:00');
-        }
-        
-        if (!isNaN(inicioD)) {
-            const n = parseInt(c.n) || 1;
-            const frec = s.frecuencia || 'diario';
-            const diasSuma = frec === 'semanal' ? (n * 7) : n;
+    // Si no está pagada o no tiene fecha válida, recalculamos SIEMPRE desde el inicio
+    // para asegurar consistencia (especialmente para cambios de diario a semanal)
+    if (!d) {
+        let inicioD = parseDateRobust(s.fechaInicio || s.fecha);
+        if (inicioD) {
+            const n = parseInt(c.n) || (index + 1);
+            const diasSuma = (frec === 'semanal') ? (n * 7) : n;
             inicioD.setDate(inicioD.getDate() + diasSuma);
             d = inicioD;
         }
     }
     
-    if (!d || isNaN(d)) return 'Error';
+    if (!d) return 'Error';
     
-    const dia = dias[d.getDay()];
-    const dd2 = String(d.getDate()).padStart(2,'0');
-    const mm2 = String(d.getMonth()+1).padStart(2,'0');
-    const yy  = String(d.getFullYear()).slice(-2);
-    return `${dia} ${dd2}/${mm2}/${yy}`;
+    const dd = String(d.getDate()).padStart(2,'0');
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    const yy = String(d.getFullYear()).slice(-2);
+    return `${dias[d.getDay()]} ${dd}/${mm}/${yy}`;
+}
+
+function getFechaProgISO(c, s, index) {
+    const frec = (s.frecuencia || 'diario').toLowerCase();
+    let d = null;
+    if (c.pagada) {
+        d = parseDateRobust(c.fecha_ISO || c.fecha_prog);
+    }
+    if (!d) {
+        let inicioD = parseDateRobust(s.fechaInicio || s.fecha);
+        if (inicioD) {
+            const n = parseInt(c.n) || (index + 1);
+            const diasSuma = (frec === 'semanal') ? (n * 7) : n;
+            inicioD.setDate(inicioD.getDate() + diasSuma);
+            d = inicioD;
+        }
+    }
+    if (!d) return getFechaHoySV();
+    return d.toISOString().split('T')[0];
 }
     wrap.innerHTML = cuotas.map((c, i) => {
         const pagada = !!c.pagada;
-        const diaLabel = diaSemanaDeProgr(c, s);
+        const diaLabel = diaSemanaDeProgr(c, s, i);
           const frec = s.frecuencia || 'diario';
           const nTotal = (frec === 'semanal' ? 4 : 30);
           const cuotaDefault = (parseFloat(s.total || 0) / nTotal).toFixed(2);
+          const fechaISO = c.fecha_ISO || getFechaProgISO(c, s, i);
         return `
         <div class="cuota-row ${pagada ? 'pagada' : ''}">
             <span class="cuota-n">${c.n||i+1}</span>
@@ -1138,7 +1195,7 @@ function diaSemanaDeProgr(c, s) {
             ${diaLabel ? `<span class="cuota-dia-label">${diaLabel}</span>` : '<span></span>'}
             <input type="number" class="cuota-input" id="v-${i}" value="${c.valorPagado || cuotaDefault}" step="0.01"
                    ${pagada ? 'disabled' : ''}>
-            <input type="date" class="cuota-date" id="f-${i}" value="${c.fecha_ISO || getFechaHoySV()}"
+            <input type="date" class="cuota-date" id="f-${i}" value="${fechaISO}"
                    ${pagada ? 'disabled' : ''}>
             ${pagada
                 ? `<span class="cuota-btn pagado">Pagado</span>`
@@ -1158,6 +1215,7 @@ async function pagarCuota(i) {
     s.cuotas[i].valorPagado = monto;
     s.cuotas[i].fecha_ISO   = fecha;
     s.cuotas[i].fecha       = fecha.split('-').reverse().join('/');
+    s.cuotas[i].hora        = new Date().toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit' });
 
     let pagadoTotal = 0;
     s.cuotas.forEach(c => { if (c.pagada) pagadoTotal += parseFloat(c.valorPagado || 0); });
@@ -1285,28 +1343,35 @@ async function guardarFicha() {
         const nuevoTotal = parseFloat((nuevoMonto * 1.2).toFixed(2));
         const nuevaCuota = parseFloat((nuevoTotal / nCuotas).toFixed(2));
 
-        // Recalcular cuotas: respetar pagadas, actualizar pendientes
-        const cuotasActuales = clienteActual.cuotas || [];
+        let pagadoTotal = 0;
+        cuotasActuales.forEach(c => { if (c.pagada) pagadoTotal += parseFloat(c.valorPagado || 0); });
+
+        // Recalcular cuotas: respetar pagadas, actualizar pendientes CON NUEVAS FECHAS
+        const baseDate = parseDateRobust(clienteActual.fechaInicio || clienteActual.fecha) || parseDateRobust(getFechaHoySV());
+
         const cuotasRecalc = [];
         for (let i = 0; i < nCuotas; i++) {
             const anterior = cuotasActuales[i];
             if (anterior && anterior.pagada) {
                 cuotasRecalc.push(anterior);
             } else {
+                const d = new Date(baseDate);
+                const diasSuma = nuevaFrecuencia === 'semanal' ? (i + 1) * 7 : (i + 1);
+                d.setDate(d.getDate() + diasSuma);
+                const iso = d.toISOString().split('T')[0];
+                const sv  = d.toLocaleDateString('es-SV');
+                
                 cuotasRecalc.push({
                     n: i + 1,
                     valorPagado: nuevaCuota,
                     pagada: false,
-                    fecha: anterior?.fecha || '',
-                    fecha_ISO: anterior?.fecha_ISO || '',
-                    fecha_prog: anterior?.fecha_prog || '',
-                    fecha_prog_sv: anterior?.fecha_prog_sv || '',
+                    fecha: '',
+                    fecha_ISO: '',
+                    fecha_prog: sv,
+                    fecha_prog_sv: sv,
                 });
             }
         }
-
-        let pagadoTotal = 0;
-        cuotasRecalc.forEach(c => { if (c.pagada) pagadoTotal += parseFloat(c.valorPagado || 0); });
 
         updates.total  = nuevoTotal;
         updates.saldo  = parseFloat((nuevoTotal - pagadoTotal).toFixed(2));
@@ -2102,10 +2167,147 @@ async function confirmarInyeccionMora() {
 }
 
 function calcularRecargoMora(dias) {
-    // Desde el día 3 en adelante: $1 por cada día adicional a partir del 3
-    // Día 1 = $0, Día 2 = $0, Día 3 = $1, Día 4 = $2, etc.
-    if (dias < 3) return 0;
-    return dias - 2;
+    if (dias <= 3) return 0;
+    return dias - 3;
+}
+
+function modalHistorialCobros() {
+    const modal = document.createElement('div');
+    modal.id = 'modal-historial-cobros';
+    modal.style.cssText = `position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,0.6);
+        backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:1.5rem`;
+    
+    modal.innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:1.5rem;
+                width:min(96vw, 900px);max-height:92vh;display:flex;flex-direction:column;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25)">
+        <div style="padding:1.25rem 1.75rem;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+            <div>
+                <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.2rem;color:var(--text)">📅 Historial de Cobros</div>
+                <div style="font-size:0.7rem;color:var(--muted2);margin-top:0.1rem">Consolidado hoy de las 3 cuentas</div>
+            </div>
+            <button onclick="document.getElementById('modal-historial-cobros').remove()" 
+                    style="background:var(--surface2);border:1px solid var(--border2);border-radius:0.6rem;padding:0.4rem 0.75rem;cursor:pointer;color:var(--muted2)">✕</button>
+        </div>
+        <div id="historial-body" style="flex:1;overflow-y:auto;padding:1.5rem;background:var(--bg)">
+            <div style="text-align:center;padding:3rem"><span class="spin"></span> Cargando datos...</div>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+    renderHistorialContent();
+}
+
+async function renderHistorialContent() {
+    const wrap = document.getElementById('historial-body');
+    if (!wrap) return;
+
+    const HOY_ISO = getFechaHoySV();
+    const branches = [
+        { id: 'clientes', label: 'INVER1', color: 'var(--accent)', mora: 'mora_registrada' },
+        { id: 'clientes2', label: 'INVER2', color: '#7c3aed', mora: 'mora_registrada2' },
+        { id: 'clientes3', label: 'INVER3', color: '#0891b2', mora: 'mora_registrada3' }
+    ];
+
+    let allPayments = [];
+
+    try {
+        const snapshots = await Promise.all(branches.map(b => db.ref(b.id).once('value')));
+        const moraSnapshots = await Promise.all(branches.map(b => db.ref(b.mora).once('value')));
+        
+        branches.forEach((b, idx) => {
+            // Cuotas
+            const data = snapshots[idx].val() || {};
+            Object.entries(data).forEach(([cid, c]) => {
+                const cuotas = c.cuotas || [];
+                cuotas.forEach((q, qidx) => {
+                    if (q.pagada && q.fecha_ISO === HOY_ISO) {
+                        allPayments.push({
+                            cliente: c.nombre,
+                            monto: q.valorPagado,
+                            hora: q.hora || '—',
+                            branch: b.label,
+                            branchColor: b.color,
+                            n: q.n || (qidx + 1),
+                            tipo: 'Cuota'
+                        });
+                    }
+                });
+            });
+
+            // Moras
+            const mData = moraSnapshots[idx].val() || {};
+            Object.entries(mData).forEach(([mid, m]) => {
+                if (m.fecha === HOY_ISO) {
+                    allPayments.push({
+                        cliente: m.nombre,
+                        monto: m.monto,
+                        hora: m.hora || '—',
+                        branch: b.label,
+                        branchColor: b.color,
+                        n: 'Mora',
+                        tipo: 'Mora'
+                    });
+                }
+            });
+        });
+
+        allPayments.sort((a,b) => b.hora.localeCompare(a.hora));
+
+        if (allPayments.length === 0) {
+            wrap.innerHTML = `<div style="text-align:center;padding:4rem;color:var(--muted2)">
+                <div style="font-size:3rem;margin-bottom:1rem">☕</div>
+                <p>No se han registrado cobros el día de hoy.</p>
+            </div>`;
+            return;
+        }
+
+        let total = 0;
+        allPayments.forEach(p => total += parseFloat(p.monto || 0));
+
+        wrap.innerHTML = `
+        <div style="margin-bottom:1.5rem;display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:1rem">
+            <div style="background:var(--surface2);padding:1rem;border-radius:1rem;border:1px solid var(--border);text-align:center">
+                <div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted2)">Total Cobrado Hoy</div>
+                <div style="font-size:1.5rem;font-weight:800;color:var(--accent);font-family:'JetBrains Mono',monospace">$${total.toFixed(2)}</div>
+            </div>
+            <div style="background:var(--surface2);padding:1rem;border-radius:1rem;border:1px solid var(--border);text-align:center">
+                <div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted2)">Transacciones</div>
+                <div style="font-size:1.5rem;font-weight:800;color:var(--text);font-family:'JetBrains Mono',monospace">${allPayments.length}</div>
+            </div>
+        </div>
+        <table style="width:100%;border-collapse:collapse;font-size:0.85rem">
+            <thead>
+                <tr style="text-align:left;color:var(--muted2);border-bottom:1px solid var(--border)">
+                    <th style="padding:0.75rem">Hora</th>
+                    <th style="padding:0.75rem">Cliente</th>
+                    <th style="padding:0.75rem">Cuenta</th>
+                    <th style="padding:0.75rem">Concepto</th>
+                    <th style="padding:0.75rem;text-align:right">Monto</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${allPayments.map(p => `
+                <tr style="border-bottom:1px solid var(--border)">
+                    <td style="padding:0.75rem;font-family:'JetBrains Mono',monospace;color:var(--muted2)">${p.hora}</td>
+                    <td style="padding:0.75rem;font-weight:700">${p.cliente}</td>
+                    <td style="padding:0.75rem">
+                        <span style="background:${p.branchColor}20;color:${p.branchColor};padding:0.15rem 0.5rem;border-radius:0.4rem;font-size:0.65rem;font-weight:800;border:1px solid ${p.branchColor}40">
+                            ${p.branch}
+                        </span>
+                    </td>
+                    <td style="padding:0.75rem">
+                        <span style="background:${p.tipo==='Mora'?'rgba(180,83,9,0.1)':'var(--accent-dim)'};color:${p.tipo==='Mora'?'#b45309':'var(--accent)'};padding:0.15rem 0.5rem;border-radius:0.4rem;font-size:0.65rem;font-weight:700">
+                            ${p.tipo} ${p.n !== 'Mora' ? '#'+p.n : ''}
+                        </span>
+                    </td>
+                    <td style="padding:0.75rem;text-align:right;font-weight:800;color:var(--accent)">$${parseFloat(p.monto).toFixed(2)}</td>
+                </tr>
+                `).join('')}
+            </tbody>
+        </table>`;
+    } catch (err) {
+        console.error(err);
+        wrap.innerHTML = `<div style="color:var(--danger);padding:2rem">Error al cargar historial: ${err.message}</div>`;
+    }
 }
 
 function renderCobrosContent(clientsObj, rama) {
@@ -2130,15 +2332,27 @@ function renderCobrosContent(clientsObj, rama) {
 
     Object.entries(clientsObj).forEach(([id, c]) => {
         if (c.tipo !== 'ACTIVO') return;
+        if (parseFloat(c.saldo || 0) <= 0) return;
         const cuotas = c.cuotas || [];
         const yaPago = cuotas.some(q => q.pagada && q.fecha_ISO === HOY_ISO);
         if (yaPago) { pagados.push({id,c}); return; }
 
         let maxAtraso = 0, tocaHoyFlag = false, cuotaPend = null;
-        for (const cuo of cuotas) {
+        for (let i = 0; i < cuotas.length; i++) {
+            const cuo = cuotas[i];
             if (cuo.pagada) continue;
             if (!cuotaPend) cuotaPend = cuo;
-            const f = parseFechaProgr(cuo.fecha_prog || cuo.fecha_prog_sv);
+
+            let f = null;
+            let inicioD = parseDateRobust(c.fechaInicio || c.fecha);
+            if (inicioD) {
+                const n = parseInt(cuo.n) || (i + 1);
+                const frec = (c.frecuencia || 'diario').toLowerCase();
+                const diasSuma = (frec === 'semanal') ? (n * 7) : n;
+                inicioD.setDate(inicioD.getDate() + diasSuma);
+                f = inicioD;
+            }
+
             if (!f) continue;
             const diff = Math.floor((HOY - f) / 86400000);
             if (diff > 0) maxAtraso = Math.max(maxAtraso, diff);
@@ -3562,6 +3776,46 @@ function toast(msg, type='success') {
     t.className = 'toast show ' + type;
     setTimeout(() => { t.className = 'toast'; }, 3000);
 }
+async function agregarCobroExtra() {
+    const s = allClients[currentId];
+    if (!s) return;
+    const cuotas = s.cuotas || [];
+    const n = cuotas.length + 1;
+    
+    // Calcular monto de la cuota basado en el total
+    const frec = s.frecuencia || 'diario';
+    const nBase = frec === 'semanal' ? 4 : 30;
+    const cuotaValor = parseFloat((parseFloat(s.total || 0) / nBase).toFixed(2));
+    
+    // Calcular fecha para el cobro extra (siguiente periodo)
+    let ultimaFecha = s.fechaInicio || s.fecha || getFechaHoySV();
+    cuotas.forEach(c => { if(c.fecha_prog_sv) ultimaFecha = c.fecha_prog_sv; });
+    
+    let baseD;
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(ultimaFecha)) {
+        const [dd, mm, yyyy] = ultimaFecha.split('/');
+        baseD = new Date(`${yyyy}-${mm}-${dd}T12:00:00`);
+    } else {
+        baseD = new Date(ultimaFecha + 'T12:00:00');
+    }
+    baseD.setDate(baseD.getDate() + (frec === 'semanal' ? 7 : 1));
+    const sv = baseD.toLocaleDateString('es-SV');
+    
+    const nuevaCuota = {
+        n: n,
+        valorPagado: cuotaValor,
+        pagada: false,
+        fecha: '',
+        fecha_ISO: '',
+        fecha_prog: sv,
+        fecha_prog_sv: sv
+    };
+    
+    cuotas.push(nuevaCuota);
+    await db.ref('clientes/' + currentId).update({ cuotas: cuotas });
+    toast('✓ Cobro extra añadido', 'success');
+}
+
 </script>
 </body>
 </html>
