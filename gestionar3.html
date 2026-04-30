@@ -552,10 +552,16 @@
                     <span class="stat-label">Caja Chica disponible</span>
                     <div style="display:flex;align-items:center;gap:0.5rem">
                         <span class="stat-val" id="saldo-caja" style="color:#10b981">$0.00</span>
-                        <button onclick="modalConfigurarFinanzas()" 
-                                style="background:var(--surface2);border:1px solid var(--border2);border-radius:0.4rem;
-                                       padding:0.2rem 0.4rem;font-size:0.55rem;font-weight:700;color:var(--muted2);cursor:pointer"
-                                title="Ajustar Caja Chica">⚙️ Ajuste</button>
+                        <div style="display:flex;gap:0.3rem">
+                            <button onclick="modalConfigurarFinanzas()" 
+                                    style="background:var(--surface2);border:1px solid var(--border2);border-radius:0.4rem;
+                                           padding:0.2rem 0.4rem;font-size:0.55rem;font-weight:700;color:var(--muted2);cursor:pointer"
+                                    title="Ajustar Caja Chica">⚙️ Ajuste</button>
+                            <button onclick="modalRetiroEfectivo('inver3')" 
+                                    style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);border-radius:0.4rem;
+                                           padding:0.2rem 0.4rem;font-size:0.55rem;font-weight:700;color:var(--danger);cursor:pointer"
+                                    title="Retiro de Efectivo">💸 Retiro</button>
+                        </div>
                     </div>
                 </div>
                 <div style="display:flex;flex-direction:column;gap:0.4rem;padding-top:0.5rem;border-top:1px solid var(--border)">
@@ -926,20 +932,20 @@ function renderPanel(id) {
     <!-- ACCIONES FINANCIERAS -->
     <div style="display:flex;gap:0.5rem;padding:0 0 0.5rem 0;flex-wrap:wrap">
         ${s.tipo !== 'ARCHIVO' ? `
-        ${saldo > 0 ? `
-        <button class="btn btn-blue btn-sm" onclick="modalInyectarCapital()">💰 Inyectar Capital</button>
-        <button class="btn btn-ghost btn-sm" onclick="modalDeducirCobrado()">➖ Deducir de Cobrado</button>
+            ${saldo > 0 ? `
+            <button class="btn btn-blue btn-sm" onclick="modalInyectarCapital()">💰 Inyectar Capital</button>
+            <button class="btn btn-ghost btn-sm" onclick="modalDeducirCobrado()">➖ Deducir de Cobrado</button>
+            ` : `
+            <div style="background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.3);border-radius:0.5rem;padding:0.5rem 0.75rem;font-size:0.72rem;color:#10b981;font-weight:700;display:flex;align-items:center;gap:0.5rem">
+                ✅ Crédito SALDADO
+            </div>
+            <button class="btn btn-sm" style="background:rgba(14,165,233,0.1);color:var(--accent);border:1px solid var(--accent-border)" onclick="modalNuevoCredito()">🔄 Nuevo Crédito</button>
+            `}
+            <button class="btn btn-sm" style="background:rgba(16,185,129,0.12);color:#10b981;border:1px solid rgba(16,185,129,0.3)" onclick="archivarCliente()">📁 Archivar Cliente</button>
         ` : `
-        <div style="background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.3);border-radius:0.5rem;padding:0.5rem 0.75rem;font-size:0.72rem;color:#10b981;font-weight:700;display:flex;align-items:center;gap:0.5rem">
-            ✅ Crédito SALDADO — elige una acción:
-        </div>
-        <button class="btn btn-sm" style="background:rgba(14,165,233,0.1);color:var(--accent);border:1px solid var(--accent-border)" onclick="modalNuevoCredito()">🔄 Nuevo Crédito</button>
-        <button class="btn btn-sm" style="background:rgba(16,185,129,0.12);color:#10b981;border:1px solid rgba(16,185,129,0.3)" onclick="archivarCliente()">📁 Solo Archivar</button>
-        `}
-        ` : `
-        <div style="background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.25);border-radius:0.5rem;padding:0.5rem 0.75rem;font-size:0.7rem;color:#10b981;font-weight:600">
-            📁 Cliente archivado el ${s.fechaArchivo||'—'} · Usa <strong>Nuevo Crédito</strong> para reactivarlo
-        </div>
+            <div style="background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.25);border-radius:0.5rem;padding:0.5rem 0.75rem;font-size:0.7rem;color:#10b981;font-weight:600">
+                📁 Cliente archivado el ${s.fechaArchivo||'—'} · Usa <strong>Nuevo Crédito</strong> para reactivarlo
+            </div>
         `}
     </div>
 
@@ -1407,24 +1413,24 @@ async function eliminarCliente() {
 async function archivarCliente() {
     const s = allClients[currentId];
     if (!s) return;
-    if (!confirm('¿Archivar a ' + (s.nombre||'este cliente') + '?\nSu ficha pasará al Archivo y lo cobrado sumará a Caja Chica.')) return;
+
+    const saldo = parseFloat(s.saldo || 0);
+    let msg = `¿Archivar a ${s.nombre || 'este cliente'}?\nSu ficha pasará al Archivo y dejará de aparecer en cobros diarios.`;
+    if (saldo > 0.01) {
+        msg = `⚠️ ATENCIÓN: El cliente tiene un saldo pendiente de $${saldo.toFixed(2)}.\n\n` + msg;
+    }
+
+    if (!confirm(msg)) return;
 
     const fechaArchivo = new Date().toLocaleDateString('es-SV');
-    const totalCobrado = parseFloat((parseFloat(s.total||0) - parseFloat(s.saldo||0)).toFixed(2));
 
-    const snapCfg = await db.ref('config/finanzas3').once('value');
-    const cfg = snapCfg.val() || {};
-    const nuevaCaja = parseFloat((parseFloat(cfg.cajaChica||0) + totalCobrado).toFixed(2));
-
-    await Promise.all([
-        db.ref('clientes3/' + currentId).update({ tipo: 'ARCHIVO', fechaArchivo }),
-        db.ref('config/finanzas3').update({ cajaChica: nuevaCaja })
-    ]);
+    // Solo actualizamos el tipo a ARCHIVO y grabamos la fecha. 
+    await db.ref('clientes3/' + currentId).update({ tipo: 'ARCHIVO', fechaArchivo });
 
     currentId = null;
     document.getElementById('panel').style.display = 'none';
     document.getElementById('welcome').style.display = 'flex';
-    toast('✓ Archivado · $' + totalCobrado.toFixed(2) + ' sumados a Caja Chica', 'success');
+    toast('✓ Cliente movido al Archivo', 'success');
 }
 
 // ─── NUEVO CRÉDITO (desde Activo saldado o desde Archivo) ──────────────
@@ -2857,6 +2863,95 @@ async function guardarConfigFinanzas() {
     toast(`✓ Finanzas actualizadas · Capital: $${capital.toFixed(2)} · Caja: $${caja.toFixed(2)}`, 'success');
 }
 
+// ─── RETIRO DE EFECTIVO (COMISIONES) ──────────────────────────────────────
+function modalRetiroEfectivo(rama) {
+    const nodoConfig = rama === 'inver2' ? 'config/finanzas2' : rama === 'inver3' ? 'config/finanzas3' : 'config/finanzas';
+    const ramaLabel = rama.toUpperCase();
+
+    db.ref(nodoConfig).once('value').then(snap => {
+        const cfg = snap.val() || {};
+        const caja = parseFloat(cfg.cajaChica || 0);
+
+        const modal = document.createElement('div');
+        modal.id = 'modal-retiro-efectivo';
+        modal.style.cssText = `position:fixed;inset:0;z-index:8500;background:rgba(15,23,42,0.7);
+            backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:1rem`;
+        
+        modal.innerHTML = `
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:1.25rem;
+                    width:min(96vw,420px);box-shadow:0 20px 60px rgba(0,0,0,0.15)">
+            <div style="padding:1.25rem 1.5rem;border-bottom:1px solid var(--border);
+                        display:flex;justify-content:space-between;align-items:center">
+                <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:1rem;color:var(--danger)">💸 Retiro de Efectivo — ${ramaLabel}</div>
+                <button onclick="document.getElementById('modal-retiro-efectivo').remove()"
+                        style="background:var(--surface2);border:1px solid var(--border2);border-radius:0.5rem;
+                               padding:0.35rem 0.6rem;cursor:pointer;color:var(--muted2);font-size:0.75rem">✕</button>
+            </div>
+            <div style="padding:1.25rem;display:flex;flex-direction:column;gap:1rem">
+                <div style="background:var(--danger-dim);border:1px solid var(--danger);border-radius:0.6rem;padding:0.75rem;font-size:0.75rem;color:var(--danger)">
+                    Caja Chica disponible: <strong style="font-family:'JetBrains Mono',monospace">$${caja.toFixed(2)}</strong>
+                </div>
+                <div>
+                    <div style="font-size:0.6rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted2);margin-bottom:0.4rem">Monto a retirar ($)</div>
+                    <input type="number" id="ret-monto" placeholder="0.00" min="0.01" step="0.01"
+                           style="width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:0.5rem;
+                                  padding:0.7rem 0.75rem;color:var(--text);font-family:'JetBrains Mono',monospace;
+                                  font-size:1.1rem;font-weight:700;outline:none">
+                </div>
+                <div>
+                    <div style="font-size:0.6rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted2);margin-bottom:0.4rem">Concepto / Motivo</div>
+                    <input type="text" id="ret-concepto" value="Comisiones"
+                           style="width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:0.5rem;
+                                  padding:0.7rem 0.75rem;color:var(--text);font-size:0.9rem;outline:none">
+                </div>
+                <div style="display:flex;gap:0.5rem">
+                    <button onclick="document.getElementById('modal-retiro-efectivo').remove()"
+                            style="flex:1;background:var(--surface2);border:1px solid var(--border2);border-radius:0.6rem;
+                                   padding:0.7rem;cursor:pointer;font-weight:700;font-size:0.75rem;color:var(--muted2)">Cancelar</button>
+                    <button onclick="confirmarRetiroEfectivo('${rama}')"
+                            style="flex:2;background:var(--danger);color:#fff;border:none;border-radius:0.6rem;
+                                   padding:0.7rem;cursor:pointer;font-family:'Syne',sans-serif;font-weight:800;
+                                   font-size:0.75rem;letter-spacing:0.1em;text-transform:uppercase">
+                        ✓ Confirmar Retiro
+                    </button>
+                </div>
+            </div>
+        </div>`;
+        document.body.appendChild(modal);
+    });
+}
+
+async function confirmarRetiroEfectivo(rama) {
+    const monto = parseFloat(document.getElementById('ret-monto')?.value || 0);
+    const concepto = document.getElementById('ret-concepto')?.value.trim() || 'Retiro';
+    if (!monto || monto <= 0) { toast('Ingresa un monto válido', 'error'); return; }
+
+    const nodoConfig = rama === 'inver2' ? 'config/finanzas2' : rama === 'inver3' ? 'config/finanzas3' : 'config/finanzas';
+    const nodoRetiros = rama === 'inver2' ? 'config/finanzas2/retiros' : rama === 'inver3' ? 'config/finanzas3/retiros' : 'config/finanzas/retiros';
+
+    const snapCfg = await db.ref(nodoConfig).once('value');
+    const cfg = snapCfg.val() || {};
+    let cajaChica = parseFloat(cfg.cajaChica || 0);
+
+    if (monto > cajaChica + 0.01) {
+        toast('Caja Chica insuficiente para este retiro', 'error');
+        return;
+    }
+
+    cajaChica = parseFloat((cajaChica - monto).toFixed(2));
+    const fecha = getFechaHoySV();
+    const hora = new Date().toLocaleTimeString('es-SV', {hour12:false});
+
+    await Promise.all([
+        db.ref(nodoConfig).update({ cajaChica }),
+        db.ref(nodoRetiros).push({ fecha, hora, monto, concepto })
+    ]);
+
+    document.getElementById('modal-retiro-efectivo')?.remove();
+    toast(`✓ Retiro de $${monto.toFixed(2)} registrado correctamente`, 'success');
+}
+
+
 
 // ─── IMPRIMIR DOCUMENTOS ──────────────────────────────────────────────────
 function imprimirContrato() {
@@ -3014,7 +3109,6 @@ async function renderHistorialContent() {
     const wrap = document.getElementById('historial-body');
     if (!wrap) return;
 
-    const HOY_ISO = getFechaHoySV();
     const branches = [
         { id: 'clientes', label: 'INVER1', color: 'var(--accent)', mora: 'mora_registrada' },
         { id: 'clientes2', label: 'INVER2', color: '#7c3aed', mora: 'mora_registrada2' },
@@ -3032,10 +3126,11 @@ async function renderHistorialContent() {
             Object.entries(data).forEach(([cid, c]) => {
                 const cuotas = c.cuotas || [];
                 cuotas.forEach((q, qidx) => {
-                    if (q.pagada && q.fecha_ISO === HOY_ISO) {
+                    if (q.pagada) {
                         allPayments.push({
                             cliente: c.nombre,
                             monto: q.valorPagado,
+                            fecha: q.fecha_ISO || q.fecha || '—',
                             hora: q.hora || '—',
                             branch: b.label,
                             branchColor: b.color,
@@ -3048,26 +3143,29 @@ async function renderHistorialContent() {
 
             const mData = moraSnapshots[idx].val() || {};
             Object.entries(mData).forEach(([mid, m]) => {
-                if (m.fecha === HOY_ISO) {
-                    allPayments.push({
-                        cliente: m.nombre,
-                        monto: m.monto,
-                        hora: m.hora || '—',
-                        branch: b.label,
-                        branchColor: b.color,
-                        n: 'Mora',
-                        tipo: 'Mora'
-                    });
-                }
+                allPayments.push({
+                    cliente: m.nombre,
+                    monto: m.monto,
+                    fecha: m.fecha || '—',
+                    hora: m.hora || '—',
+                    branch: b.label,
+                    branchColor: b.color,
+                    n: 'Mora',
+                    tipo: 'Mora'
+                });
             });
         });
 
-        allPayments.sort((a,b) => b.hora.localeCompare(a.hora));
+        allPayments.sort((a,b) => {
+            const da = (a.fecha + ' ' + a.hora).replace(/—/g, '00:00');
+            const db = (b.fecha + ' ' + b.hora).replace(/—/g, '00:00');
+            return db.localeCompare(da);
+        });
 
         if (allPayments.length === 0) {
             wrap.innerHTML = `<div style="text-align:center;padding:4rem;color:var(--muted2)">
                 <div style="font-size:3rem;margin-bottom:1rem">☕</div>
-                <p>No se han registrado cobros el día de hoy.</p>
+                <p>No se han registrado cobros aún.</p>
             </div>`;
             return;
         }
@@ -3078,18 +3176,18 @@ async function renderHistorialContent() {
         wrap.innerHTML = `
         <div style="margin-bottom:1.5rem;display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:1rem">
             <div style="background:var(--surface2);padding:1rem;border-radius:1rem;border:1px solid var(--border);text-align:center">
-                <div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted2)">Total Cobrado Hoy</div>
+                <div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted2)">Total Cobrado Histórico</div>
                 <div style="font-size:1.5rem;font-weight:800;color:var(--accent);font-family:'JetBrains Mono',monospace">$${total.toFixed(2)}</div>
             </div>
             <div style="background:var(--surface2);padding:1rem;border-radius:1rem;border:1px solid var(--border);text-align:center">
-                <div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted2)">Transacciones</div>
+                <div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted2)">Transacciones Totales</div>
                 <div style="font-size:1.5rem;font-weight:800;color:var(--text);font-family:'JetBrains Mono',monospace">${allPayments.length}</div>
             </div>
         </div>
         <table style="width:100%;border-collapse:collapse;font-size:0.85rem">
             <thead>
                 <tr style="text-align:left;color:var(--muted2);border-bottom:1px solid var(--border)">
-                    <th style="padding:0.75rem">Hora</th>
+                    <th style="padding:0.75rem">Fecha / Hora</th>
                     <th style="padding:0.75rem">Cliente</th>
                     <th style="padding:0.75rem">Cuenta</th>
                     <th style="padding:0.75rem">Concepto</th>
@@ -3099,7 +3197,10 @@ async function renderHistorialContent() {
             <tbody>
                 ${allPayments.map(p => `
                 <tr style="border-bottom:1px solid var(--border)">
-                    <td style="padding:0.75rem;font-family:'JetBrains Mono',monospace;color:var(--muted2)">${p.hora}</td>
+                    <td style="padding:0.75rem;font-family:'JetBrains Mono',monospace;color:var(--muted2)">
+                        <div style="font-size:0.75rem;color:var(--text)">${p.fecha}</div>
+                        <div style="font-size:0.65rem">${p.hora}</div>
+                    </td>
                     <td style="padding:0.75rem;font-weight:700">${p.cliente}</td>
                     <td style="padding:0.75rem">
                         <span style="background:${p.branchColor}20;color:${p.branchColor};padding:0.15rem 0.5rem;border-radius:0.4rem;font-size:0.65rem;font-weight:800;border:1px solid ${p.branchColor}40">
