@@ -1,0 +1,1590 @@
+<!-- Archivo: credilisto-saas/portal.html -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ERP CrediListo Pro | v24 Enterprise</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
+    <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-storage-compat.js"></script>
+    
+    <style>
+        :root {
+            --bg: #f8fafc; --sidebar: #0f172a; --surface: #ffffff; --surface2: #f1f5f9;
+            --accent: #0ea5e9; --accent-dim: rgba(14,165,233,0.1);
+            --text: #1e293b; --muted: #64748b; --muted2: #94a3b8;
+            --border: #e2e8f0; --border2: #cbd5e1;
+            --danger: #ef4444; --danger-dim: rgba(239,68,68,0.1);
+            --success: #10b981; --success-dim: rgba(16,185,129,0.1);
+            --shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; display: flex; height: 100vh; overflow: hidden; }
+
+        /* SIDEBAR */
+        .sidebar { width: 280px; background: var(--sidebar); display: flex; flex-direction: column; flex-shrink: 0; color: #fff; }
+        .sidebar-header { padding: 2rem 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .logo { font-family: 'Syne', sans-serif; font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; }
+        .logo span { color: var(--accent); }
+        
+        .branch-selector { display: flex; gap: 0.25rem; background: rgba(255,255,255,0.05); padding: 0.25rem; border-radius: 0.75rem; margin-top: 1.5rem; }
+        .branch-btn { flex: 1; border: none; background: transparent; color: #94a3b8; padding: 0.5rem; border-radius: 0.6rem; font-size: 0.65rem; font-weight: 800; cursor: pointer; transition: 0.2s; }
+        .branch-btn.active { background: var(--accent); color: #fff; }
+
+        .nav-menu { flex: 1; padding: 1.5rem 1rem; overflow-y: auto; }
+        .nav-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.85rem 1rem; color: #94a3b8; font-weight: 600; font-size: 0.85rem; border-radius: 0.75rem; cursor: pointer; transition: 0.2s; margin-bottom: 0.25rem; border: none; background: transparent; width: 100%; text-align: left; }
+        .nav-item:hover { background: rgba(255,255,255,0.03); color: #fff; }
+        .nav-item.active { background: var(--accent-dim); color: var(--accent); }
+        .badge { background: var(--danger); color: #fff; font-size: 0.6rem; padding: 0.15rem 0.4rem; border-radius: 1rem; margin-left: auto; font-weight: 800; }
+
+        .sidebar-footer { padding: 1.5rem; border-top: 1px solid rgba(255,255,255,0.05); }
+
+        /* MAIN CONTENT */
+        .main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+        .top-header { background: #fff; border-bottom: 1px solid var(--border); padding: 0 2rem; height: 72px; display: flex; align-items: center; justify-content: space-between; z-index: 10; }
+        .header-stats { display: flex; gap: 2rem; }
+        .h-stat { display: flex; flex-direction: column; }
+        .h-label { font-size: 0.55rem; font-weight: 800; letter-spacing: 0.15em; color: var(--muted2); text-transform: uppercase; }
+        .h-val { font-family: 'JetBrains Mono', monospace; font-size: 1.1rem; font-weight: 700; }
+        .h-val.green { color: var(--success); }
+        .h-val.blue { color: var(--accent); }
+
+        .view { flex: 1; overflow-y: auto; padding: 2rem; display: none; }
+        .view.active { display: block; }
+
+        /* CARDS & UI COMPONENTS */
+        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+        .stat-card { background: #fff; border: 1px solid var(--border); border-radius: 1.25rem; padding: 1.5rem; box-shadow: var(--shadow); position: relative; overflow: hidden; }
+        .stat-card::before { content: ""; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: var(--accent); }
+        .stat-label { font-size: 0.65rem; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; display: block; margin-bottom: 0.5rem; }
+        .stat-value { font-family: 'Syne', sans-serif; font-size: 2.2rem; font-weight: 800; color: var(--text); }
+        .stat-value.blue { color: var(--accent); }
+        .stat-value.red { color: var(--danger); }
+
+        .section-card { background: #fff; border: 1px solid var(--border); border-radius: 1.25rem; overflow: hidden; box-shadow: var(--shadow); }
+        .section-header { padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .section-header h3 { font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 800; }
+        .section-body { padding: 1.5rem; }
+
+        /* LISTS */
+        .zebra-list { display: flex; flex-direction: column; }
+        .list-item { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); transition: 0.2s; cursor: pointer; }
+        .list-item:hover { background: var(--bg); }
+        .item-info { display: flex; flex-direction: column; gap: 0.2rem; }
+        .item-info strong { font-size: 0.95rem; font-weight: 700; color: var(--text); }
+        .item-info span { font-size: 0.75rem; color: var(--muted); font-weight: 600; }
+        .item-stats { text-align: right; margin-right: 2rem; display: flex; flex-direction: column; }
+        .item-stats span { font-family: 'JetBrains Mono', monospace; font-weight: 700; }
+
+        /* BUTTONS */
+        .btn { border: none; border-radius: 0.75rem; font-family: inherit; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 0.5rem; transition: 0.2s; white-space: nowrap; }
+        .btn-sm { padding: 0.5rem 1rem; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        .btn-lg { padding: 1rem 1.5rem; font-size: 0.85rem; }
+        .btn-full { width: 100%; justify-content: center; }
+        .btn-accent { background: var(--accent); color: #fff; }
+        .btn-accent:hover { background: #0284c7; }
+        .btn-ghost { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+        .btn-danger { background: var(--danger); color: #fff; }
+        .btn-blue { background: var(--accent-soft); color: var(--accent); border: 1px solid rgba(14,165,233,0.2); }
+
+        /* TABLAS SEMANALES */
+        .table-semanal { width: 100%; border-collapse: collapse; margin-top: 0.5rem; background: #fff; border-radius: 0.75rem; overflow: hidden; border: 1px solid var(--border); }
+        .table-semanal th { background: var(--surface2); padding: 0.75rem; font-size: 0.65rem; text-transform: uppercase; color: var(--muted); text-align: left; border-bottom: 1px solid var(--border); }
+        .table-semanal td { padding: 0.85rem 0.75rem; font-size: 0.85rem; border-bottom: 1px solid var(--border); }
+        .table-semanal tr:last-child td { border-bottom: none; }
+        .table-semanal tr:hover { background: rgba(37,99,235,0.02); }
+
+        /* FICHAS DE MORA MEJORADAS */
+        .ficha-mora { background: #fff; border: 1px solid var(--border); border-radius: 1rem; padding: 1.25rem; margin-bottom: 1rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06); transition: 0.3s; border-left: 5px solid var(--danger); }
+        .ficha-mora:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+        .ficha-mora .badge { font-size: 0.65rem; padding: 0.25rem 0.6rem; border-radius: 0.5rem; font-weight: 700; }
+
+        /* MODAL SYSTEM */
+        .modal { position: fixed; inset: 0; background: rgba(15,23,42,0.7); backdrop-filter: blur(8px); z-index: 2000; display: flex; align-items: center; justify-content: center; padding: 1rem; opacity: 0; pointer-events: none; transition: 0.3s; }
+        .modal.active { opacity: 1; pointer-events: auto; }
+        .modal-content { background: var(--surface); border-radius: 1.5rem; width: 100%; max-width: 500px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); max-height: 94vh; display: flex; flex-direction: column; overflow: hidden; transform: scale(0.95); transition: 0.3s; }
+        .modal.active .modal-content { transform: scale(1); }
+        .modal-content.large { max-width: 1100px; height: 90vh; }
+        .modal-header { padding: 1.5rem 2rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .modal-body { flex: 1; overflow-y: auto; padding: 2rem; }
+
+        /* EXPEDIENTE GRID */
+        .expediente-grid { display: grid; grid-template-columns: 1fr 380px; gap: 2rem; }
+        .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+        .stat-card.mini { padding: 1rem; }
+        .sc-label { font-size: 0.5rem; font-weight: 800; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.1em; display: block; }
+        .sc-val { font-family: 'JetBrains Mono', monospace; font-size: 1rem; font-weight: 700; color: var(--text); }
+        .sc-val.red { color: var(--danger); }
+        .sc-val.blue { color: var(--accent); }
+
+        /* CUOTAS ROW */
+        .cuotas-container { display: flex; flex-direction: column; gap: 0.5rem; }
+        .cuota-row { display: grid; grid-template-columns: 40px 1fr 100px 100px; align-items: center; gap: 1rem; padding: 0.75rem 1rem; background: var(--bg); border: 1px solid var(--border); border-radius: 0.75rem; transition: 0.2s; }
+        .cuota-row.pagada { opacity: 0.7; background: var(--success-dim); border-color: var(--success); }
+        .cuota-n { font-weight: 800; font-size: 0.75rem; color: var(--muted); }
+        .cuota-date { font-size: 0.8rem; font-weight: 600; }
+        
+        /* FICHA GRID */
+        .ficha-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+        .ficha-field { display: flex; flex-direction: column; gap: 0.25rem; }
+        .ficha-field.full { grid-column: 1 / -1; }
+        .ff-label { font-size: 0.55rem; font-weight: 800; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); }
+        .ff-val { font-size: 0.85rem; font-weight: 600; color: var(--text); }
+
+        .edit-input { background: var(--surface2); border: 1px solid var(--border2); border-radius: 0.5rem; padding: 0.5rem 0.75rem; font-family: inherit; font-size: 0.85rem; font-weight: 600; outline: none; width: 100%; }
+        .edit-input:focus { border-color: var(--accent); }
+
+        /* DOCS */
+        .docs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+        .doc-slot { border: 1px dashed var(--border2); border-radius: 0.75rem; overflow: hidden; transition: 0.2s; position: relative; }
+        .doc-preview { min-height: 80px; display: flex; align-items: center; justify-content: center; flex-direction: column; padding: 0.75rem; cursor: pointer; }
+        .doc-preview img { width: 100%; max-height: 120px; object-fit: cover; border-radius: 0.5rem; }
+        .doc-placeholder { color: var(--muted); font-size: 0.6rem; font-weight: 600; text-align: center; }
+        .doc-placeholder span { display: block; font-size: 1.2rem; opacity: 0.4; }
+        .upload-bar { position: absolute; bottom: 0; left: 0; height: 3px; background: var(--accent); width: 0; transition: width 0.3s; }
+
+        .toast { position: fixed; bottom: 2rem; right: 2rem; background: var(--sidebar); color: #fff; padding: 1rem 2rem; border-radius: 1rem; font-weight: 800; font-size: 0.85rem; box-shadow: 0 20px 40px rgba(0,0,0,0.2); transform: translateY(150%); transition: 0.4s; z-index: 5000; }
+        .toast.show { transform: translateY(0); }
+        .toast.error { background: var(--danger); }
+        .toast.success { background: var(--success); }
+
+    </style>
+</head>
+<body>
+
+    <!-- VISTA DE LOGIN (PIN) -->
+    <div id="view-login" style="position:fixed; inset:0; background:var(--sidebar); z-index:9999; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:2rem">
+        <div class="logo" style="font-size:3rem">Credi<span>Listo</span></div>
+        <div style="background:rgba(255,255,255,0.05); padding:2.5rem; border-radius:1.5rem; border:1px solid rgba(255,255,255,0.1); width:320px; text-align:center">
+            <h3 style="color:white; margin-bottom:1.5rem; font-family:'Syne'">ACCESO SEGURO</h3>
+            <input type="password" id="login-pin" placeholder="Ingrese PIN" style="width:100%; padding:1rem; border-radius:0.75rem; border:none; background:rgba(255,255,255,0.1); color:white; text-align:center; font-size:1.5rem; letter-spacing:0.5em; margin-bottom:1.5rem" maxlength="4">
+            <button class="btn btn-accent btn-full btn-lg" onclick="validarAcceso()">ENTRAR</button>
+        </div>
+        <p style="color:rgba(255,255,255,0.3); font-size:0.75rem">v24 Enterprise Edition · Pro Edition</p>
+    </div>
+
+    <div id="app" style="display:contents">
+        <!-- SIDEBAR -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">CREDILISTO<span>V24</span></div>
+                <div class="branch-selector">
+                    <button class="branch-btn active" onclick="switchBranch(1)" id="btn-br-1">INVER 1</button>
+                    <button class="branch-btn" onclick="switchBranch(2)" id="btn-br-2">INVER 2</button>
+                    <button class="branch-btn" onclick="switchBranch(3)" id="btn-br-3">INVER 3</button>
+                </div>
+            </div>
+            
+            <div style="padding: 0 1rem 1rem">
+                <button class="btn btn-accent btn-full" style="padding: 0.85rem; font-size: 0.75rem; letter-spacing: 0.05em" onclick="abrirModalNuevoCredito()">+ NUEVO CRÉDITO</button>
+            </div>
+
+            <nav class="nav-menu">
+                <button class="nav-item" onclick="showView('informe', this)">🌍 Informe Global</button>
+                <button class="nav-item active" onclick="showView('dashboard', this)">📊 Cobros del Día</button>
+                <button class="nav-item" onclick="showView('cartera', this)">👥 Cartera Activa</button>
+                <button class="nav-item" onclick="showView('solicitudes', this)">📋 Solicitudes <span class="badge" id="badge-solicitudes" style="display:none">0</span></button>
+                <button class="nav-item" onclick="showView('finanzas', this)">💰 Finanzas Globales</button>
+                <button class="nav-item" onclick="showView('incidencias', this)">📑 Incidencias</button>
+                <button class="nav-item" onclick="showView('archivo', this)">📁 Archivo Histórico</button>
+            </nav>
+        </aside>
+
+        <!-- MAIN CONTENT -->
+        <main class="main-content">
+            <header class="top-header">
+                <div class="header-stats">
+                    <div class="h-stat">
+                        <span class="h-label">CAPITAL ACTIVO</span>
+                        <span class="h-val" id="header-capital">$0.00</span>
+                    </div>
+                    <div class="h-stat">
+                        <span class="h-label">COBRADO HOY</span>
+                        <span class="h-val green" id="header-cobrado">$0.00</span>
+                    </div>
+                    <div class="h-stat">
+                        <span class="h-label">CAJA CHICA</span>
+                        <span class="h-val blue" id="header-caja">$0.00</span>
+                    </div>
+                </div>
+                <div class="header-actions" style="display:flex; gap:0.5rem">
+                    <button class="btn btn-ghost btn-sm" onclick="abrirModalHistorialCobros()">📅 HISTORIAL COBROS</button>
+                    <button class="btn btn-accent btn-sm" onclick="modalCobroRapido()">⚡ COBRO RÁPIDO</button>
+                </div>
+            </header>
+
+            <!-- VIEWS -->
+            <div id="view-informe" class="view">
+                <div id="global-informe-panel"></div>
+            </div>
+
+            <div id="view-dashboard" class="view active">
+                <div id="cobros-panel"></div>
+            </div>
+
+            <div id="view-cartera" class="view">
+                <div class="section-card">
+                    <div class="section-header">
+                        <h3>Cartera Activa — Sucursal <span id="label-br">1</span></h3>
+                        <input type="text" placeholder="Filtrar clientes..." class="edit-input" style="width:250px" oninput="filterList(this, 'cartera-list')">
+                    </div>
+                    <div id="cartera-list" class="zebra-list"></div>
+                </div>
+            </div>
+
+            <div id="view-solicitudes" class="view">
+                <div class="section-card">
+                    <div class="section-header">
+                        <h3>Solicitudes Pendientes de Revisión</h3>
+                    </div>
+                    <div id="solicitudes-list" class="zebra-list"></div>
+                </div>
+            </div>
+
+            <div id="view-finanzas" class="view">
+                <div id="finanzas-panel"></div>
+                <div style="display:flex; gap:1rem; margin-top:1.5rem">
+                    <button class="btn btn-accent btn-lg" style="flex:1" onclick="modalConfigurarFinanzas()">⚙️ AJUSTE DE CAJA</button>
+                    <button class="btn btn-danger btn-lg" style="flex:1" onclick="modalRetiroEfectivo()">💸 RETIRO / COMISIÓN</button>
+                </div>
+
+                <div class="section-card" style="margin-top:2rem">
+                    <div class="section-header"><h3>Recaudación Diaria (Últimos 15 días)</h3></div>
+                    <div id="finanzas-recaudacion-diaria" class="zebra-list"></div>
+                </div>
+
+                <div class="section-card" style="margin-top:2rem">
+                    <div class="section-header"><h3>Historial de Movimientos de Caja</h3></div>
+                    <div id="finanzas-historial" class="zebra-list"></div>
+                </div>
+            </div>
+
+            <div id="view-incidencias" class="view">
+                <div class="section-card">
+                    <div class="section-header">
+                        <h3>Bitácora de Incidencias y Movimientos</h3>
+                        <button class="btn btn-ghost btn-sm" onclick="renderIncidencias()">🔄 REFRESCAR</button>
+                    </div>
+                    <div id="incidencias-list" class="zebra-list"></div>
+                </div>
+            </div>
+
+            <!-- MODAL AJUSTE COMPLEJO -->
+            <div id="modal-ajuste" class="modal">
+                <div class="modal-content">
+                    <div class="modal-header"><h3>Ajuste de Caja Chica</h3><button class="btn btn-ghost" onclick="cerrarModalAjuste()">✕</button></div>
+                    <div class="modal-body">
+                        <div class="ficha-field"><span class="ff-label">Acción</span>
+                            <select id="adj-tipo" class="edit-input"><option value="ADD">SUMAR (+)</option><option value="SUB">RESTAR (-)</option></select>
+                        </div>
+                        <div class="ficha-field"><span class="ff-label">Monto ($)</span><input type="number" id="adj-monto" class="edit-input"></div>
+                        <div class="ficha-field"><span class="ff-label">Motivo / Concepto</span><input type="text" id="adj-motivo" class="edit-input"></div>
+                        <div class="ficha-field"><span class="ff-label">Responsable</span><input type="text" id="adj-resp" class="edit-input"></div>
+                    </div>
+                    <div class="modal-footer"><button class="btn btn-accent btn-full" onclick="ejecutarAjuste()">✓ APLICAR AJUSTE</button></div>
+                </div>
+            </div>
+
+            <!-- MODAL RETIRO COMPLEJO -->
+            <div id="modal-retiro" class="modal">
+                <div class="modal-content">
+                    <div class="modal-header"><h3>Retiro de Fondos / Comisiones</h3><button class="btn btn-ghost" onclick="cerrarModalRetiro()">✕</button></div>
+                    <div class="modal-body">
+                        <div class="ficha-field"><span class="ff-label">Monto a Retirar ($)</span><input type="number" id="ret-monto" class="edit-input"></div>
+                        <div class="ficha-field"><span class="ff-label">Motivo</span>
+                            <select id="ret-motivo" class="edit-input"><option value="COMISION">PAGO DE COMISIONES</option><option value="GASTO">GASTO OPERATIVO</option><option value="OTRO">OTRO</option></select>
+                        </div>
+                        <div class="ficha-field"><span class="ff-label">Descripción</span><input type="text" id="ret-desc" class="edit-input"></div>
+                        <div class="ficha-field"><span class="ff-label">Responsable</span><input type="text" id="ret-resp" class="edit-input"></div>
+                        <div style="margin-top:1rem; padding:0.8rem; background:var(--accent-dim); border-radius:0.5rem; font-size:0.75rem; color:var(--accent)">
+                            ⚠️ El retiro de comisiones reiniciará el contador de ganancias acumuladas.
+                        </div>
+                    </div>
+                    <div class="modal-footer"><button class="btn btn-danger btn-full" onclick="ejecutarRetiro()">💸 CONFIRMAR RETIRO</button></div>
+                </div>
+            </div>
+
+            <!-- MODAL APROBACION (PASOS) -->
+            <div id="modal-aprobar" class="modal">
+                <div class="modal-content">
+                    <div class="modal-header"><h3>Asistente de Aprobación</h3><button class="btn btn-ghost" onclick="document.getElementById('modal-aprobar').classList.remove('active')">✕</button></div>
+                    <div class="modal-body">
+                        <div id="aprob-step-1">
+                            <p style="font-weight:800; margin-bottom:1rem; color:var(--accent)">PASO 1: SELECCIONAR RAMA DESTINO</p>
+                            <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:0.5rem">
+                                <button class="btn btn-ghost btn-full b-aprob-br" onclick="setAprobBr(1, this)">INVER 1</button>
+                                <button class="btn btn-ghost btn-full b-aprob-br" onclick="setAprobBr(2, this)">INVER 2</button>
+                                <button class="btn btn-ghost btn-full b-aprob-br" onclick="setAprobBr(3, this)">INVER 3</button>
+                            </div>
+                        </div>
+                        <div id="aprob-step-2" style="display:none; margin-top:2rem">
+                            <p style="font-weight:800; margin-bottom:1rem; color:var(--accent)">PASO 2: PROCEDENCIA DEL DINERO</p>
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem">
+                                <button class="btn btn-ghost btn-full b-aprob-src" onclick="setAprobSrc('INYECCION', this)">INYECCIÓN CAPITAL</button>
+                                <button class="btn btn-ghost btn-full b-aprob-src" onclick="setAprobSrc('CAJA', this)">CAJA CHICA</button>
+                            </div>
+                        </div>
+                        <div style="margin-top:2.5rem">
+                            <button id="btn-finalizar-aprob" class="btn btn-accent btn-full btn-lg" style="display:none" onclick="ejecutarAprobacion()">ACTIVAR CRÉDITO AHORA</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-archivo" class="view">
+                <div class="section-card">
+                    <div class="section-header">
+                        <h3>Archivo Histórico — Sucursal <span id="label-br-arch">1</span></h3>
+                        <input type="text" placeholder="Buscar en archivo..." class="edit-input" style="width:250px" oninput="filterList(this, 'archivo-list')">
+                    </div>
+                    <div id="archivo-list" class="zebra-list"></div>
+                </div>
+            </div>
+
+            <!-- MODAL NUEVO CREDITO (EXPANDIDO) -->
+            <div id="modal-nuevo" class="modal">
+                <div class="modal-content" style="max-width: 600px">
+                    <div class="modal-header">
+                        <h3>NUEVO CRÉDITO</h3>
+                        <button class="btn-close" onclick="cerrarModalNuevo()">✕</button>
+                    </div>
+                    <div class="modal-body">
+                        <div style="margin-bottom:1.5rem; background:var(--surface2); padding:1rem; border-radius:0.75rem; border:1px solid var(--border)">
+                            <div class="ff-label">BUSCAR CLIENTE EXISTENTE (OPCIONAL)</div>
+                            <div style="display:flex; gap:0.5rem; margin-top:0.5rem">
+                                <input type="text" id="n-search-client" placeholder="DUI o Nombre..." class="edit-input" style="flex:1">
+                                <button class="btn btn-blue btn-sm" onclick="buscarClienteParaNuevo()">BUSCAR</button>
+                            </div>
+                            <div id="n-search-results" style="margin-top:0.5rem; max-height:150px; overflow-y:auto"></div>
+                        </div>
+
+                        <div class="ficha-grid" style="grid-template-columns: 1fr 1fr">
+                            <div class="ficha-field" style="grid-column: span 2"> <span class="ff-label">Nombre Completo</span> <input class="edit-input" id="n-nombre"> </div>
+                            <div class="ficha-field"> <span class="ff-label">DUI</span> <input class="edit-input" id="n-dui"> </div>
+                            <div class="ficha-field"> <span class="ff-label">Teléfono</span> <input class="edit-input" id="n-tel"> </div>
+                            <div class="ficha-field" style="grid-column: span 2"> <span class="ff-label">Dirección Casa</span> <input class="edit-input" id="n-dir"> </div>
+                            <div class="ficha-field"> <span class="ff-label">Negocio</span> <input class="edit-input" id="n-negocio"> </div>
+                            <div class="ficha-field"> <span class="ff-label">Monto ($)</span> <input type="number" class="edit-input" id="n-monto" value="200"> </div>
+                            <div class="ficha-field"> <span class="ff-label">Frecuencia</span> 
+                                <select class="edit-input" id="n-frec">
+                                    <option value="diario">Diario (30 pagos)</option>
+                                    <option value="semanal">Semanal (4 pagos)</option>
+                                </select>
+                            </div>
+                            <div class="ficha-field"> <span class="ff-label">Fecha Inicio</span> <input type="date" class="edit-input" id="n-fecha"> </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-accent btn-full btn-lg" onclick="crearCreditoDirecto()">✓ CREAR CRÉDITO</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MODAL EXPEDIENTE -->
+            <div id="client-modal" class="modal">
+                <div class="modal-content large">
+                    <div class="modal-header">
+                        <div>
+                            <h2 id="m-client-name" style="font-family:'Syne'">Nombre del Cliente</h2>
+                            <p id="m-client-meta" style="font-size:0.75rem; color:var(--muted)">DUI: 0000-0 | Tel: 0000</p>
+                        </div>
+                        <div style="display:flex; gap:0.5rem">
+                            <button class="btn btn-ghost" onclick="openWhatsApp()">💬 WhatsApp</button>
+                            <button class="btn btn-ghost" onclick="closeClientModal()">✕</button>
+                        </div>
+                    </div>
+                    <div class="modal-body">
+                        <div class="expediente-grid">
+                            <div class="expediente-main">
+                                <div class="stats-row">
+                                    <div class="stat-card mini">
+                                        <span class="sc-label">SALDO PENDIENTE</span>
+                                        <span class="sc-val red" id="m-client-saldo">$0.00</span>
+                                    </div>
+                                    <div class="stat-card mini">
+                                        <span class="sc-label">TOTAL CRÉDITO</span>
+                                        <span class="sc-val blue" id="m-client-total">$0.00</span>
+                                    </div>
+                                    <div class="stat-card mini">
+                                        <span class="sc-label">CAPITAL BASE</span>
+                                        <span class="sc-val" id="m-client-monto">$0.00</span>
+                                    </div>
+                                </div>
+                                <div id="semaforo-wrap" style="margin-bottom:1.5rem"></div>
+                                <div class="section-card">
+                                    <div class="section-header">
+                                        <h3>Control de Pagos</h3>
+                                        <button class="btn btn-blue btn-sm" onclick="agregarCobroExtra()">+ COBRO EXTRA</button>
+                                    </div>
+                                    <div class="section-body cuotas-container" id="m-cuotas-list"></div>
+                                </div>
+                            </div>
+                            <div class="expediente-side">
+                                <div class="section-card">
+                                    <div class="section-header">
+                                        <h3>Ficha Técnica</h3>
+                                        <button class="btn btn-ghost btn-sm" onclick="guardarFicha()">Guardar</button>
+                                    </div>
+                                    <div class="section-body ficha-grid" id="m-ficha-grid"></div>
+                                </div>
+                                <div class="section-card" style="margin-top:1.5rem">
+                                    <div class="section-header"><h3>Documentación & Legal</h3></div>
+                                    <div class="section-body">
+                                        <div style="display:flex; gap:0.5rem; margin-bottom:1rem">
+                                            <button class="btn btn-ghost btn-sm btn-full" onclick="imprimirContrato()">🖨️ Contrato</button>
+                                            <button class="btn btn-ghost btn-sm btn-full" onclick="imprimirLetra()">🖨️ Letra</button>
+                                        </div>
+                                        <div class="docs-grid" id="m-docs-grid"></div>
+                                    </div>
+                                </div>
+                                <div id="footer-actions-area" style="margin-top:1.5rem"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- MODAL HISTORIAL DE COBROS -->
+            <div id="modal-historial-cobros" class="modal">
+                <div class="modal-content" style="max-width: 700px">
+                    <div class="modal-header">
+                        <h3>Historial de Cobros</h3>
+                        <button class="btn btn-ghost" onclick="document.getElementById('modal-historial-cobros').classList.remove('active')">✕</button>
+                    </div>
+                    <div class="modal-body">
+                        <div style="margin-bottom:1.5rem; display:flex; gap:1rem; align-items:flex-end">
+                            <div style="flex:1">
+                                <span class="ff-label">Filtrar por Fecha</span>
+                                <input type="date" id="hist-fecha-filtro" class="edit-input" onchange="renderHistorialCobros()">
+                            </div>
+                            <div style="flex:1">
+                                <span class="ff-label">Total del Día</span>
+                                <div id="hist-total-dia" style="font-family:'JetBrains Mono'; font-size:1.2rem; font-weight:800; color:var(--success)">$0.00</div>
+                            </div>
+                        </div>
+                        <div id="historial-cobros-list" class="zebra-list"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script>
+        const DB_URL = "https://credilistosv-default-rtdb.firebaseio.com";
+        const FB_CFG = { apiKey: "AIzaSyC1GiJitT0QegrVe9o6CHCsvf7sEZELwRk", authDomain: "credilistosv.firebaseapp.com", databaseURL: DB_URL, projectId: "credilistosv", storageBucket: "credilistosv.firebasestorage.app" };
+
+        firebase.initializeApp(FB_CFG);
+        const db = firebase.database();
+
+        let currentBranch = 1;
+        let store = { 1:{}, 2:{}, 3:{} };
+        let finanzas = { 1:{}, 2:{}, 3:{} };
+        let curId = null;
+
+        function validarAcceso() {
+            const pin = document.getElementById('login-pin').value;
+            if(pin === "2025") {
+                document.getElementById('view-login').style.display = 'none';
+                sessionStorage.setItem('auth_credilisto', 'true');
+                toast("Bienvenido de nuevo","success");
+            } else {
+                toast("PIN Incorrecto","error");
+                document.getElementById('login-pin').value = '';
+            }
+        }
+
+        // Auto-login si ya autenticado
+        if(sessionStorage.getItem('auth_credilisto') === 'true') {
+            document.getElementById('view-login').style.display = 'none';
+        }
+
+        function fmt(n) { return '$' + parseFloat(n||0).toLocaleString('es-SV', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+        function getHoyISO() { 
+            const d = new Date();
+            const svTimeMs = d.getTime() - (6 * 3600000);
+            return new Date(svTimeMs).toISOString().split('T')[0];
+        }
+        function getFechaHoySV() { 
+            const iso = getHoyISO();
+            return iso.split('-').reverse().join('/');
+        }
+
+        function initSync() {
+            [1, 2, 3].forEach(br => {
+                const suffix = br === 1 ? '' : br;
+                db.ref('clientes' + suffix).on('value', snap => { store[br] = snap.val() || {}; updateUI(); });
+                db.ref(br === 1 ? 'config/finanzas' : `config/finanzas${br}`).on('value', snap => { 
+                    let data = snap.val() || {};
+                    // Corrección interna solicitada para INVER 3 (Ajuste de $500 a $1,000)
+                    if(br === 3 && parseFloat(data.capitalInvertido) === 500) {
+                        db.ref('config/finanzas3').update({ capitalInvertido: "1000.00" });
+                        data.capitalInvertido = "1000.00";
+                    }
+                    finanzas[br] = data; 
+                    updateUI(); 
+                });
+            });
+        }
+        initSync();
+
+        function switchBranch(br) {
+            currentBranch = br;
+            document.querySelectorAll('.branch-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('btn-br-' + br).classList.add('active');
+            document.getElementById('label-br').textContent = br;
+            if(document.getElementById('label-br-arch')) document.getElementById('label-br-arch').textContent = br;
+            updateUI();
+        }
+
+        function showView(v, el) {
+            document.querySelectorAll('.view').forEach(x => x.classList.remove('active'));
+            document.getElementById('view-'+v).classList.add('active');
+            document.querySelectorAll('.nav-item').forEach(x => x.classList.remove('active'));
+            if(el) el.classList.add('active');
+            if(v === 'dashboard') renderCobrosDelDia();
+        }
+
+        function renderCobrosDelDia() {
+            const panel = document.getElementById('cobros-panel');
+            if(!panel) return;
+            const hoyISO = getHoyISO();
+            const hoySV = getFechaHoySV();
+            const diaSemanaHoy = new Date().getDay(); // 0=Dom, 1=Lun...
+            
+            const activos = Object.values(store[currentBranch]).filter(c => c.tipo === 'ACTIVO');
+            const listaMora = [], hoyDiarios = [], pagados = [];
+            const semanalPorDia = {1:[],2:[],3:[],4:[],5:[],6:[]};
+
+            let carDiarios = 0, carSemanales = 0, totalRecargoMora = 0;
+
+            activos.forEach(c => {
+                const frec = (c.frecuencia||'diario').toLowerCase();
+                if(frec === 'semanal') carSemanales++; else carDiarios++;
+
+                const yaPago = (c.cuotas||[]).some(q => q.pagada && q.fecha_ISO === hoyISO);
+                if(yaPago) { pagados.push(c); return; }
+
+                // Lógica de Mora
+                let diasAtraso = 0;
+                let oldestUnpaid = null;
+                (c.cuotas||[]).forEach(q => {
+                    if(!q.pagada) {
+                        const fq = q.fecha_prog_sv || q.fecha_prog;
+                        if(esFechaPasada(fq)) {
+                            if(!oldestUnpaid) oldestUnpaid = fq;
+                        }
+                    }
+                });
+
+                if(oldestUnpaid) {
+                    diasAtraso = calcularDiasDiferencia(oldestUnpaid);
+                    let recargo = 0;
+                    if(diasAtraso > 3) recargo = 5 + (diasAtraso - 3); // $5 base + $1 por día extra
+                    totalRecargoMora += recargo;
+                    listaMora.push({...c, diasAtraso, recargo});
+                } else {
+                    let tocaHoy = false;
+                    (c.cuotas||[]).forEach(q => {
+                        if(!q.pagada && (q.fecha_prog_sv === hoySV || q.fecha_prog === hoySV)) tocaHoy = true;
+                    });
+                    if(tocaHoy) {
+                        if(frec === 'semanal') {
+                            semanalPorDia[diaSemanaHoy].push(c);
+                        } else {
+                            hoyDiarios.push(c);
+                        }
+                    } else if(frec === 'semanal') {
+                        // Agrupar otros semanales por su día correspondiente (basado en fecha inicio)
+                        const dIni = parseFechaSV(c.fechaInicio).getDay();
+                        if(dIni >= 1 && dIni <= 6) semanalPorDia[dIni].push(c);
+                    }
+                }
+            });
+
+            listaMora.sort((a,b) => b.diasAtraso - a.diasAtraso);
+
+            const nombresDias = ["DOMINGO","LUNES","MARTES","MIÉRCOLES","JUEVES","VIERNES","SÁBADO"];
+
+            panel.innerHTML = `
+                <div class="stats-grid" style="margin-bottom:1.5rem">
+                    <div class="stat-card mini"> <span class="sc-label">POR COBRAR</span> <span class="sc-val blue">${hoyDiarios.length + semanalPorDia[diaSemanaHoy].length}</span> </div>
+                    <div class="stat-card mini"> <span class="sc-label">EN MORA</span> <span class="sc-val red">${listaMora.length}</span> </div>
+                    <div class="stat-card mini"> <span class="sc-label">PAGADOS</span> <span class="sc-val success">${pagados.length}</span> </div>
+                    <div class="stat-card mini"> <span class="sc-label">RECARGO MORA</span> <span class="sc-val" style="color:#d97706">${fmt(totalRecargoMora)}</span> </div>
+                </div>
+
+                <div style="display:flex; justify-content:flex-end; margin-bottom:1rem">
+                    <button class="btn btn-blue btn-sm" onclick="modalInyeccionMora()">💳 Inyección por Mora</button>
+                </div>
+
+                <div class="mora-section" style="margin-bottom:2rem">
+                    <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:1rem; color:var(--danger); font-weight:700; font-size:0.85rem">
+                        ⚠️ EN MORA — ${listaMora.length} CLIENTES
+                        <span style="font-weight:400; color:var(--muted); font-size:0.7rem; margin-left:auto">ordenados por más días de atraso · recargo desde día 3</span>
+                    </div>
+                    ${listaMora.map(c => `
+                        <div class="ficha-mora" onclick="openClientModal('${c.id}')">
+                            <div style="display:flex; gap:0.5rem; margin-bottom:0.75rem">
+                                <span class="badge" style="background:#fee2e2; color:#b91c1c; border:1px solid #fecaca">⚠️ ${c.diasAtraso} DÍAS ATRASO</span>
+                                <span class="badge" style="background:#ffedd5; color:#9a3412; border:1px solid #fed7aa">💰 MORA: ${fmt(c.recargo)}</span>
+                                <span class="badge" style="background:var(--surface2); color:var(--muted); border:1px solid var(--border)">${c.frecuencia.toUpperCase()}</span>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem">
+                                <h4 style="font-size:1.1rem; font-weight:800; color:var(--sidebar)">${c.nombre}</h4>
+                                <div style="display:flex; gap:0.4rem">
+                                    <button class="btn btn-ghost btn-sm" style="color:#25d366; border-color:#25d366; background:rgba(37,211,102,0.1)" onclick="event.stopPropagation(); enviarWPMora('${c.id}','${currentBranch}','${c.diasAtraso}','${c.recargo}','${c.saldo}')">💬 WHATSAPP</button>
+                                    <button class="btn btn-ghost btn-sm" style="color:var(--accent); font-weight:800">VER FICHA</button>
+                                </div>
+                            </div>
+                            <div style="display:flex; gap:1.5rem; font-size:0.85rem; color:var(--muted); margin-bottom:0.6rem; background:var(--bg); padding:0.75rem; border-radius:0.5rem; border:1px dashed var(--border2)">
+                                <span>Cuota: <strong style="color:var(--text)">${fmt((c.cuotas||[]).find(q=>!q.pagada)?.valorPagado||0)}</strong></span>
+                                <span>Saldo: <strong class="red">${fmt(c.saldo)}</strong></span>
+                                <span>Recargo: <strong style="color:#d97706">${fmt(c.recargo)}</strong></span>
+                            </div>
+                            <div style="margin-bottom:1rem">
+                                <span style="background:rgba(34,197,94,0.15); border:1px solid rgba(34,197,94,0.5); border-radius:0.5rem; padding:0.4rem 1rem; font-size:0.8rem; font-weight:800; color:#16a34a">💵 TOTAL A PAGAR: ${fmt((parseFloat((c.cuotas||[]).find(q=>!q.pagada)?.valorPagado||0)) + parseFloat(c.recargo||0))}</span>
+                            </div>
+                            <div style="display:flex; gap:0.5rem">
+                                <input type="text" placeholder="Agregar nota de incidencia..." class="edit-input" style="flex:1; padding:0.6rem; font-size:0.8rem" onclick="event.stopPropagation()">
+                                <button class="btn btn-ghost btn-sm" style="background:var(--accent-dim); color:var(--accent); border-color:var(--accent)">💾 NOTA</button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+
+                <div class="weekly-section">
+                    ${[1,2,3,4,5,6].map(d => {
+                        const esHoy = d === diaSemanaHoy;
+                        const clientes = semanalPorDia[d] || [];
+                        if(!clientes.length && !esHoy) return '';
+                        return `
+                            <div style="margin-bottom:2rem">
+                                <div style="display:flex; align-items:center; gap:0.8rem; margin-bottom:0.75rem; background:var(--sidebar); padding:0.6rem 1rem; border-radius:0.75rem; border-left:4px solid var(--accent)">
+                                    <span style="font-size:0.75rem; font-weight:800; color:white; letter-spacing:0.1em">
+                                        ${esHoy ? '📅 ' : ''}${nombresDias[d]} ${esHoy ? ' — HOY' : ''}
+                                    </span>
+                                    <span style="font-size:0.7rem; font-weight:600; color:rgba(255,255,255,0.6); margin-left:auto">${clientes.length} CLIENTES ${esHoy ? `· <span style="color:var(--accent)">LISTO PARA COBRAR</span>` : ''}</span>
+                                </div>
+                                <table class="table-semanal">
+                                    <thead>
+                                        <tr>
+                                            <th>CLIENTE</th>
+                                            <th>CUOTA</th>
+                                            <th>SALDO</th>
+                                            <th style="text-align:right">ACCIONES</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${clientes.length ? clientes.map(c => `
+                                            <tr onclick="openClientModal('${c.id}')" style="cursor:pointer">
+                                                <td style="font-weight:700">${c.nombre}</td>
+                                                <td style="font-family:'JetBrains Mono'">${fmt((c.cuotas||[]).find(q=>!q.pagada)?.valorPagado||0)}</td>
+                                                <td style="color:var(--danger); font-weight:700">${fmt(c.saldo)}</td>
+                                                <td style="text-align:right">
+                                                    <button class="btn btn-ghost btn-sm" style="color:var(--accent)">DETALLE</button>
+                                                </td>
+                                            </tr>
+                                        `).join('') : `<tr><td colspan="4" style="text-align:center; padding:1.5rem; color:var(--muted); font-size:0.75rem">Sin cobros programados</td></tr>`}
+                                    </tbody>
+                                </table>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        }
+
+        function calcularDiasDiferencia(fStr) {
+            const parts = fStr.split('/');
+            const target = new Date(parts[2], parts[1]-1, parts[0]);
+            const hoy = new Date();
+            const diff = hoy - target;
+            return Math.floor(diff / (1000 * 60 * 60 * 24));
+        }
+        function parseFechaSV(fStr) {
+            const parts = fStr.split('/');
+            return new Date(parts[2], parts[1]-1, parts[0]);
+        }
+
+        function enviarWPMora(id, br, dias, rec, saldo) {
+            const c = store[br][id];
+            if(!c || !c.tel) return toast("Cliente sin teléfono registrado","error");
+            const tel = c.tel.replace(/\D/g,'');
+            const msg = encodeURIComponent(`Hola ${c.nombre}, le saludamos de CrediListo. Le recordamos que su crédito presenta un atraso de ${dias} días con un recargo por mora de ${fmt(rec)}. Su saldo pendiente total es de ${fmt(saldo)}. Por favor ponerse al día lo antes posible para evitar mayores recargos. ¡Gracias!`);
+            window.open(`https://wa.me/503${tel}?text=${msg}`, '_blank');
+        }
+        
+        function esFechaPasada(fStr) {
+            if(!fStr) return false;
+            const parts = fStr.split('/');
+            if(parts.length!==3) return false;
+            const d = new Date(parts[2], parts[1]-1, parts[0], 23, 59, 59);
+            return d < new Date();
+        }
+        
+        async function modalInyeccionMora() {
+            const nom = prompt("Nombre del cliente (Mora):"); if(!nom) return;
+            const amt = prompt("Monto cobrado por mora:"); if(!amt || isNaN(amt)) return;
+            const conc = prompt("Concepto:","Recargo por atraso");
+            const suffix = currentBranch===1?'':currentBranch;
+            await db.ref('registros_mora'+suffix).push({
+                cliente: nom, monto: parseFloat(amt), concepto: conc, fecha: getHoyISO()
+            });
+            toast("Mora de $"+amt+" registrada","success");
+        }
+
+        function showView(v, el) {
+            document.querySelectorAll('.view').forEach(x => x.classList.remove('active'));
+            document.getElementById('view-'+v).classList.add('active');
+            document.querySelectorAll('.nav-item').forEach(x => x.classList.remove('active'));
+            if(el) el.classList.add('active');
+            if(v === 'dashboard') renderCobrosDelDia();
+            if(v === 'incidencias') renderIncidencias();
+            if(v === 'informe') renderInformeGlobal();
+            if(v === 'finanzas') renderFinanzas();
+        }
+
+        function updateUI() {
+            const fin = finanzas[currentBranch] || { capitalInvertido:0, cajaChica:0 };
+            document.getElementById('header-capital').textContent = fmt(fin.capitalInvertido);
+            document.getElementById('header-caja').textContent = fmt(fin.cajaChica);
+            
+            const activos = Object.values(store[currentBranch]).filter(c => c.tipo === 'ACTIVO');
+            const pend = Object.values(store[currentBranch]).filter(c => c.tipo === 'PENDIENTE');
+            
+            let cobrado = 0;
+            activos.forEach(c => (c.cuotas||[]).forEach(q => { if(q.pagada && q.fecha_ISO === getHoyISO()) cobrado += parseFloat(q.valorPagado||0); }));
+            document.getElementById('header-cobrado').textContent = fmt(cobrado);
+            
+            document.getElementById('badge-solicitudes').textContent = pend.length;
+            document.getElementById('badge-solicitudes').style.display = pend.length ? 'flex' : 'none';
+
+            renderCartera();
+            renderSolicitudes();
+            renderFinanzas();
+            renderCobrosDelDia();
+            renderIncidencias();
+            renderArchivo();
+            if(curId) renderExpediente();
+        }
+
+        function abrirModalNuevoCredito() { 
+            document.getElementById('modal-nuevo').classList.add('active'); 
+            document.getElementById('n-fecha').value = getHoyISO();
+        }
+        function cerrarModalNuevo() { 
+            document.getElementById('modal-nuevo').classList.remove('active'); 
+            document.getElementById('n-search-results').innerHTML = '';
+            document.getElementById('n-nombre').value = '';
+            document.getElementById('n-dui').value = '';
+            document.getElementById('n-tel').value = '';
+            document.getElementById('n-dir').value = '';
+            document.getElementById('n-negocio').value = '';
+        }
+
+        function buscarClienteParaNuevo() {
+            const q = document.getElementById('n-search-client').value.toLowerCase();
+            if(!q) return;
+            const res = [];
+            [1,2,3].forEach(br => {
+                Object.values(store[br]||{}).forEach(c => {
+                    if(c.nombre.toLowerCase().includes(q) || c.dui.includes(q)) { res.push({...c, br}); }
+                });
+            });
+
+            const wrap = document.getElementById('n-search-results');
+            wrap.innerHTML = res.length ? res.map(c => `
+                <div style="background:var(--bg); padding:0.6rem; border-radius:0.5rem; margin-bottom:0.4rem; display:flex; justify-content:space-between; align-items:center; border:1px solid var(--border)">
+                    <div style="font-size:0.75rem"><strong>${c.nombre}</strong><br><span style="color:var(--muted)">DUI: ${c.dui} | INVER${c.br} | ${c.tipo}</span></div>
+                    <button class="btn btn-accent btn-sm" onclick="cargarClienteEnForm('${c.br}','${c.id}')">CARGAR</button>
+                </div>
+            `).join('') : '<p style="font-size:0.7rem; color:var(--muted); text-align:center">No se encontraron clientes</p>';
+        }
+
+        function cargarClienteEnForm(br, id) {
+            const c = store[br][id];
+            document.getElementById('n-nombre').value = c.nombre||'';
+            document.getElementById('n-dui').value = c.dui||'';
+            document.getElementById('n-tel').value = c.tel||'';
+            document.getElementById('n-dir').value = c.dirCasa||'';
+            document.getElementById('n-negocio').value = c.negocio||'';
+        }
+
+        async function crearCreditoDirecto() {
+            const nombre = document.getElementById('n-nombre').value;
+            const monto = document.getElementById('n-monto').value;
+            if(!nombre || !monto) return alert("Nombre y Monto requeridos");
+            
+            const id = "c" + Date.now();
+            const frec = document.getElementById('n-frec').value;
+            const nCuotas = frec === 'semanal' ? 4 : 30;
+            const cuotaVal = (parseFloat(monto)*1.2 / nCuotas).toFixed(2);
+            const fechaI = document.getElementById('n-fecha').value;
+            
+            const cuotas = [];
+            for(let i=1; i<=nCuotas; i++) {
+                const d = new Date(fechaI + 'T12:00:00');
+                d.setDate(d.getDate() + (frec==='semanal'? i*7 : i));
+                cuotas.push({ n:i, pagada:false, valorPagado:cuotaVal, fecha_prog_sv:d.toLocaleDateString('es-SV'), fecha_prog:d.toLocaleDateString('es-SV') });
+            }
+
+            const nuevo = {
+                id, nombre, monto,
+                dui: document.getElementById('n-dui').value,
+                tel: document.getElementById('n-tel').value,
+                dirCasa: document.getElementById('n-dir').value,
+                negocio: document.getElementById('n-negocio').value,
+                frecuencia: frec,
+                fechaInicio: new Date(fechaI + 'T12:00:00').toLocaleDateString('es-SV'),
+                tipo: 'PENDIENTE',
+                total: (parseFloat(monto) * 1.2).toFixed(2),
+                saldo: (parseFloat(monto) * 1.2).toFixed(2),
+                cuotas: cuotas
+            };
+
+            const suffix = currentBranch===1?'':currentBranch;
+            await db.ref(`clientes${suffix}/${id}`).set(nuevo);
+            cerrarModalNuevo();
+            toast("Crédito creado en espera de aprobación","success");
+            updateUI();
+        }
+
+        async function archivarCliente() {
+            if(!confirm("¿Desea mover este cliente al archivo histórico?")) return;
+            const c = store[currentBranch][curId];
+            c.tipo = 'ARCHIVO';
+            c.fechaArchivo = getFechaHoySV();
+            const suffix = currentBranch===1?'':currentBranch;
+            await db.ref(`clientes${suffix}/${curId}`).set(c);
+            toast("Cliente archivado","success");
+            closeClientModal();
+        }
+
+        async function guardarFicha() {
+            const c = store[currentBranch][curId];
+            const suffix = currentBranch===1?'':currentBranch;
+            
+            const updates = {
+                nombre: document.getElementById('ef-nombre').value,
+                dui: document.getElementById('ef-dui').value,
+                tel: document.getElementById('ef-tel').value,
+                dirCasa: document.getElementById('ef-dirCasa').value,
+                negocio: document.getElementById('ef-negocio').value,
+                inversion: document.getElementById('ef-inversion').value,
+                refNombre: document.getElementById('ef-refNombre').value,
+                refTel: document.getElementById('ef-refTel').value,
+                refNombre2: document.getElementById('ef-refNombre2').value,
+                refTel2: document.getElementById('ef-refTel2').value,
+                frecuencia: document.getElementById('ef-frecuencia').value,
+                fechaInicio: document.getElementById('ef-fechaInicio').value
+            };
+
+            await db.ref(`clientes${suffix}/${curId}`).update(updates);
+            toast("Ficha técnica actualizada","success");
+        }
+
+        function filterList(input, listId) {
+            const query = input.value.toLowerCase();
+            const items = document.querySelectorAll('#' + listId + ' .list-item');
+            items.forEach(item => {
+                const text = item.textContent.toLowerCase();
+                item.style.display = text.includes(query) ? 'flex' : 'none';
+            });
+        }
+
+        function renderFinanzas() {
+            const fin = finanzas[currentBranch] || {};
+            const activos = Object.values(store[currentBranch]).filter(c => c.tipo === 'ACTIVO');
+            
+            let carActiva = 0, totCobrar = 0, deuPendiente = 0;
+            let diarios = 0, semanales = 0;
+
+            activos.forEach(c => {
+                carActiva += parseFloat(c.monto||0);
+                totCobrar += parseFloat(c.total||0);
+                deuPendiente += parseFloat(c.saldo||0);
+                if((c.frecuencia||'diario').toLowerCase() === 'semanal') semanales++; else diarios++;
+            });
+
+            const utilAcumulada = totCobrar - carActiva; 
+            const yaCobrado = totCobrar - deuPendiente;
+            const gananciaReal = yaCobrado * (0.2 / 1.2); 
+            const gananciaNeta = gananciaReal - (parseFloat(fin.gananciasRetiradas||0));
+
+            // Lógica de Capital Reciclado: Es la cartera que excede la inversión inicial
+            const capInvertido = parseFloat(fin.capitalInvertido || 0);
+            const capReciclado = Math.max(0, carActiva - capInvertido);
+
+            // Desglose Socios
+            let sociosHtml = "";
+            if(currentBranch === 1) {
+                sociosHtml = `
+                    <div class="stat-card"> <span class="sc-label">SOCIO 1 (17%)</span> <span class="sc-val">${fmt(gananciaNeta * (17/20))}</span> </div>
+                    <div class="stat-card"> <span class="sc-label">SOCIO 2 (3%)</span> <span class="sc-val">${fmt(gananciaNeta * (3/20))}</span> </div>
+                `;
+            } else {
+                sociosHtml = `
+                    <div class="stat-card"> <span class="sc-label">SOCIO 1 (12%)</span> <span class="sc-val">${fmt(gananciaNeta * (12/20))}</span> </div>
+                    <div class="stat-card"> <span class="sc-label">SOCIO 2 (4%)</span> <span class="sc-val">${fmt(gananciaNeta * (4/20))}</span> </div>
+                    <div class="stat-card"> <span class="sc-label">SOCIO 3 (4%)</span> <span class="sc-val">${fmt(gananciaNeta * (4/20))}</span> </div>
+                `;
+            }
+
+            const panel = document.getElementById('finanzas-panel');
+            if(panel) {
+                panel.innerHTML = `
+                    <div class="stats-grid">
+                        <div class="stat-card"> <span class="sc-label">CAPITAL INVERTIDO (INYECTADO)</span> <span class="sc-val blue">${fmt(fin.capitalInvertido)}</span> </div>
+                        <div class="stat-card"> <span class="sc-label">CARTERA ACTIVA (CAPITAL EN CALLE)</span> <span class="sc-val">${fmt(carActiva)}</span> </div>
+                        <div class="stat-card" style="border-left: 5px solid var(--success)"> <span class="sc-label">CAPITAL REINVERTIDO / RECICLADO</span> <span class="sc-val success">${fmt(capReciclado)}</span> </div>
+                        
+                        <div class="stat-card"> <span class="sc-label">TOTAL A COBRAR (CAP + INT)</span> <span class="sc-val success">${fmt(totCobrar)}</span> </div>
+                        <div class="stat-card"> <span class="sc-label">DEUDA PENDIENTE (POR COBRAR)</span> <span class="sc-val red">${fmt(deuPendiente)}</span> </div>
+                        <div class="stat-card"> <span class="sc-label">RECUPERADO TOTAL (YA COBRADO)</span> <span class="sc-val success">${fmt(yaCobrado)}</span> </div>
+                        
+                        <div class="stat-card"> <span class="sc-label">CAJA CHICA (EFECTIVO DISPONIBLE)</span> <span class="sc-val blue">${fmt(fin.cajaChica)}</span> </div>
+                        
+                        <div class="stat-card" style="grid-column: span 2; background:var(--accent-dim)"> 
+                            <span class="sc-label" style="color:var(--accent)">GANANCIA DISPONIBLE A HOY (20%)</span> 
+                            <span class="sc-val" style="color:var(--accent)">${fmt(gananciaNeta)}</span> 
+                        </div>
+                        ${sociosHtml}
+                    </div>
+                `;
+            }
+            renderRecaudacionDiaria();
+        }
+
+        function renderRecaudacionDiaria() {
+            const wrap = document.getElementById('finanzas-recaudacion-diaria');
+            if(!wrap) return;
+
+            const recaudo = {};
+            const activos = Object.values(store[currentBranch]).filter(c => c.tipo === 'ACTIVO' || c.tipo === 'ARCHIVO');
+            
+            activos.forEach(c => {
+                (c.cuotas||[]).forEach(q => {
+                    if(q.pagada && q.fecha_ISO) {
+                        recaudo[q.fecha_ISO] = (recaudo[q.fecha_ISO] || 0) + parseFloat(q.valorPagado||0);
+                    }
+                });
+            });
+
+            // Ordenar fechas descendente
+            const fechas = Object.keys(recaudo).sort().reverse().slice(0, 15);
+
+            if(fechas.length === 0) {
+                wrap.innerHTML = '<div style="padding:2rem; text-align:center; color:var(--muted)">No hay registros de cobros aún</div>';
+                return;
+            }
+
+            wrap.innerHTML = fechas.map(f => `
+                <div class="list-item" onclick="abrirModalHistorialCobros('${f}')">
+                    <div class="item-info"><strong>${f.split('-').reverse().join('/')}</strong><span>${getDiaNombre(f)}</span></div>
+                    <div class="item-stats"><span class="success">${fmt(recaudo[f])}</span></div>
+                </div>
+            `).join('');
+        }
+
+        function getDiaNombre(iso) {
+            const p = iso.split('-');
+            const d = new Date(p[0], p[1]-1, p[2]);
+            return ["DOMINGO", "LUNES", "MARTES", "MIÉRCOLES", "JUEVES", "VIERNES", "SÁBADO"][d.getDay()];
+        }
+
+        function renderIncidencias() {
+            const list = document.getElementById('incidencias-list');
+            if(!list) return;
+            const br = currentBranch;
+            const path = br===1?'config/incidencias':`config/incidencias${br}`;
+            db.ref(path).limitToLast(50).once('value', snap => {
+                const data = snap.val() || {};
+                const items = Object.values(data).reverse();
+                if(items.length === 0) {
+                    list.innerHTML = '<div style="padding:2rem; text-align:center; color:var(--muted)">No hay incidencias registradas</div>';
+                    return;
+                }
+                list.innerHTML = items.map(inc => {
+                    const isNeg = inc.tipo === 'SUB' || inc.tipo === 'RETIRO' || inc.tipo === 'GASTO';
+                    const isAudit = inc.tipo === 'AUDITORIA';
+                    return `
+                        <div class="list-item">
+                            <div class="item-info">
+                                <strong style="display:flex; align-items:center; gap:0.5rem">
+                                    ${isAudit ? '🛡️' : (isNeg ? '📉' : '📈')} ${inc.motivo}
+                                </strong>
+                                <span>${inc.fecha} ${inc.hora} · Resp: ${inc.responsable}</span>
+                            </div>
+                            <div class="item-stats">
+                                <span class="${isAudit ? 'blue' : (isNeg ? 'red' : 'success')}">
+                                    ${isAudit ? '' : (isNeg ? '-' : '+')}${fmt(inc.monto)}
+                                </span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            });
+        }
+
+        function renderCartera() {
+            const list = document.getElementById('cartera-list');
+            const activos = Object.values(store[currentBranch]).filter(c => c.tipo === 'ACTIVO');
+            list.innerHTML = activos.map(c => `
+                <div class="list-item" onclick="openClientModal('${c.id}')">
+                    <div class="item-info"><strong>${c.nombre}</strong><span>DUI: ${c.dui} | ${c.frecuencia}</span></div>
+                    <div class="item-stats"><span class="red">${fmt(c.saldo)}</span><span>Saldo Pendiente</span></div>
+                </div>
+            `).join('');
+        }
+
+        function renderSolicitudes() {
+            const list = document.getElementById('solicitudes-list');
+            const pend = Object.values(store[currentBranch]).filter(c => c.tipo === 'PENDIENTE');
+            list.innerHTML = pend.map(s => `
+                <div class="list-item" onclick="openClientModal('${s.id}')">
+                    <div class="item-info"><strong>${s.nombre}</strong><span>Solicita: ${fmt(s.monto)}</span></div>
+                    <div style="display:flex; gap:0.5rem">
+                        <button class="btn btn-accent btn-sm">VER SOLICITUD</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderArchivo() {
+            const list = document.getElementById('archivo-list');
+            if(!list) return;
+            const archivados = Object.values(store[currentBranch]).filter(c => c.tipo === 'ARCHIVO');
+            list.innerHTML = archivados.length ? archivados.map(c => `
+                <div class="list-item" onclick="openClientModal('${c.id}')">
+                    <div class="item-info"><strong>${c.nombre}</strong><span>DUI: ${c.dui} | Finalizado: ${c.fechaArchivo||'—'}</span></div>
+                    <div class="item-stats"><span class="muted">${fmt(c.total)}</span><span>Total Pagado</span></div>
+                </div>
+            `).join('') : '<p style="text-align:center; padding:2rem; color:var(--muted)">No hay clientes en el archivo</p>';
+        }
+
+        function modalCobroRapido() {
+            const id = prompt("Ingrese DUI o Nombre del cliente para cobro rápido:");
+            if(!id) return;
+            const query = id.toLowerCase();
+            const found = Object.values(store[currentBranch]).find(c => 
+                c.tipo === 'ACTIVO' && (c.dui.includes(id) || c.nombre.toLowerCase().includes(query))
+            );
+            if(found) {
+                openClientModal(found.id);
+            } else {
+                toast("Cliente no encontrado en cartera activa","error");
+            }
+        }
+
+        let aprobData = { id:null, br:null, src:null };
+        function abrirAprobar(id) {
+            aprobData = { id, br:null, src:null };
+            document.getElementById('modal-aprobar').classList.add('active');
+            document.getElementById('aprob-step-1').style.display = 'block';
+            document.getElementById('aprob-step-2').style.display = 'none';
+            document.getElementById('btn-finalizar-aprob').style.display = 'none';
+        }
+
+        function setAprobBr(br, btn) { 
+            aprobData.br = br; 
+            document.querySelectorAll('.b-aprob-br').forEach(b => b.classList.remove('btn-accent'));
+            btn.classList.add('btn-accent');
+            document.getElementById('aprob-step-2').style.display = 'block';
+        }
+        function setAprobSrc(src, btn) { 
+            aprobData.src = src; 
+            document.querySelectorAll('.b-aprob-src').forEach(b => b.classList.remove('btn-accent'));
+            btn.classList.add('btn-accent');
+            document.getElementById('btn-finalizar-aprob').style.display = 'block';
+        }
+
+        async function ejecutarAprobacion() {
+            if(!aprobData.br || !aprobData.src) return toast("Seleccione Rama y Procedencia","error");
+            const s = store[currentBranch][aprobData.id];
+            const monto = parseFloat(s.monto);
+            const brDest = aprobData.br;
+            const suffixDest = brDest === 1 ? '' : brDest;
+            const finPath = brDest === 1 ? 'config/finanzas' : `config/finanzas${brDest}`;
+            
+            s.tipo = 'ACTIVO';
+            s.fechaInicio = getFechaHoySV();
+            
+            let currentCaja = parseFloat(finanzas[brDest].cajaChica || 0);
+            let currentCap = parseFloat(finanzas[brDest].capitalInvertido || 0);
+            
+            if(aprobData.src === 'CAJA') {
+                if(currentCaja < monto) return toast("No hay suficiente dinero en Caja Chica","error");
+                currentCaja -= monto;
+            } else {
+                currentCap += monto;
+            }
+
+            const updates = {};
+            if(brDest !== currentBranch) { updates[`clientes${currentBranch===1?'':currentBranch}/${aprobData.id}`] = null; }
+            updates[`clientes${suffixDest}/${aprobData.id}`] = s;
+            updates[finPath + '/cajaChica'] = currentCaja.toFixed(2);
+            updates[finPath + '/capitalInvertido'] = currentCap.toFixed(2);
+
+            await db.ref().update(updates);
+            document.getElementById('modal-aprobar').classList.remove('active');
+            toast("Solicitud aprobada en INVER " + brDest, "success");
+            closeClientModal();
+        }
+
+        async function rechazarSolicitud(id) {
+            if(!confirm("¿Rechazar solicitud?")) return;
+            const suffix = currentBranch===1?'':currentBranch;
+            await db.ref(`clientes${suffix}/${id}`).remove();
+            toast("Solicitud eliminada","danger");
+            closeClientModal();
+        }
+
+        function openClientModal(id) { curId = id; document.getElementById('client-modal').classList.add('active'); renderExpediente(); }
+        function closeClientModal() { document.getElementById('client-modal').classList.remove('active'); curId = null; }
+
+        function renderExpediente() {
+            const c = store[currentBranch][curId]; if(!c) return;
+            document.getElementById('m-client-name').textContent = c.nombre;
+            document.getElementById('m-client-meta').textContent = `DUI: ${c.dui} | Tel: ${c.tel}`;
+            document.getElementById('m-client-saldo').textContent = fmt(c.saldo);
+            document.getElementById('m-client-total').textContent = fmt(c.total);
+            document.getElementById('m-client-monto').textContent = fmt(c.monto);
+
+            // Semáforo
+            const pagadas = (c.cuotas||[]).filter(q => q.pagada).length;
+            const total = (c.cuotas||[]).length;
+            const pct = total ? Math.round((pagadas/total)*100) : 0;
+            const color = pct > 80 ? 'var(--success)' : (pct > 50 ? 'var(--warning)' : 'var(--danger)');
+            document.getElementById('semaforo-wrap').innerHTML = `
+                <div style="background:var(--surface2); padding:1rem; border-radius:1rem; display:flex; align-items:center; gap:1rem">
+                    <div style="font-size:2rem">${pct>50?'🟢':'🔴'}</div>
+                    <div style="flex:1">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:0.4rem"><span style="font-weight:800; color:${color}">PUNTUALIDAD</span><span>${pct}%</span></div>
+                        <div style="height:8px; background:#fff; border-radius:4px; overflow:hidden"><div style="height:100%; width:${pct}%; background:${color}"></div></div>
+                    </div>
+                </div>`;
+
+            // Cuotas
+            document.getElementById('m-cuotas-list').innerHTML = (c.cuotas||[]).map((q, i) => {
+                const p = (q.fecha_prog_sv || q.fecha_prog || '').split('/');
+                const dObj = p.length === 3 ? new Date(p[2], p[1]-1, p[0]) : null;
+                const diaNombre = dObj ? ["DOM", "LUNES", "MARTES", "MIÉRC", "JUEVES", "VIERNES", "SÁB"] [dObj.getDay()] : '';
+                
+                return `
+                    <div class="cuota-row ${q.pagada?'pagada':''}">
+                        <span class="cuota-n">#${q.n}</span>
+                        <span class="cuota-date"><strong style="color:var(--accent)">${diaNombre}</strong> ${q.fecha_prog_sv||q.fecha_prog}</span>
+                        <input type="number" class="edit-input" style="padding:0.35rem; width:100px" value="${q.valorPagado}" id="qamt-${i}">
+                        ${q.pagada
+                            ? `<div style="display:flex; flex-direction:column; gap:0.25rem; align-items:flex-end">
+                                <input type="date" id="qfecha-${i}" class="edit-input" style="padding:0.3rem; font-size:0.7rem; width:130px" value="${q.fecha_ISO || ''}" onchange="actualizarFechaPago(${i}, this.value)">
+                                <span class="badge" style="background:var(--success); width:100%; text-align:center">PAGADO</span>
+                               </div>`
+                            : `<div style="display:flex;flex-direction:column;gap:0.25rem;align-items:flex-end">
+                                <input type="date" id="qfecha-${i}" class="edit-input" style="padding:0.3rem;font-size:0.7rem;width:130px" value="${getHoyISO()}" title="Fecha real del pago">
+                                <button class="btn btn-accent btn-sm" onclick="pagarCuota(${i})">PAGAR</button>
+                               </div>`
+                        }
+                    </div>
+                `;
+            }).join('');
+
+            // Ficha Expandida
+            const f = document.getElementById('m-ficha-grid');
+            const field = (l, k, v) => `<div class="ficha-field"> <span class="ff-label">${l}</span> <input class="edit-input" id="ef-${k}" value="${v||''}"> </div>`;
+            f.innerHTML = `
+                ${field('Nombre Completo','nombre',c.nombre)}
+                ${field('DUI','dui',c.dui)}
+                ${field('Teléfono','tel',c.tel)}
+                ${field('Dirección Casa','dirCasa',c.dirCasa)}
+                ${field('Lugar de Trabajo / Negocio','negocio',c.negocio)}
+                ${field('Inversión del Préstamo','inversion',c.inversion)}
+                ${field('Referencia 1 (Nombre)','refNombre',c.refNombre)}
+                ${field('Referencia 1 (Tel)','refTel',c.refTel)}
+                ${field('Referencia 2 (Nombre)','refNombre2',c.refNombre2)}
+                ${field('Referencia 2 (Tel)','refTel2',c.refTel2)}
+                ${field('Frecuencia','frecuencia',c.frecuencia)}
+                ${field('Cuotas','cuotas_num', (c.cuotas||[]).length)}
+                ${field('Fecha Inicio','fechaInicio',c.fechaInicio||c.fecha)}
+            `;
+
+            // Footer Actions based on type
+            const footer = document.getElementById('footer-actions-area');
+            if(c.tipo === 'PENDIENTE') {
+                footer.innerHTML = `
+                    <button class="btn btn-accent btn-full btn-lg" onclick="abrirAprobar('${curId}')">✓ APROBAR CRÉDITO</button>
+                    <button class="btn btn-danger btn-full btn-sm" style="margin-top:0.5rem" onclick="rechazarSolicitud('${curId}')">ELIMINAR SOLICITUD</button>
+                `;
+            } else if(c.tipo === 'ACTIVO') {
+                footer.innerHTML = `<button class="btn btn-danger btn-full btn-lg" onclick="archivarCliente()">MOVER AL ARCHIVO</button>`;
+            } else {
+                footer.innerHTML = `<div style="text-align:center; padding:1rem; background:var(--surface2); border-radius:0.75rem; font-weight:700; font-size:0.8rem">CLIENTE EN ARCHIVO HISTÓRICO</div>`;
+            }
+
+            // Docs
+            const d = document.getElementById('m-docs-grid');
+            const slot = (t, l, u) => `<div class="doc-slot"><div class="doc-preview" onclick="document.getElementById('fi-${t}').click()">${u?`<img src="${u}">`:`<div class="doc-placeholder"><span>📎</span>${l}</div>`}</div><div class="upload-bar" id="bar-${t}"></div></div>`;
+            d.innerHTML = slot('contrato','Contrato',c.doc_contrato)+slot('letra','Letra',c.doc_letra)+slot('dui_frontal','DUI Frontal',c.doc_dui_frontal)+slot('dui_reverso','DUI Reverso',c.doc_dui_reverso);
+        }
+
+        async function pagarCuota(idx) {
+            const c = store[currentBranch][curId];
+            const amt = parseFloat(document.getElementById('qamt-'+idx).value);
+            // Fecha real del pago — editable para auditoría
+            const fechaInputEl = document.getElementById('qfecha-'+idx);
+            const fechaISO = fechaInputEl ? fechaInputEl.value : getHoyISO();
+            const fechaSV = fechaISO
+                ? fechaISO.split('-').reverse().join('/').replace(/^0(\d\/)/,'$1').replace(/\/(0(\d))\//, '/$2/')
+                : getFechaHoySV();
+
+            c.cuotas[idx].pagada = true;
+            c.cuotas[idx].valorPagado = amt;
+            c.cuotas[idx].fecha_ISO = fechaISO;
+            c.cuotas[idx].fecha = fechaSV;   // fecha real legible para auditoría
+            c.cuotas[idx].hora = new Date().toLocaleTimeString('es-SV', {hour:'2-digit', minute:'2-digit'});
+
+            let totalCobrado = 0; c.cuotas.forEach(q => { if(q.pagada) totalCobrado += parseFloat(q.valorPagado||0); });
+            c.saldo = (parseFloat(c.total) - totalCobrado).toFixed(2);
+            
+            const suffix = currentBranch===1?'':currentBranch;
+            const finPath = currentBranch===1?'config/finanzas':`config/finanzas${currentBranch}`;
+            const nuevaCaja = parseFloat((parseFloat(finanzas[currentBranch].cajaChica||0) + amt).toFixed(2));
+            
+            await Promise.all([
+                db.ref('clientes'+suffix+'/'+curId).set(c),
+                db.ref(finPath).update({ cajaChica: nuevaCaja })
+            ]);
+            toast(`Pago de $${amt} registrado (${fechaSV})`, 'success');
+        }
+
+        async function actualizarFechaPago(idx, nuevaFechaISO) {
+            if(!nuevaFechaISO) return;
+            const c = store[currentBranch][curId];
+            const q = c.cuotas[idx];
+            
+            const fechaSV = nuevaFechaISO.split('-').reverse().join('/');
+            
+            q.fecha_ISO = nuevaFechaISO;
+            q.fecha = fechaSV;
+            
+            const suffix = currentBranch===1?'':currentBranch;
+            await db.ref(`clientes${suffix}/${curId}/cuotas/${idx}`).update({
+                fecha_ISO: nuevaFechaISO,
+                fecha: fechaSV
+            });
+            toast("Fecha de pago actualizada", "success");
+            updateUI();
+        }
+
+        function abrirModalHistorialCobros(fecha) {
+            document.getElementById('modal-historial-cobros').classList.add('active');
+            const input = document.getElementById('hist-fecha-filtro');
+            input.value = fecha || getHoyISO();
+            renderHistorialCobros();
+        }
+
+        function renderHistorialCobros() {
+            const fecha = document.getElementById('hist-fecha-filtro').value;
+            const list = document.getElementById('historial-cobros-list');
+            const totalLabel = document.getElementById('hist-total-dia');
+            
+            if(!list) return;
+
+            const pagos = [];
+            let total = 0;
+
+            const activos = Object.values(store[currentBranch]).filter(c => c.tipo === 'ACTIVO' || c.tipo === 'ARCHIVO');
+            
+            activos.forEach(c => {
+                (c.cuotas||[]).forEach(q => {
+                    if(q.pagada && q.fecha_ISO === fecha) {
+                        pagos.push({ cliente: c.nombre, monto: q.valorPagado, hora: q.hora || '—', id: c.id });
+                        total += parseFloat(q.valorPagado || 0);
+                    }
+                });
+            });
+
+            totalLabel.textContent = fmt(total);
+
+            if(pagos.length === 0) {
+                list.innerHTML = '<div style="padding:2rem; text-align:center; color:var(--muted)">No hay cobros registrados para esta fecha</div>';
+                return;
+            }
+
+            list.innerHTML = pagos.map(p => `
+                <div class="list-item" onclick="openClientModal('${p.id}')">
+                    <div class="item-info"><strong>${p.cliente}</strong><span>Hora: ${p.hora}</span></div>
+                    <div class="item-stats"><span class="success">${fmt(p.monto)}</span></div>
+                </div>
+            `).join('');
+        }
+
+        function modalConfigurarFinanzas() { document.getElementById('modal-ajuste').classList.add('active'); }
+        function cerrarModalAjuste() { document.getElementById('modal-ajuste').classList.remove('active'); }
+
+        async function ejecutarAjuste() {
+            const monto = parseFloat(document.getElementById('adj-monto').value);
+            const tipo = document.getElementById('adj-tipo').value;
+            const motivo = document.getElementById('adj-motivo').value;
+            const resp = document.getElementById('adj-resp').value;
+            if(!monto || !motivo || !resp) return toast("Complete todos los campos","error");
+
+            const fin = finanzas[currentBranch];
+            let nuevaCaja = parseFloat(fin.cajaChica || 0);
+            if(tipo === 'ADD') nuevaCaja += monto; else nuevaCaja -= monto;
+
+            const path = currentBranch===1?'config/finanzas':`config/finanzas${currentBranch}`;
+            const pathInc = currentBranch===1?'config/incidencias':`config/incidencias${currentBranch}`;
+            
+            await db.ref(path).update({ cajaChica: nuevaCaja.toFixed(2) });
+            await db.ref(pathInc).push({ monto, tipo, motivo, responsable:resp, fecha:getFechaHoySV(), hora:new Date().toLocaleTimeString() });
+            
+            cerrarModalAjuste();
+            toast("Ajuste aplicado correctamente","success");
+        }
+
+        function modalRetiroEfectivo() { document.getElementById('modal-retiro').classList.add('active'); }
+        function cerrarModalRetiro() { document.getElementById('modal-retiro').classList.remove('active'); }
+
+        async function ejecutarRetiro() {
+            const monto = parseFloat(document.getElementById('ret-monto').value);
+            const motivo = document.getElementById('ret-motivo').value;
+            const desc = document.getElementById('ret-desc').value;
+            const resp = document.getElementById('ret-resp').value;
+            if(!monto || !resp) return toast("Monto y Responsable requeridos","error");
+
+            const fin = finanzas[currentBranch];
+            if(monto > fin.cajaChica) return toast("Fondos insuficientes en Caja","error");
+
+            let nuevasGretiradas = parseFloat(fin.gananciasRetiradas || 0);
+            if(motivo === 'COMISION') nuevasGretiradas += monto;
+
+            const path = currentBranch===1?'config/finanzas':`config/finanzas${currentBranch}`;
+            const pathInc = currentBranch===1?'config/incidencias':`config/incidencias${currentBranch}`;
+            
+            const upd = { cajaChica: (fin.cajaChica - monto).toFixed(2) };
+            if(motivo === 'COMISION') upd.gananciasRetiradas = nuevasGretiradas.toFixed(2);
+
+            await db.ref(path).update(upd);
+            await db.ref(pathInc).push({ monto, tipo:'RETIRO', motivo:motivo+': '+desc, responsable:resp, fecha:getFechaHoySV(), hora:new Date().toLocaleTimeString() });
+            
+            cerrarModalRetiro();
+            toast("Retiro registrado","danger");
+        }
+
+        function renderInformeGlobal() {
+            const wrap = document.getElementById('global-informe-panel');
+            if(!wrap) return;
+
+            let tClientes = 0, tCartera = 0, tCaja = 0, tProfit = 0;
+            [1,2,3].forEach(br => {
+                const activos = Object.values(store[br]||{}).filter(c => c.tipo === 'ACTIVO');
+                const fin = finanzas[br] || {};
+                tClientes += activos.length;
+                activos.forEach(c => {
+                    tCartera += parseFloat(c.monto||0);
+                    const tot = parseFloat(c.total||0);
+                    const deu = parseFloat(c.saldo||0);
+                    const cob = tot - deu;
+                    tProfit += cob * (0.2 / 1.2);
+                });
+                tCaja += parseFloat(fin.cajaChica||0);
+            });
+
+            wrap.innerHTML = `
+                <div class="stats-grid">
+                    <div class="stat-card"> <span class="sc-label">TOTAL CLIENTES (GLOBAL)</span> <span class="sc-val">${tClientes}</span> </div>
+                    <div class="stat-card"> <span class="sc-label">CARTERA TOTAL EN CALLE</span> <span class="sc-val blue">${fmt(tCartera)}</span> </div>
+                    <div class="stat-card"> <span class="sc-label">CAJA CHICA GLOBAL</span> <span class="sc-val blue">${fmt(tCaja)}</span> </div>
+                    <div class="stat-card" style="background:var(--accent-dim)"> <span class="sc-label" style="color:var(--accent)">UTILIDAD GLOBAL RECAUDADA</span> <span class="sc-val" style="color:var(--accent)">${fmt(tProfit)}</span> </div>
+                </div>
+                
+                <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:1.5rem; margin-top:1.5rem">
+                    ${[1,2,3].map(br => {
+                        const activos = Object.values(store[br]||{}).filter(c => c.tipo === 'ACTIVO');
+                        const car = activos.reduce((acc, c) => acc + parseFloat(c.monto||0), 0);
+                        return `
+                            <div class="section-card">
+                                <div class="section-header"><h3>SUCURSAL INVER ${br}</h3></div>
+                                <div style="padding:1rem">
+                                    <p style="margin-bottom:0.5rem"><strong>Clientes:</strong> ${activos.length}</p>
+                                    <p style="margin-bottom:0.5rem"><strong>Cartera:</strong> ${fmt(car)}</p>
+                                    <p><strong>Caja:</strong> ${fmt(finanzas[br]?.cajaChica||0)}</p>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        }
+
+        function imprimirContrato() {
+            const s = store[currentBranch][curId];
+            if (!s) return;
+            const frec      = (s.frecuencia || 'diario').toLowerCase();
+            const nCuotas   = (s.cuotas || []).length || (frec === 'semanal' ? 4 : 30);
+            const monto     = parseFloat(s.monto || 0);
+            const total     = parseFloat(s.total || (monto * 1.2));
+            const cuota     = (total / nCuotas).toFixed(2);
+            const totalFmt  = total.toFixed(2);
+            const cuotas    = s.cuotas || [];
+            const fechasVenc = cuotas.map((c, i) => {
+                const f = c.fecha_prog_sv || c.fecha_prog || c.fecha_ISO || '';
+                return 'Cuota ' + (i+1) + ': ' + f;
+            }).join('<br>');
+            const fechaHoy  = new Date().toLocaleDateString('es-SV', {year:'numeric',month:'long',day:'numeric'});
+            
+            const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+            <title>Contrato Simple | CrediListo</title>
+            <style>
+              body{font-family:'Times New Roman',serif;font-size:12pt;color:#000;margin:2.5cm;line-height:1.6}
+              h1{text-align:center;font-size:15pt;text-transform:uppercase;margin-bottom:1.2rem;letter-spacing:.05em}
+              .campo{display:inline-block;border-bottom:1px solid #000;min-width:220px;margin-left:4px}
+              .clausula{margin-top:1.2rem}
+              .clausula h2{font-size:12pt;font-weight:bold;margin-bottom:.3rem}
+              .firmas{margin-top:3rem;display:flex;justify-content:space-between}
+              .firma-bloque{text-align:center;width:42%}
+              .firma-linea{border-top:1px solid #000;margin-top:2.5rem;padding-top:.3rem;font-size:10pt}
+              @media print{body{margin:1.5cm}}
+            </style></head><body>
+            <h1>Contrato Simple de Microcrédito</h1>
+            <p><strong>Acreedor:</strong> José Lázaro Navarrete Tovar, mayor de edad, con domicilio en la República de El Salvador.
+            <strong>Representante autorizado:</strong> Jorge Emanuel Molina Mejía.</p>
+            <p><strong>Deudor:</strong> <span class="campo">${s.nombre||'_____________________________'}</span></p>
+            <p><strong>DUI:</strong> <span class="campo">${s.dui||'_____________________________'}</span></p>
+            <p><strong>Dirección:</strong> <span class="campo">${s.dirCasa||s.dirVivienda||'_____________________________'}</span></p>
+            <p><strong>Teléfono:</strong> <span class="campo">${s.tel||'_____________________________'}</span></p>
+            <p>Las partes acuerdan celebrar el presente <strong>Contrato de Préstamo</strong>, bajo las siguientes cláusulas:</p>
+            <div class="clausula"><h2>1. Objeto del contrato</h2>
+            <p>El acreedor concede al deudor un <strong>préstamo destinado a capital de trabajo</strong>, por la cantidad de: <strong>$${monto.toFixed(2)} dólares</strong>. A PAGAR en <strong>${nCuotas} cuotas</strong> de <strong>$${cuota} dólares</strong>, haciendo un total de <strong>$${totalFmt}</strong>, más recargos por incumplimiento si aplicables.</p>
+            <p>Los pagos deberán realizarse al acreedor o a <strong>Jorge Emanuel Molina Mejía</strong>.</p>
+            <p><strong>Fechas de vencimiento:</strong><br>${fechasVenc || '(Ver calendario de pagos)'}</p>
+            </div>
+            <div class="clausula"><h2>2. Recargos por mora</h2>
+            <ul><li><strong>Recargo fijo:</strong> $5.00 por atraso.</li>
+            <li><strong>Recargo adicional:</strong> $1.00 por cada día de atraso.</li></ul>
+            <p>Plazo de gracia: <strong>tres (3) días calendario</strong> posteriores al vencimiento.</p>
+            </div>
+            <div class="clausula"><h2>3. Vencimiento anticipado</h2>
+            <p>Si el deudor no cancela dentro del plazo de gracia, el acreedor podrá declarar vencido anticipadamente el crédito y exigir el saldo total.</p>
+            </div>
+            <div class="clausula"><h2>4. Letra de cambio</h2>
+            <p>El deudor firmará una <strong>letra de cambio</strong> a favor del acreedor como respaldo legal del presente contrato.</p>
+            </div>
+            <div class="clausula"><h2>5. Gestión de cobro</h2>
+            <p>El deudor acepta que el acreedor o <strong>Jorge Emanuel Molina Mejía</strong> podrá realizar recordatorios, llamadas y visitas para gestionar cobros.</p>
+            </div>
+            <p style="margin-top:1rem">Firmado en Santiago de María, Usulután, a los ${fechaHoy}.</p>
+            <div class="firmas">
+              <div class="firma-bloque"><div class="firma-linea">DEUDOR (ACEPTANTE)<br>${s.nombre||'_______________________'}</div></div>
+              <div class="firma-bloque"><div class="firma-linea">ACREEDOR<br>José Lázaro Navarrete Tovar</div></div>
+            </div>
+            </body></html>`;
+            const win = window.open('', '_blank');
+            win.document.write(html);
+            win.document.close();
+            win.focus();
+            setTimeout(() => win.print(), 600);
+        }
+
+        function imprimirLetra() {
+            const s = store[currentBranch][curId];
+            if (!s) return;
+            const monto       = parseFloat(s.monto || 0);
+            const cuotas      = s.cuotas || [];
+            const ultimaCuota = cuotas[cuotas.length - 1];
+            const fechaVenc   = ultimaCuota
+                ? (ultimaCuota.fecha_prog_sv || ultimaCuota.fecha_prog || ultimaCuota.fecha_ISO || '_______________')
+                : '_______________';
+            const fechaHoy  = new Date().toLocaleDateString('es-SV', {year:'numeric',month:'long',day:'numeric'});
+            
+            const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+            <title>Letra de Cambio | CrediListo</title>
+            <style>
+              body{font-family:'Times New Roman',serif;font-size:12pt;color:#000;margin:2.5cm;line-height:1.7}
+              h1{text-align:center;font-size:15pt;text-transform:uppercase;margin-bottom:1.5rem;letter-spacing:.08em}
+              .campo{display:inline-block;border-bottom:1px solid #000;min-width:240px;margin-left:4px}
+              .monto-box{border:2px solid #000;display:inline-block;padding:.2rem .8rem;font-weight:bold;font-size:14pt;margin:0 4px}
+              .firmas{margin-top:3.5rem;display:flex;justify-content:space-between}
+              .firma-bloque{text-align:center;width:42%}
+              .firma-linea{border-top:1px solid #000;margin-top:2.5rem;padding-top:.3rem;font-size:10pt}
+              @media print{body{margin:1.5cm}}
+            </style></head><body>
+            <h1>Letra de Cambio</h1>
+            <p><strong>Lugar y fecha de emisión:</strong> Santiago de María, Usulután, ${fechaHoy}.</p>
+            <p>Por la presente LETRA DE CAMBIO, yo:</p>
+            <p><strong>Nombre del deudor:</strong> <span class="campo">${s.nombre||'_____________________________'}</span></p>
+            <p><strong>DUI:</strong> <span class="campo">${s.dui||'_____________________________'}</span></p>
+            <p><strong>Dirección:</strong> <span class="campo">${s.dirCasa||s.dirVivienda||'_____________________________'}</span></p>
+            <p style="margin-top:1.2rem"><strong>ME OBLIGO A PAGAR</strong> incondicionalmente a la orden de: <strong>José Lázaro Navarrete Tovar</strong></p>
+            <p>Recibí la cantidad de: <span class="monto-box">$ ${monto.toFixed(2)}</span> <strong>dólares de los Estados Unidos de América</strong>, correspondiente a un préstamo recibido.</p>
+            <p><strong>Fecha de vencimiento total:</strong></p>
+            <p style="margin-left:2rem;font-size:13pt"><strong>${fechaVenc}</strong></p>
+            <p>Persona autorizada para cobro: <strong>Jorge Emanuel Molina Mejía</strong>.</p>
+            <p>En caso de incumplimiento, esta letra servirá como título ejecutivo conforme a las leyes de El Salvador.</p>
+            <div class="firmas">
+              <div class="firma-bloque"><div class="firma-linea">DEUDOR (ACEPTANTE)<br>${s.nombre||'_______________________'}</div></div>
+              <div class="firma-bloque"><div class="firma-linea">ACREEDOR<br>José Lázaro Navarrete Tovar</div></div>
+            </div>
+            </body></html>`;
+            const win = window.open('', '_blank');
+            win.document.write(html);
+            win.document.close();
+            win.focus();
+            setTimeout(() => win.print(), 600);
+        }
+
+        async function subirDoc(input, tipo) {
+            if(!input.files[0]) return; const file = input.files[0]; const bar = document.getElementById('bar-'+tipo);
+            const path = `clientes/${curId}/${tipo}_${Date.now()}`; const ref = storage.ref(path); const task = ref.put(file);
+            task.on('state_changed', snap => { bar.style.width = (snap.bytesTransferred/snap.totalBytes*100)+'%'; }, null, async () => {
+                const url = await task.snapshot.ref.getDownloadURL();
+                const suffix = currentBranch===1?'':currentBranch;
+                await db.ref('clientes'+suffix+'/'+curId).update({ ['doc_'+tipo]:url });
+                toast("Doc subido","success"); renderExpediente();
+            });
+        }
+
+        function fmt(v) { return '$' + parseFloat(v||0).toLocaleString('es-SV', {minimumFractionDigits:2}); }
+        function toast(m,t="success") { const el = document.getElementById('toast'); el.textContent = m; el.className = "toast show "+t; setTimeout(()=>el.className="toast",3000); }
+        function openWhatsApp() { 
+            const c = store[currentBranch][curId]; 
+            const msg = `Hola ${c.nombre}, te saludamos de CrediListo. Te recordamos tu compromiso de pago para el día de hoy por un monto de ${fmt(c.cuotas.find(q=>!q.pagada)?.valorPagado || 0)}. Saludos.`;
+            window.open(`https://wa.me/503${c.tel.replace(/\D/g,'')}?text=${encodeURIComponent(msg)}`,'_blank'); 
+        }
+
+        async function agregarCobroExtra() {
+            const c = store[currentBranch][curId];
+            const saldoActual = parseFloat(c.saldo || 0);
+            if(saldoActual <= 0) return toast("Este cliente no tiene saldo pendiente", "error");
+
+            const amt = prompt(`Monto del abono parcial (saldo actual: $${saldoActual.toFixed(2)}):`);
+            if(!amt || isNaN(amt)) return;
+            const montoAbono = parseFloat(parseFloat(amt).toFixed(2));
+            if(montoAbono <= 0 || montoAbono > saldoActual) 
+                return toast(`El abono debe estar entre $0.01 y $${saldoActual.toFixed(2)}`, "error");
+
+            const nuevaCuota = {
+                n: (c.cuotas || []).length + 1,
+                pagada: false,
+                valorPagado: montoAbono,
+                fecha_prog_sv: getFechaHoySV(),
+                tipoExtra: true
+            };
+            c.cuotas = c.cuotas || [];
+            c.cuotas.push(nuevaCuota);
+            // ✅ NO se modifica total ni saldo — es una segmentación del saldo existente
+
+            const suffix = currentBranch===1?'':currentBranch;
+            await db.ref(`clientes${suffix}/${curId}`).set(c);
+            toast(`Abono parcial de $${montoAbono.toFixed(2)} programado`, "success");
+            renderExpediente();
+        }
+    </script>
+</body>
+</html>
