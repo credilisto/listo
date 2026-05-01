@@ -1,381 +1,670 @@
+<!-- Archivo: credilisto-saas/portalmovil.html -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CrediListo · Acceso Móvil</title>
+    <title>CrediListo Mobile | v24 Enterprise</title>
+    
     <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
     <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-database-compat.js"></script>
-
+    
     <style>
         :root {
-            --bg: #020617;
-            --surface: #0f172a;
-            --surface2: #1e293b;
-            --accent: #0ea5e9;
-            --accent-glow: rgba(14, 165, 233, 0.25);
-            --success: #22c55e;
-            --text: #f8fafc;
-            --muted: #64748b;
+            --bg: #f1f5f9; --sidebar: #0f172a; --surface: #ffffff; --surface2: #f8fafc;
+            --accent: #0ea5e9; --accent-dim: rgba(14,165,233,0.1);
+            --text: #1e293b; --muted: #64748b;
+            --border: #e2e8f0; --danger: #ef4444; --success: #10b981;
+            --shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
-        body {
-            background: var(--bg);
-            color: var(--text);
-            font-family: 'Inter', sans-serif;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: flex-start;
-            overflow-x: hidden;
-            background-image:
-                radial-gradient(ellipse at 15% 15%, rgba(14,165,233,0.12) 0%, transparent 55%),
-                radial-gradient(ellipse at 85% 85%, rgba(34,197,94,0.06) 0%, transparent 55%);
-        }
+        .mobile-header { background: var(--sidebar); color: #fff; padding: 1rem; display: flex; align-items: center; justify-content: space-between; z-index: 100; }
+        .logo-m { font-family: 'Syne', sans-serif; font-size: 1.2rem; font-weight: 800; }
+        .logo-m span { color: var(--accent); }
 
-        /* ── LOCK SCREEN ── */
-        #lock-screen {
-            position: fixed; inset: 0;
-            background: var(--bg);
-            z-index: 1000;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            background-image:
-                radial-gradient(ellipse at 20% 20%, rgba(14,165,233,0.1) 0%, transparent 50%),
-                radial-gradient(ellipse at 80% 80%, rgba(34,197,94,0.06) 0%, transparent 50%);
-            padding: 1rem;
-        }
+        .branch-tabs { display: flex; gap: 0.3rem; background: rgba(255,255,255,0.05); padding: 0.2rem; border-radius: 0.5rem; }
+        .br-tab { border: none; background: transparent; color: #94a3b8; padding: 0.3rem 0.6rem; border-radius: 0.4rem; font-size: 0.6rem; font-weight: 800; }
+        .br-tab.active { background: var(--accent); color: #fff; }
 
-        .lock-box {
-            background: var(--surface);
-            padding: 2.5rem 1.5rem;
-            border-radius: 2rem;
-            border: 1px solid rgba(255,255,255,0.07);
-            text-align: center;
-            width: 100%;
-            max-width: 360px;
-            box-shadow: 0 40px 80px rgba(0,0,0,0.6), 0 0 40px var(--accent-glow);
-            animation: fadeUp 0.5s ease both;
-        }
+        .bottom-nav { background: #fff; border-top: 1px solid var(--border); display: flex; justify-content: space-around; padding: 0.5rem; z-index: 100; padding-bottom: calc(0.5rem + env(safe-area-inset-bottom)); }
+        .nav-btn { display: flex; flex-direction: column; align-items: center; gap: 0.1rem; border: none; background: transparent; color: var(--muted); font-weight: 700; font-size: 0.55rem; flex: 1; }
+        .nav-btn.active { color: var(--accent); }
+        .nav-icon { font-size: 1.2rem; }
 
-        @keyframes fadeUp {
-            from { opacity:0; transform: translateY(20px); }
-            to   { opacity:1; transform: translateY(0); }
-        }
+        .main-scroll { flex: 1; overflow-y: auto; padding: 0.75rem; padding-bottom: 5rem; }
+        .view { display: none; }
+        .view.active { display: block; }
 
-        .lock-logo { font-family: 'Syne', sans-serif; font-size: 2.2rem; font-weight: 800; margin-bottom: 0.3rem; }
-        .lock-logo span { color: var(--accent); text-shadow: 0 0 20px var(--accent-glow); }
-        .lock-sub { color: var(--muted); font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.2em; margin-bottom: 2rem; }
+        .m-stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 0.75rem; }
+        .m-stat-card { background: #fff; padding: 0.75rem; border-radius: 0.75rem; border: 1px solid var(--border); box-shadow: var(--shadow); }
+        .m-stat-label { font-size: 0.5rem; font-weight: 800; color: var(--muted); text-transform: uppercase; display: block; margin-bottom: 0.15rem; }
+        .m-stat-val { font-family: 'JetBrains Mono', monospace; font-size: 0.95rem; font-weight: 700; }
 
-        .pin-dots {
-            display: flex; gap: 0.75rem; justify-content: center; margin-bottom: 1.5rem;
-        }
-        .pin-dot {
-            width: 14px; height: 14px;
-            border-radius: 50%;
-            border: 2px solid var(--muted);
-            transition: all 0.2s;
-        }
-        .pin-dot.filled { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 10px var(--accent-glow); }
+        .m-section-title { font-family: 'Syne', sans-serif; font-size: 0.85rem; font-weight: 800; margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: space-between; }
 
-        .pin-field {
-            position: absolute; opacity: 0; pointer-events: none;
-        }
+        .ficha-mora-m { background: #fff; border-radius: 0.75rem; padding: 0.75rem; margin-bottom: 0.6rem; border-left: 4px solid var(--danger); box-shadow: var(--shadow); position: relative; }
+        .ficha-mora-m.normal { border-left-color: var(--accent); }
+        .m-badge { font-size: 0.55rem; padding: 0.2rem 0.4rem; border-radius: 0.3rem; font-weight: 800; margin-right: 0.3rem; display: inline-block; }
 
-        .numpad {
-            display: grid; grid-template-columns: repeat(3, 1fr);
-            gap: 0.75rem; margin-bottom: 1.5rem;
-        }
-        .num-btn {
-            background: var(--surface2);
-            border: 1px solid rgba(255,255,255,0.06);
-            border-radius: 1rem;
-            color: var(--text);
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 1.4rem;
-            font-weight: 700;
-            padding: 1.2rem;
-            cursor: pointer;
-            transition: all 0.15s;
-            user-select: none;
-            display: flex; align-items: center; justify-content: center;
-        }
-        .num-btn:active { transform: scale(0.92); background: rgba(14,165,233,0.15); border-color: var(--accent); }
-        .num-btn.del { font-size: 1.2rem; color: var(--muted); }
-        .num-btn.enter {
-            background: var(--accent); color: var(--bg); border-color: var(--accent);
-            font-size: 0.8rem; letter-spacing: 0.05em; font-family: 'Inter', sans-serif;
-        }
+        .m-table-wrap { background: #fff; border-radius: 0.75rem; border: 1px solid var(--border); overflow: hidden; margin-bottom: 1.5rem; }
+        .m-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+        .m-table th { background: var(--surface2); padding: 0.5rem 0.75rem; text-align: left; font-size: 0.55rem; color: var(--muted); text-transform: uppercase; border-bottom: 1px solid var(--border); }
+        .m-table td { padding: 0.75rem; border-bottom: 1px solid var(--border); }
 
-        .pin-error {
-            color: #f87171; font-size: 0.8rem; height: 1rem;
-            transition: opacity 0.3s;
-        }
+        .btn { border: none; border-radius: 0.5rem; font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 0.4rem; transition: 0.2s; font-family: inherit; }
+        .btn-accent { background: var(--accent); color: #fff; }
+        .btn-ghost { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+        .btn-danger { background: var(--danger); color: #fff; }
+        .btn-sm { padding: 0.5rem 0.75rem; font-size: 0.65rem; }
+        .btn-lg { padding: 0.85rem; width: 100%; font-size: 0.8rem; }
 
-        /* ── HUB MAIN ── */
-        .hub-wrap {
-            width: 100%; max-width: 480px; padding: 1.5rem;
-            text-align: center; animation: fadeUp 0.5s ease both;
-            display: flex; flex-direction: column; gap: 1.5rem;
-        }
+        .modal { position: fixed; inset: 0; background: #fff; z-index: 1000; display: flex; flex-direction: column; transform: translateY(100%); transition: 0.3s; }
+        .modal.active { transform: translateY(0); }
+        .modal-header { padding: 1rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; background: var(--sidebar); color: #fff; }
+        .modal-body { flex: 1; overflow-y: auto; padding: 1rem; }
+        .modal-footer { padding: 1rem; border-top: 1px solid var(--border); background: #fff; }
 
-        .header-main { margin-bottom: 0.5rem; }
-        .logo-main { font-family: 'Syne', sans-serif; font-size: 2.8rem; font-weight: 800; letter-spacing: -0.04em; line-height: 1.1; }
-        .logo-main span { color: var(--accent); text-shadow: 0 0 30px var(--accent-glow); }
-        .logo-sub { color: var(--muted); font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.25em; margin-top: 0.5rem; }
+        #view-login { position: fixed; inset: 0; background: var(--sidebar); z-index: 2000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem; text-align: center; }
+        .pin-input { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; font-size: 2rem; text-align: center; width: 180px; padding: 0.8rem; border-radius: 0.75rem; margin: 1.5rem 0; letter-spacing: 0.4em; outline: none; }
 
-        /* stats strip grid para movil */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
-            background: var(--surface);
-            border: 1px solid rgba(255,255,255,0.05);
-            border-radius: 1.5rem;
-            padding: 1.25rem;
-        }
-        .s-stat { display: flex; flex-direction: column; gap: 0.25rem; align-items: center; }
-        .s-label { font-size: 0.55rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.15em; text-align: center;}
-        .s-val { font-family: 'JetBrains Mono', monospace; font-size: 1.1rem; font-weight: 700; color: var(--accent); }
-        .s-val.green { color: var(--success); }
+        .toast { position: fixed; top: 1rem; left: 1rem; right: 1rem; background: var(--sidebar); color: #fff; padding: 0.75rem; border-radius: 0.75rem; text-align: center; font-weight: 800; transform: translateY(-200%); transition: 0.4s; z-index: 3000; font-size: 0.75rem; }
+        .toast.show { transform: translateY(0); }
 
-        /* portal cards */
-        .portal-list { display: flex; flex-direction: column; gap: 1.25rem; }
-
-        .portal-card {
-            background: var(--surface);
-            border: 1px solid rgba(255,255,255,0.05);
-            border-radius: 1.5rem;
-            padding: 1.5rem;
-            text-align: center;
-            position: relative; overflow: hidden;
-            display: flex; flex-direction: column; align-items: center; gap: 1rem;
-            text-decoration: none; color: inherit;
-        }
-
-        .portal-card::before {
-            content: "";
-            position: absolute; inset: 0;
-            opacity: 0.5; transition: 0.4s;
-        }
-        .portal-card.mob::before { background: radial-gradient(circle at top, rgba(34,197,94,0.1) 0%, transparent 80%); }
-        .portal-card.pc::before  { background: radial-gradient(circle at top, rgba(14,165,233,0.1) 0%, transparent 80%); }
-
-        .portal-card:active { transform: scale(0.98); }
-        .portal-card.mob { border-color: rgba(34,197,94,0.2); }
-        .portal-card.pc  { border-color: rgba(14,165,233,0.2); }
-
-        .icon-wrap {
-            width: 64px; height: 64px;
-            border-radius: 1.2rem;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 2rem; z-index: 1;
-            border: 1px solid rgba(255,255,255,0.08);
-        }
-        .portal-card.mob .icon-wrap { background: rgba(34,197,94,0.1); }
-        .portal-card.pc  .icon-wrap { background: rgba(14,165,233,0.1); }
-
-        .card-info { z-index: 1; }
-        .card-info h2 {
-            font-family: 'Syne', sans-serif;
-            font-size: 1.2rem; font-weight: 800; margin-bottom: 0.3rem;
-        }
-        .card-info p { color: var(--muted); font-size: 0.75rem; line-height: 1.4; }
-
-        .btn-access {
-            width: 100%; z-index: 1;
-            padding: 0.9rem;
-            border-radius: 1rem;
-            font-weight: 800; font-size: 0.75rem;
-            text-transform: uppercase; letter-spacing: 0.05em;
-            border: none;
-        }
-        .portal-card.mob .btn-access { background: var(--success); color: var(--bg); }
-        .portal-card.pc  .btn-access { background: rgba(14,165,233,0.15); color: var(--accent); border: 1px solid rgba(14,165,233,0.3); }
-
-        /* footer */
-        .hub-footer {
-            margin-top: 1rem;
-            color: var(--muted); font-size: 0.6rem;
-            text-transform: uppercase; letter-spacing: 0.15em;
-            padding-bottom: 2rem;
-        }
+        .edit-input { width: 100%; padding: 0.75rem; border-radius: 0.5rem; border: 1px solid var(--border); font-family: inherit; font-size: 0.85rem; outline: none; }
+        .ff-label { font-size: 0.5rem; font-weight: 800; color: var(--muted); text-transform: uppercase; margin-bottom: 0.2rem; display: block; }
+        .red { color: var(--danger); } .success { color: var(--success); } .blue { color: var(--accent); }
     </style>
 </head>
 <body>
 
-    <!-- ── LOCK SCREEN ── -->
-    <div id="lock-screen">
-        <div class="lock-box">
-            <div class="lock-logo">Credi<span>Listo</span></div>
-            <div class="lock-sub">Acceso Móvil Seguro</div>
+    <div id="view-login">
+        <div class="logo-m" style="font-size: 2.2rem; margin-bottom: 0.5rem">Credi<span>Listo</span></div>
+        <p style="color: rgba(255,255,255,0.4); font-size: 0.7rem; letter-spacing: 0.1em">MOBILE ENTERPRISE V24</p>
+        <input type="password" id="login-pin" class="pin-input" maxlength="4" placeholder="••••">
+        <button class="btn btn-accent btn-lg" onclick="validarAcceso()">INGRESAR</button>
+    </div>
 
-            <div class="pin-dots">
-                <div class="pin-dot" id="d1"></div>
-                <div class="pin-dot" id="d2"></div>
-                <div class="pin-dot" id="d3"></div>
-                <div class="pin-dot" id="d4"></div>
+    <header class="mobile-header">
+        <div class="logo-m">Credi<span>Listo</span></div>
+        <div class="branch-tabs">
+            <button class="br-tab active" onclick="switchBranch(1, this)">INVER1</button>
+            <button class="br-tab" onclick="switchBranch(2, this)">INVER2</button>
+            <button class="br-tab" onclick="switchBranch(3, this)">INVER3</button>
+        </div>
+    </header>
+
+    <main class="main-scroll">
+        <div id="view-dashboard" class="view active">
+            <div id="cobros-panel"></div>
+        </div>
+
+        <div id="view-cartera" class="view">
+            <div class="m-section-title">
+                <span>CARTERA ACTIVA</span>
+                <input type="text" placeholder="Buscar..." style="width:120px; padding:0.4rem; border-radius:0.4rem; border:1px solid var(--border)" oninput="filterList(this, 'cartera-list')">
             </div>
+            <div id="cartera-list"></div>
+        </div>
 
-            <input type="password" id="pin-hidden" class="pin-field" maxlength="4" autocomplete="off">
+        <div id="view-solicitudes" class="view">
+            <div class="m-section-title"><span>SOLICITUDES PENDIENTES</span></div>
+            <div id="solicitudes-list"></div>
+        </div>
 
-            <div class="numpad">
-                <button class="num-btn" onclick="addDigit('1')">1</button>
-                <button class="num-btn" onclick="addDigit('2')">2</button>
-                <button class="num-btn" onclick="addDigit('3')">3</button>
-                <button class="num-btn" onclick="addDigit('4')">4</button>
-                <button class="num-btn" onclick="addDigit('5')">5</button>
-                <button class="num-btn" onclick="addDigit('6')">6</button>
-                <button class="num-btn" onclick="addDigit('7')">7</button>
-                <button class="num-btn" onclick="addDigit('8')">8</button>
-                <button class="num-btn" onclick="addDigit('9')">9</button>
-                <button class="num-btn del" onclick="delDigit()">⌫</button>
-                <button class="num-btn" onclick="addDigit('0')">0</button>
-                <button class="num-btn enter" onclick="checkPin()">ENTRAR</button>
+        <div id="view-finanzas" class="view">
+            <div id="finanzas-panel-full"></div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem; margin-top:1rem">
+                <button class="btn btn-accent btn-lg" onclick="modalAjusteCaja()">⚙️ AJUSTE</button>
+                <button class="btn btn-danger btn-lg" onclick="modalRetiroEfectivo()">💸 RETIRO</button>
             </div>
-            <div class="pin-error" id="pin-error"></div>
+        </div>
+    </main>
+
+    <nav class="bottom-nav">
+        <button class="nav-btn active" onclick="showView('dashboard', this)">
+            <span class="nav-icon">📋</span><span>COBROS</span>
+        </button>
+        <button class="nav-btn" onclick="showView('cartera', this)">
+            <span class="nav-icon">👥</span><span>CARTERA</span>
+        </button>
+        <button class="nav-btn" onclick="showView('solicitudes', this)">
+            <span class="nav-icon" style="color:var(--accent); font-size:1.6rem">📋</span><span>SOLICITUDES</span>
+        </button>
+        <button class="nav-btn" onclick="showView('finanzas', this)">
+            <span class="nav-icon">💰</span><span>FINANZAS</span>
+        </button>
+    </nav>
+
+    <!-- MODAL CLIENTE -->
+    <div id="client-modal" class="modal">
+        <div class="modal-header">
+            <div id="m-modal-name" style="font-weight:800; font-size:0.85rem">EXPEDIENTE</div>
+            <button onclick="closeClientModal()" style="background:transparent; border:none; color:#fff; font-size:1.2rem">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="m-stats-row">
+                <div class="m-stat-card"><span class="m-stat-label">SALDO</span><span id="mod-saldo" class="m-stat-val red">$0</span></div>
+                <div class="m-stat-card"><span class="m-stat-label">CUOTA</span><span id="mod-cuota" class="m-stat-val blue">$0</span></div>
+            </div>
+            <div id="mod-cuotas-list"></div>
+        </div>
+        <div class="modal-footer" style="display:flex; gap:0.5rem">
+            <button class="btn btn-ghost btn-lg" style="color:#25d366" onclick="openWhatsApp()">💬 WP</button>
+            <button class="btn btn-accent btn-lg" onclick="closeClientModal()">CERRAR</button>
         </div>
     </div>
 
-    <!-- ── HUB PRINCIPAL ── -->
-    <div class="hub-wrap">
-        <div class="header-main">
-            <div class="logo-main">Credi<span>Listo</span></div>
-            <div class="logo-sub">Gestión Móvil Integral</div>
+    <!-- MODAL AJUSTE -->
+    <div id="modal-ajuste" class="modal">
+        <div class="modal-header"><h3>AJUSTE CAJA</h3><button onclick="cerrarModalAjuste()" style="background:transparent; border:none; color:#fff">✕</button></div>
+        <div class="modal-body">
+            <div class="ficha-field" style="margin-bottom:1rem"><span class="ff-label">Acción</span><select id="adj-tipo" class="edit-input"><option value="ADD">SUMAR (+)</option><option value="SUB">RESTAR (-)</option></select></div>
+            <div class="ficha-field" style="margin-bottom:1rem"><span class="ff-label">Monto ($)</span><input type="number" id="adj-monto" class="edit-input"></div>
+            <div class="ficha-field" style="margin-bottom:1rem"><span class="ff-label">Motivo</span><input type="text" id="adj-motivo" class="edit-input"></div>
+            <div class="ficha-field"><span class="ff-label">Responsable</span><input type="text" id="adj-resp" class="edit-input"></div>
         </div>
-
-        <!-- Métricas globales en tiempo real -->
-        <div class="stats-grid">
-            <div class="s-stat">
-                <span class="s-label">Capital</span>
-                <span class="s-val" id="stat-cap">—</span>
-            </div>
-            <div class="s-stat">
-                <span class="s-label">Cartera</span>
-                <span class="s-val" id="stat-cart">—</span>
-            </div>
-            <div class="s-stat">
-                <span class="s-label">Clientes</span>
-                <span class="s-val green" id="stat-clis">—</span>
-            </div>
-            <div class="s-stat">
-                <span class="s-label">Caja</span>
-                <span class="s-val green" id="stat-caja">—</span>
-            </div>
-        </div>
-
-        <!-- Selector de portal -->
-        <div class="portal-list">
-            <a class="portal-card mob" href="portalmovil.html">
-                <div class="icon-wrap">📱</div>
-                <div class="card-info">
-                    <h2>PORTAL MÓVIL</h2>
-                    <p>Cobros en campo, solicitudes y gestión rápida.</p>
-                </div>
-                <button class="btn-access">ENTRAR MÓVIL</button>
-            </a>
-
-            <a class="portal-card pc" href="portal.html">
-                <div class="icon-wrap">🖥️</div>
-                <div class="card-info">
-                    <h2>VERSIÓN ESCRITORIO</h2>
-                    <p>Reportes globales, caja y administración.</p>
-                </div>
-                <button class="btn-access">ENTRAR ESCRITORIO</button>
-            </a>
-        </div>
-
-        <div class="hub-footer">CrediListo SaaS · Modo Móvil</div>
+        <div class="modal-footer"><button class="btn btn-accent btn-lg" onclick="ejecutarAjuste()">✓ APLICAR</button></div>
     </div>
+
+    <!-- MODAL RETIRO -->
+    <div id="modal-retiro" class="modal">
+        <div class="modal-header"><h3>RETIRO / COMISIÓN</h3><button onclick="cerrarModalRetiro()" style="background:transparent; border:none; color:#fff">✕</button></div>
+        <div class="modal-body">
+            <div class="ficha-field" style="margin-bottom:1rem"><span class="ff-label">Monto ($)</span><input type="number" id="ret-monto" class="edit-input"></div>
+            <div class="ficha-field" style="margin-bottom:1rem"><span class="ff-label">Motivo</span><select id="ret-motivo" class="edit-input"><option value="COMISION">COMISIONES</option><option value="GASTO">GASTO</option></select></div>
+            <div class="ficha-field"><span class="ff-label">Responsable</span><input type="text" id="ret-resp" class="edit-input"></div>
+        </div>
+        <div class="modal-footer"><button class="btn btn-danger btn-lg" onclick="ejecutarRetiro()">💸 CONFIRMAR</button></div>
+    </div>
+
+    <!-- MODAL APROBAR AVANZADO -->
+    <div id="modal-aprobar" class="modal">
+        <div class="modal-header"><h3>APROBAR CRÉDITO</h3><button onclick="cerrarModalAprobar()" style="background:transparent; border:none; color:#fff">✕</button></div>
+        <div class="modal-body">
+            <div id="aprob-info-resumen" style="margin-bottom:1.5rem; background:var(--surface2); padding:1rem; border-radius:0.75rem; font-size:0.8rem"></div>
+            
+            <div class="ficha-field" style="margin-bottom:1.5rem">
+                <span class="ff-label">Asignar a Sucursal</span>
+                <select id="aprob-branch" class="edit-input">
+                    <option value="1">INVER 1 (Principal)</option>
+                    <option value="2">INVER 2</option>
+                    <option value="3">INVER 3</option>
+                </select>
+            </div>
+
+            <div class="ficha-field" style="margin-bottom:1.5rem">
+                <span class="ff-label">Fuente de Financiamiento</span>
+                <select id="aprob-fondo" class="edit-input">
+                    <option value="CAJA">DEDUCIR DE CAJA CHICA</option>
+                    <option value="INYECCION">INYECCIÓN DE FONDO EXTERNO</option>
+                </select>
+            </div>
+            
+            <p style="font-size:0.65rem; color:var(--muted); text-align:center">Al aprobar, el cliente pasará a estado ACTIVO en la sucursal seleccionada.</p>
+        </div>
+        <div class="modal-footer"><button class="btn btn-accent btn-lg" style="background:var(--success)" onclick="procesarAprobacionFinal()">CONFIRMAR APROBACIÓN</button></div>
+    </div>
+
+    <div id="toast" class="toast"></div>
 
     <script>
-        /* ── Firebase ── */
         const DB_URL = "https://credilistosv-default-rtdb.firebaseio.com";
-        const app = firebase.initializeApp({ databaseURL: DB_URL });
-        const db  = app.database();
+        firebase.initializeApp({ databaseURL: DB_URL });
+        const db = firebase.database();
 
-        /* ── PIN Logic ── */
-        let pinBuffer = "";
+        let currentBranch = 1;
+        let store = { 1:{}, 2:{}, 3:{} };
+        let finanzas = { 1:{}, 2:{}, 3:{} };
+        let curId = null;
 
-        function addDigit(d) {
-            if(pinBuffer.length >= 4) return;
-            pinBuffer += d;
-            updateDots();
-            if(pinBuffer.length === 4) setTimeout(checkPin, 150);
+        function validarAcceso() {
+            if(document.getElementById('login-pin').value === "2025") {
+                document.getElementById('view-login').style.display = 'none';
+                sessionStorage.setItem('auth_credilisto', 'true');
+            } else { alert("PIN Incorrecto"); }
+        }
+        if(sessionStorage.getItem('auth_credilisto') === 'true') document.getElementById('view-login').style.display = 'none';
+
+        function fmt(n) { return '$' + parseFloat(n||0).toLocaleString('es-SV', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+        function getHoyISO() { 
+            const d = new Date();
+            const svTimeMs = d.getTime() - (6 * 3600000);
+            return new Date(svTimeMs).toISOString().split('T')[0];
+        }
+        function getFechaHoySV() { 
+            const iso = getHoyISO();
+            return iso.split('-').reverse().join('/');
         }
 
-        function delDigit() {
-            pinBuffer = pinBuffer.slice(0, -1);
-            updateDots();
-            document.getElementById('pin-error').textContent = "";
+        function initSync() {
+            [1, 2, 3].forEach(br => {
+                const s = br === 1 ? '' : br;
+                db.ref('clientes' + s).on('value', snap => { store[br] = snap.val() || {}; updateUI(); });
+                db.ref(br === 1 ? 'config/finanzas' : `config/finanzas${br}`).on('value', snap => { finanzas[br] = snap.val() || {}; updateUI(); });
+            });
+        }
+        initSync();
+
+        function switchBranch(br, el) {
+            currentBranch = br;
+            document.querySelectorAll('.br-tab').forEach(b => b.classList.remove('active'));
+            el.classList.add('active');
+            updateUI();
         }
 
-        function updateDots() {
-            for(let i = 1; i <= 4; i++) {
-                document.getElementById('d'+i).classList.toggle('filled', i <= pinBuffer.length);
-            }
+        function showView(v, el) {
+            document.querySelectorAll('.view').forEach(x => x.classList.remove('active'));
+            document.getElementById('view-'+v).classList.add('active');
+            document.querySelectorAll('.nav-btn').forEach(x => x.classList.remove('active'));
+            el.classList.add('active');
+            if(v === 'dashboard') renderCobrosDelDia();
+            if(v === 'finanzas') renderFinanzas();
         }
 
-        function checkPin() {
-            if(pinBuffer === "2025") {
-                document.getElementById('lock-screen').style.display = 'none';
-                sessionStorage.setItem('auth_credilisto_movil', 'true');
-                loadGlobalStats();
-            } else {
-                document.getElementById('pin-error').textContent = "PIN incorrecto. Intente de nuevo.";
-                pinBuffer = "";
-                updateDots();
-            }
-        }
+        function renderCobrosDelDia() {
+            const panel = document.getElementById('cobros-panel');
+            const hoyISO = getHoyISO();
+            const hoySV = getFechaHoySV();
+            const diaSemanaHoy = new Date().getDay();
+            const activos = Object.values(store[currentBranch]).filter(c => c.tipo === 'ACTIVO');
+            
+            const listaMora = [], semanalPorDia = {1:[],2:[],3:[],4:[],5:[],6:[]};
+            let cobradoHoy = 0, totalMoraAmt = 0;
 
-        // Auto-acceso si ya autenticado
-        if(sessionStorage.getItem('auth_credilisto_movil') === 'true' || sessionStorage.getItem('auth_credilisto') === 'true') {
-            document.getElementById('lock-screen').style.display = 'none';
-            loadGlobalStats();
-        }
+            activos.forEach(c => {
+                // Cálculo de Mora
+                let diasAtraso = 0;
+                let oldestUnpaid = null;
+                (c.cuotas||[]).forEach(q => {
+                    if(!q.pagada) {
+                        const fq = q.fecha_prog_sv || q.fecha_prog;
+                        if(esFechaPasada(fq)) { if(!oldestUnpaid) oldestUnpaid = fq; }
+                    } else if(q.fecha_ISO === hoyISO) {
+                        cobradoHoy += parseFloat(q.valorPagado||0);
+                    }
+                });
 
-        /* ── Stats globales ── */
-        async function loadGlobalStats() {
-            let totalCap = 0, totalCart = 0, totalCaja = 0, totalClis = 0;
-
-            const branches = [
-                { fin: 'config/finanzas',  cli: 'clientes'  },
-                { fin: 'config/finanzas2', cli: 'clientes2' },
-                { fin: 'config/finanzas3', cli: 'clientes3' },
-            ];
-
-            try {
-                for(const b of branches) {
-                    const [fSnap, cSnap] = await Promise.all([
-                        db.ref(b.fin).once('value'),
-                        db.ref(b.cli).once('value'),
-                    ]);
-                    const fin = fSnap.val() || {};
-                    totalCap  += parseFloat(fin.capitalInvertido || 0);
-                    totalCaja += parseFloat(fin.cajaChica || 0);
-
-                    Object.values(cSnap.val() || {}).forEach(cl => {
-                        if(cl.tipo === 'ACTIVO') {
-                            totalCart += parseFloat(cl.saldo || 0);
-                            totalClis++;
-                        }
-                    });
+                if(oldestUnpaid) {
+                    diasAtraso = calcularDiasDiferencia(oldestUnpaid);
+                    let recargo = diasAtraso > 3 ? 5 + (diasAtraso - 3) : 0;
+                    totalMoraAmt += recargo;
+                    listaMora.push({...c, diasAtraso, recargo});
+                } else {
+                    const tocaHoy = (c.cuotas||[]).some(q => !q.pagada && (q.fecha_prog_sv === hoySV || q.fecha_prog === hoySV));
+                    if(tocaHoy) {
+                        const d = (c.frecuencia==='semanal') ? diaSemanaHoy : diaSemanaHoy;
+                        semanalPorDia[diaSemanaHoy].push(c);
+                    } else if(c.frecuencia==='semanal') {
+                        const dIni = parseFechaSV(c.fechaInicio).getDay();
+                        if(dIni >= 1 && dIni <= 6) semanalPorDia[dIni].push(c);
+                    }
                 }
+            });
 
-                const fmt = n => '$' + parseFloat(n).toLocaleString('es-SV', {minimumFractionDigits: 2});
-                document.getElementById('stat-cap').textContent  = fmt(totalCap);
-                document.getElementById('stat-cart').textContent = fmt(totalCart);
-                document.getElementById('stat-caja').textContent = fmt(totalCaja);
-                document.getElementById('stat-clis').textContent = totalClis;
-            } catch (error) {
-                console.error("Error loading stats:", error);
+            listaMora.sort((a,b) => b.diasAtraso - a.diasAtraso);
+            const nombresDias = ["DOM","LUNES","MARTES","MIÉRC","JUEVES","VIERNES","SÁBADO"];
+
+            panel.innerHTML = `
+                <div class="m-stats-row">
+                    <div class="m-stat-card"><span class="m-stat-label">COBRADO HOY</span><span class="m-stat-val success">${fmt(cobradoHoy)}</span></div>
+                    <div class="m-stat-card"><span class="m-stat-label">EN MORA</span><span class="m-stat-val red">${listaMora.length}</span></div>
+                </div>
+
+                <div style="color:var(--danger); font-weight:800; font-size:0.7rem; margin-bottom:0.5rem">⚠️ CRÍTICOS / MORA</div>
+                ${listaMora.map(c => `
+                    <div class="ficha-mora-m" onclick="openClientModal('${c.id}')">
+                        <div class="badges">
+                            <span class="m-badge" style="background:#fee2e2; color:#b91c1c">⚠️ ${c.diasAtraso} DÍAS</span>
+                            <span class="m-badge" style="background:#ffedd5; color:#9a3412">💰 MORA: ${fmt(c.recargo)}</span>
+                        </div>
+                        <div style="font-weight:800; font-size:0.85rem">${c.nombre}</div>
+                        <div style="font-size:0.7rem; color:var(--muted); margin-top:0.3rem">Saldo: <span class="red">${fmt(c.saldo)}</span> · Cuota: ${fmt((c.cuotas||[]).find(q=>!q.pagada)?.valorPagado||0)}</div>
+                        <div style="margin-top:0.4rem; background:rgba(34,197,94,0.15); border:1px solid rgba(34,197,94,0.4); border-radius:0.4rem; padding:0.3rem 0.6rem; display:inline-block; font-size:0.72rem; font-weight:800; color:#16a34a">💵 TOTAL A PAGAR: ${fmt((parseFloat((c.cuotas||[]).find(q=>!q.pagada)?.valorPagado||0)) + parseFloat(c.recargo||0))}</div>
+                    </div>
+                `).join('')}
+
+                ${[1,2,3,4,5,6].map(d => {
+                    const esHoy = d === diaSemanaHoy;
+                    const clis = semanalPorDia[d] || [];
+                    if(!clis.length && !esHoy) return '';
+                    return `
+                <div style="margin-top:1.5rem">
+                    <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.5rem; background:var(--sidebar); padding:0.6rem; border-radius:0.6rem; border-left:3px solid var(--accent)">
+                        <span style="font-size:0.65rem; font-weight:800; color:white">${nombresDias[d]} ${esHoy ? ' (HOY)' : ''}</span>
+                        <span style="font-size:0.55rem; font-weight:600; color:rgba(255,255,255,0.5); margin-left:auto">${clis.length} COBROS</span>
+                    </div>
+                    <div class="m-table-wrap">
+                                <table class="m-table">
+                                    ${clis.map(c => `
+                                        <tr onclick="openClientModal('${c.id}')">
+                                            <td style="font-weight:700; width:60%">${c.nombre}</td>
+                                            <td style="text-align:right">${fmt((c.cuotas||[]).find(q=>!q.pagada)?.valorPagado||0)}</td>
+                                        </tr>
+                                    `).join('')}
+                                    ${!clis.length ? '<tr><td colspan="2" style="text-align:center; color:var(--muted); padding:1rem">Sin cobros</td></tr>' : ''}
+                                </table>
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            `;
+        }
+
+        function renderFinanzas() {
+            const fin = finanzas[currentBranch] || { capitalInvertido:0, cajaChica:0, gananciasRetiradas:0 };
+            const wrap = document.getElementById('finanzas-panel-full');
+            const activos = Object.values(store[currentBranch]).filter(c => c.tipo === 'ACTIVO');
+            
+            let carActiva = 0, totCobrar = 0, deuPendiente = 0;
+            activos.forEach(c => {
+                carActiva += parseFloat(c.monto || 0);
+                totCobrar += parseFloat(c.total || 0);
+                deuPendiente += parseFloat(c.saldo || 0);
+            });
+
+            const yaCobrado = (totCobrar - deuPendiente);
+            const gananciaBruta = yaCobrado - (totCobrar - deuPendiente); // Simplificado para demo
+            const gananciaNeta = (totCobrar * 0.20) - (fin.gananciasRetiradas || 0);
+
+            let sociosHtml = "";
+            if(currentBranch === 1) {
+                sociosHtml = `
+                    <div class="m-stat-card"><span class="m-stat-label">SOCIO 1 (17%)</span><span class="m-stat-val blue">${fmt(gananciaNeta * 0.85)}</span></div>
+                    <div class="m-stat-card"><span class="m-stat-label">SOCIO 2 (3%)</span><span class="m-stat-val blue">${fmt(gananciaNeta * 0.15)}</span></div>
+                `;
+            } else {
+                sociosHtml = `
+                    <div class="m-stat-card"><span class="m-stat-label">SOCIO 1 (12%)</span><span class="m-stat-val blue">${fmt(gananciaNeta * 0.60)}</span></div>
+                    <div class="m-stat-card"><span class="m-stat-label">SOCIO 2 (4%)</span><span class="m-stat-val blue">${fmt(gananciaNeta * 0.20)}</span></div>
+                    <div class="m-stat-card"><span class="m-stat-label">SOCIO 3 (4%)</span><span class="m-stat-val blue">${fmt(gananciaNeta * 0.20)}</span></div>
+                `;
             }
+
+            wrap.innerHTML = `
+                <div class="m-stats-row">
+                    <div class="m-stat-card"><span class="m-stat-label">CAPITAL INVERTIDO</span><span class="m-stat-val blue">${fmt(fin.capitalInvertido)}</span></div>
+                    <div class="m-stat-card"><span class="m-stat-label">CARTERA ACTIVA</span><span class="m-stat-val">${fmt(carActiva)}</span></div>
+                </div>
+                <div class="m-stats-row">
+                    <div class="m-stat-card"><span class="m-stat-label">TOTAL A COBRAR</span><span class="m-stat-val success">${fmt(totCobrar)}</span></div>
+                    <div class="m-stat-card"><span class="m-stat-label">DEUDA PENDIENTE</span><span class="m-stat-val red">${fmt(deuPendiente)}</span></div>
+                </div>
+                <div class="m-stats-row">
+                    <div class="m-stat-card"><span class="m-stat-label">YA COBRADO</span><span class="m-stat-val success">${fmt(yaCobrado)}</span></div>
+                    <div class="m-stat-card"><span class="m-stat-label">CAJA CHICA</span><span class="m-stat-val blue">${fmt(fin.cajaChica)}</span></div>
+                </div>
+                <div class="m-stat-card" style="margin-bottom:0.75rem; background:var(--accent-dim); border-color:var(--accent)">
+                    <span class="m-stat-label" style="color:var(--accent)">GANANCIA DISPONIBLE A HOY (20%)</span>
+                    <span class="m-stat-val" style="color:var(--accent); font-size:1.2rem">${fmt(gananciaNeta)}</span>
+                </div>
+                <div class="m-stats-row">${sociosHtml}</div>
+            `;
+        }
+
+        function updateUI() {
+            renderCobrosDelDia();
+            renderCartera();
+            renderFinanzas();
+            renderSolicitudes();
+            if(curId) renderExpediente();
+        }
+
+        function renderSolicitudes() {
+            const list = document.getElementById('solicitudes-list');
+            if(!list) return;
+            const pends = Object.values(store[currentBranch]).filter(c => c.tipo === 'PENDIENTE');
+            list.innerHTML = pends.length ? pends.map(c => `
+                <div class="ficha-mora-m" style="border-left-color:#eab308">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.75rem">
+                        <div style="font-weight:800; font-size:0.9rem">${c.nombre}</div>
+                        <span class="m-badge" style="background:#fef9c3; color:#854d0e">PENDIENTE</span>
+                    </div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem; font-size:0.7rem; margin-bottom:1rem">
+                        <div><span class="ff-label">DUI</span><strong>${c.dui || '-'}</strong></div>
+                        <div><span class="ff-label">TEL</span><strong>${c.tel || '-'}</strong></div>
+                        <div><span class="ff-label">MONTO</span><strong class="blue">${fmt(c.monto)}</strong></div>
+                        <div><span class="ff-label">FRECUENCIA</span><strong>${(c.frecuencia||'').toUpperCase()}</strong></div>
+                    </div>
+                    <div style="font-size:0.7rem; color:var(--muted); background:var(--bg); padding:0.5rem; border-radius:0.4rem; margin-bottom:1rem">
+                        <div style="margin-bottom:0.3rem">🏠 <strong>Dir:</strong> ${c.direccion || 'No especificada'}</div>
+                        <div style="margin-bottom:0.3rem">💼 <strong>Negocio:</strong> ${c.negocio || 'No especificado'}</div>
+                        <div>💡 <strong>Motivo:</strong> ${c.motivo || 'No especificado'}</div>
+                    </div>
+                    <button class="btn btn-accent btn-lg" style="background:var(--success)" onclick="abrirAprobacion('${c.id}')">✅ APROBAR CRÉDITO</button>
+                </div>
+            `).join('') : '<div style="text-align:center; padding:3rem; color:var(--muted); font-size:0.8rem">No hay solicitudes pendientes</div>';
+        }
+
+        let idParaAprobar = null;
+        function abrirAprobacion(id) {
+            idParaAprobar = id;
+            const c = store[currentBranch][id];
+            document.getElementById('aprob-info-resumen').innerHTML = `
+                <strong>Solicitante:</strong> ${c.nombre}<br>
+                <strong>Monto:</strong> <span class="blue">${fmt(c.monto)}</span><br>
+                <strong>Frecuencia:</strong> ${c.frecuencia.toUpperCase()}
+            `;
+            document.getElementById('modal-aprobar').classList.add('active');
+        }
+
+        function cerrarModalAprobar() { document.getElementById('modal-aprobar').classList.remove('active'); }
+
+        async function procesarAprobacionFinal() {
+            const branchDest = document.getElementById('aprob-branch').value;
+            const fuente = document.getElementById('aprob-fondo').value;
+            const c = store[currentBranch][idParaAprobar];
+            
+            const sDest = branchDest === "1" ? "" : branchDest;
+            const finPath = branchDest === "1" ? 'config/finanzas' : `config/finanzas${branchDest}`;
+            
+            // 1. Mover/Actualizar cliente
+            c.tipo = 'ACTIVO';
+            
+            // 2. Lógica financiera
+            let updatesFin = {};
+            if(fuente === 'CAJA') {
+                // Obtener finanzas de la sucursal destino para restar
+                const snapFin = await db.ref(finPath).once('value');
+                const finActual = snapFin.val() || { cajaChica: 0 };
+                updatesFin.cajaChica = (parseFloat(finActual.cajaChica) - parseFloat(c.monto)).toFixed(2);
+            }
+            
+            // Si la sucursal es distinta, eliminar de la actual y poner en la nueva
+            if(parseInt(branchDest) !== currentBranch) {
+                const sOrig = currentBranch === 1 ? "" : currentBranch;
+                await db.ref(`clientes${sOrig}/${idParaAprobar}`).remove();
+            }
+
+            await Promise.all([
+                db.ref(`clientes${sDest}/${idParaAprobar}`).set(c),
+                (fuente === 'CAJA' ? db.ref(finPath).update(updatesFin) : Promise.resolve())
+            ]);
+            
+            cerrarModalAprobar();
+            toast(`Crédito aprobado en INVER ${branchDest}`);
+        }
+
+        function renderCartera() {
+            const list = document.getElementById('cartera-list');
+            const activos = Object.values(store[currentBranch]).filter(c => c.tipo === 'ACTIVO');
+            list.innerHTML = activos.map(c => `
+                <div class="ficha-mora-m normal" onclick="openClientModal('${c.id}')">
+                    <div style="font-weight:800; font-size:0.85rem">${c.nombre}</div>
+                    <div style="font-size:0.7rem; color:var(--muted)">${c.frecuencia.toUpperCase()} · Saldo: <span class="red">${fmt(c.saldo)}</span></div>
+                </div>
+            `).join('');
+        }
+
+        function openClientModal(id) {
+            curId = id; const c = store[currentBranch][id];
+            document.getElementById('m-modal-name').textContent = c.nombre;
+            document.getElementById('mod-saldo').textContent = fmt(c.saldo);
+            document.getElementById('mod-cuota').textContent = fmt((c.cuotas||[]).find(q=>!q.pagada)?.valorPagado||0);
+            document.getElementById('client-modal').classList.add('active');
+            renderExpediente();
+        }
+
+        function renderExpediente() {
+            const c = store[currentBranch][curId];
+            const list = document.getElementById('mod-cuotas-list');
+            
+            // Ficha de Datos del Cliente
+            const infoHtml = `
+                <div class="m-table-wrap" style="margin-bottom:1.5rem; padding:1rem">
+                    <div style="font-size:0.6rem; font-weight:800; color:var(--muted); margin-bottom:1rem; text-transform:uppercase">📋 FICHA TÉCNICA</div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem">
+                        <div><span class="ff-label">DUI</span><span style="font-size:0.8rem; font-weight:700">${c.dui || 'N/A'}</span></div>
+                        <div><span class="ff-label">TELÉFONO</span><span style="font-size:0.8rem; font-weight:700">${c.tel || 'N/A'}</span></div>
+                        <div><span class="ff-label">FRECUENCIA</span><span style="font-size:0.8rem; font-weight:700">${(c.frecuencia||'').toUpperCase()}</span></div>
+                        <div><span class="ff-label">INICIO</span><span style="font-size:0.8rem; font-weight:700">${c.fechaInicio || 'N/A'}</span></div>
+                        <div><span class="ff-label">MONTO</span><span style="font-size:0.8rem; font-weight:700">${fmt(c.monto)}</span></div>
+                        <div><span class="ff-label">TOTAL + INT</span><span style="font-size:0.8rem; font-weight:700">${fmt(c.total)}</span></div>
+                    </div>
+                    <div style="margin-top:1rem; padding-top:1rem; border-top:1px solid var(--border)">
+                        <div style="margin-bottom:0.5rem"><span class="ff-label">Dirección</span><span style="font-size:0.75rem">${c.direccion || 'No registrada'}</span></div>
+                        <div style="margin-bottom:0.5rem"><span class="ff-label">Negocio</span><span style="font-size:0.75rem">${c.negocio || 'No registrado'}</span></div>
+                        <div><span class="ff-label">Motivo Crédito</span><span style="font-size:0.75rem">${c.motivo || 'No especificado'}</span></div>
+                    </div>
+                </div>
+                <div style="font-size:0.6rem; font-weight:800; color:var(--muted); margin-bottom:0.75rem; text-transform:uppercase">💰 HISTORIAL DE PAGOS</div>
+            `;
+
+            list.innerHTML = infoHtml + (c.cuotas||[]).map((q, i) => {
+                const p = (q.fecha_prog_sv || q.fecha_prog || '').split('/');
+                const dObj = p.length === 3 ? new Date(p[2], p[1]-1, p[0]) : null;
+                const diaNombre = dObj ? ["DOM", "LUNES", "MARTES", "MIÉRC", "JUEVES", "VIERNES", "SÁB"] [dObj.getDay()] : '';
+
+                return `
+                    <div style="padding:0.7rem; background:#fff; border:1px solid var(--border); margin-bottom:0.4rem; border-radius:0.5rem; ${q.pagada?'opacity:0.5':''}">
+                        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:${q.pagada?'0':'0.4rem'}">
+                            <div>
+                                <span style="font-size:0.55rem; font-weight:800; color:var(--muted)">#${q.n}</span><br>
+                                <strong>${fmt(q.valorPagado)}</strong>
+                            </div>
+                            <div style="font-size:0.65rem; font-weight:700; text-align:center">
+                                <span style="color:var(--accent)">${diaNombre}</span><br>
+                                ${q.fecha_prog_sv||q.fecha_prog}
+                            </div>
+                            ${q.pagada
+                                ? `<div style="text-align:center">
+                                    <input type="date" value="${q.fecha_ISO || ''}" style="border:none; background:transparent; font-size:0.6rem; font-family:inherit; color:var(--muted); font-weight:700; outline:none; text-align:center" onchange="actualizarFechaPago(${i}, this.value)">
+                                    <div style="font-size:0.55rem; color:var(--success); font-weight:800">✅ PAGADO</div>
+                                   </div>`
+                                : `<button class="btn btn-accent btn-sm" onclick="pagarCuota(${i})">PAGAR</button>`
+                            }
+                        </div>
+                        ${!q.pagada ? `
+                        <div style="display:flex;align-items:center;gap:0.4rem;background:var(--surface2);padding:0.35rem 0.5rem;border-radius:0.4rem;border:1px solid var(--border)">
+                            <span style="font-size:0.55rem;font-weight:700;color:var(--muted);white-space:nowrap">📅 FECHA REAL:</span>
+                            <input type="date" id="qfecha-${i}" style="flex:1;border:none;background:transparent;font-size:0.7rem;font-family:inherit;color:var(--text);font-weight:700;outline:none" value="${getHoyISO()}">
+                        </div>` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function pagarCuota(idx) {
+            const c = store[currentBranch][curId];
+            const amt = parseFloat(c.cuotas[idx].valorPagado);
+            // Fecha real del pago — editable para auditoría
+            const fechaInputEl = document.getElementById('qfecha-'+idx);
+            const fechaISO = fechaInputEl ? fechaInputEl.value : getHoyISO();
+            const fechaSV = fechaISO
+                ? fechaISO.split('-').reverse().join('/').replace(/^0(\d\/)/,'$1').replace(/\/(0(\d))\//, '/$2/')
+                : getFechaHoySV();
+
+            c.cuotas[idx].pagada = true;
+            c.cuotas[idx].fecha_ISO = fechaISO;
+            c.cuotas[idx].fecha = fechaSV;
+            c.cuotas[idx].hora = new Date().toLocaleTimeString('es-SV', {hour:'2-digit', minute:'2-digit'});
+
+            let totalCobrado = 0; c.cuotas.forEach(q => { if(q.pagada) totalCobrado += parseFloat(q.valorPagado||0); });
+            c.saldo = (parseFloat(c.total) - totalCobrado).toFixed(2);
+            const finPath = currentBranch===1?'config/finanzas':`config/finanzas${currentBranch}`;
+            const nuevaCaja = parseFloat((parseFloat(finanzas[currentBranch].cajaChica||0) + amt).toFixed(2));
+            await Promise.all([ db.ref(`clientes${currentBranch===1?'':currentBranch}/${curId}`).set(c), db.ref(finPath).update({ cajaChica: nuevaCaja }) ]);
+            toast(`Cobro de ${fmt(amt)} registrado (${fechaSV})`);
+        }
+
+        async function actualizarFechaPago(idx, nuevaFechaISO) {
+            if(!nuevaFechaISO) return;
+            const c = store[currentBranch][curId];
+            const q = c.cuotas[idx];
+            const fechaSV = nuevaFechaISO.split('-').reverse().join('/');
+            q.fecha_ISO = nuevaFechaISO;
+            q.fecha = fechaSV;
+            const suffix = currentBranch===1?'':currentBranch;
+            await db.ref(`clientes${suffix}/${curId}/cuotas/${idx}`).update({ fecha_ISO: nuevaFechaISO, fecha: fechaSV });
+            toast("Fecha de pago actualizada");
+            updateUI();
+        }
+
+        function calcularDiasDiferencia(fStr) {
+            const parts = fStr.split('/'); const target = new Date(parts[2], parts[1]-1, parts[0]);
+            const diff = new Date() - target; return Math.floor(diff / (1000 * 60 * 60 * 24));
+        }
+        function parseFechaSV(fStr) { const p = fStr.split('/'); return new Date(p[2], p[1]-1, p[0]); }
+        function esFechaPasada(fStr) { if(!fStr) return false; const p = fStr.split('/'); const d = new Date(p[2], p[1]-1, p[0], 23, 59, 59); return d < new Date(); }
+        function openWhatsApp() { const c = store[currentBranch][curId]; if(!c.tel) return alert("Sin teléfono"); window.open(`https://wa.me/503${c.tel.replace(/\D/g,'')}`, '_blank'); }
+        function toast(m) { const t = document.getElementById('toast'); t.textContent = m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 3000); }
+        
+        function modalAjusteCaja() { document.getElementById('modal-ajuste').classList.add('active'); }
+        function cerrarModalAjuste() { document.getElementById('modal-ajuste').classList.remove('active'); }
+        async function ejecutarAjuste() {
+            const t = document.getElementById('adj-tipo').value;
+            const amt = parseFloat(document.getElementById('adj-monto').value);
+            const mot = document.getElementById('adj-motivo').value;
+            if(!amt) return alert("Ingrese monto");
+            const finPath = currentBranch===1?'config/finanzas':`config/finanzas${currentBranch}`;
+            const nuevaCaja = t==='ADD' ? parseFloat(finanzas[currentBranch].cajaChica||0) + amt : parseFloat(finanzas[currentBranch].cajaChica||0) - amt;
+            await db.ref(finPath).update({ cajaChica: nuevaCaja.toFixed(2) });
+            cerrarModalAjuste(); toast("Ajuste aplicado");
+        }
+
+        function modalRetiroEfectivo() { document.getElementById('modal-retiro').classList.add('active'); }
+        function cerrarModalRetiro() { document.getElementById('modal-retiro').classList.remove('active'); }
+        async function ejecutarRetiro() {
+            const amt = parseFloat(document.getElementById('ret-monto').value);
+            const mot = document.getElementById('ret-motivo').value;
+            if(!amt) return alert("Ingrese monto");
+            const finPath = currentBranch===1?'config/finanzas':`config/finanzas${currentBranch}`;
+            const nuevaCaja = parseFloat(finanzas[currentBranch].cajaChica||0) - amt;
+            let updates = { cajaChica: nuevaCaja.toFixed(2) };
+            if(mot === 'COMISION') {
+                const retAnterior = parseFloat(finanzas[currentBranch].gananciasRetiradas || 0);
+                updates.gananciasRetiradas = (retAnterior + amt).toFixed(2);
+            }
+            await db.ref(finPath).update(updates);
+            cerrarModalRetiro(); toast("Retiro registrado");
+        }
+
+        function closeClientModal() { curId = null; document.getElementById('client-modal').classList.remove('active'); }
+        function abrirModalNuevoCredito() { document.getElementById('modal-nuevo').classList.add('active'); document.getElementById('n-fecha').value = getHoyISO(); }
+        function cerrarModalNuevo() { document.getElementById('modal-nuevo').classList.remove('active'); }
+        
+        async function crearCreditoDirecto() {
+            const nombre = document.getElementById('n-nombre').value; const monto = document.getElementById('n-monto').value;
+            if(!nombre || !monto) return alert("Faltan datos");
+            const id = "c" + Date.now(); const frec = document.getElementById('n-frec').value;
+            const nCuotas = frec === 'semanal' ? 4 : 30; const cuotaVal = (parseFloat(monto)*1.2 / nCuotas).toFixed(2);
+            const fechaI = document.getElementById('n-fecha').value; const cuotas = [];
+            for(let i=1; i<=nCuotas; i++) {
+                const d = new Date(fechaI + 'T12:00:00'); d.setDate(d.getDate() + (frec==='semanal'? i*7 : i));
+                cuotas.push({ n:i, pagada:false, valorPagado:cuotaVal, fecha_prog_sv:d.toLocaleDateString('es-SV') });
+            }
+            const nuevo = { id, nombre, monto, dui: document.getElementById('n-dui').value, tel: document.getElementById('n-tel').value, frecuencia: frec, fechaInicio: new Date(fechaI + 'T12:00:00').toLocaleDateString('es-SV'), tipo: 'PENDIENTE', total: (monto * 1.2).toFixed(2), saldo: (monto * 1.2).toFixed(2), cuotas };
+            await db.ref(`clientes${currentBranch===1?'':currentBranch}/${id}`).set(nuevo);
+            cerrarModalNuevo(); toast("Solicitud creada");
+        }
+
+        function filterList(input, listId) {
+            const q = input.value.toLowerCase();
+            const items = document.querySelectorAll('#' + listId + ' .ficha-mora-m');
+            items.forEach(it => { it.style.display = it.textContent.toLowerCase().includes(q) ? 'block' : 'none'; });
         }
     </script>
 </body>
