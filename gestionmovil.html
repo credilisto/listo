@@ -2,8 +2,8 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CrediListo · Sistema de Gestión</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CrediListo · Acceso Móvil</title>
     <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
     <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-database-compat.js"></script>
@@ -20,7 +20,7 @@
             --muted: #64748b;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 
         body {
             background: var(--bg);
@@ -30,8 +30,8 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
-            overflow: hidden;
+            justify-content: flex-start;
+            overflow-x: hidden;
             background-image:
                 radial-gradient(ellipse at 15% 15%, rgba(14,165,233,0.12) 0%, transparent 55%),
                 radial-gradient(ellipse at 85% 85%, rgba(34,197,94,0.06) 0%, transparent 55%);
@@ -49,15 +49,17 @@
             background-image:
                 radial-gradient(ellipse at 20% 20%, rgba(14,165,233,0.1) 0%, transparent 50%),
                 radial-gradient(ellipse at 80% 80%, rgba(34,197,94,0.06) 0%, transparent 50%);
+            padding: 1rem;
         }
 
         .lock-box {
             background: var(--surface);
-            padding: 3rem 2.5rem;
-            border-radius: 2.5rem;
+            padding: 2.5rem 1.5rem;
+            border-radius: 2rem;
             border: 1px solid rgba(255,255,255,0.07);
             text-align: center;
-            width: 360px;
+            width: 100%;
+            max-width: 360px;
             box-shadow: 0 40px 80px rgba(0,0,0,0.6), 0 0 40px var(--accent-glow);
             animation: fadeUp 0.5s ease both;
         }
@@ -69,7 +71,7 @@
 
         .lock-logo { font-family: 'Syne', sans-serif; font-size: 2.2rem; font-weight: 800; margin-bottom: 0.3rem; }
         .lock-logo span { color: var(--accent); text-shadow: 0 0 20px var(--accent-glow); }
-        .lock-sub { color: var(--muted); font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.25em; margin-bottom: 2.5rem; }
+        .lock-sub { color: var(--muted); font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.2em; margin-bottom: 2rem; }
 
         .pin-dots {
             display: flex; gap: 0.75rem; justify-content: center; margin-bottom: 1.5rem;
@@ -96,134 +98,113 @@
             border-radius: 1rem;
             color: var(--text);
             font-family: 'JetBrains Mono', monospace;
-            font-size: 1.3rem;
+            font-size: 1.4rem;
             font-weight: 700;
-            padding: 1rem;
+            padding: 1.2rem;
             cursor: pointer;
             transition: all 0.15s;
             user-select: none;
+            display: flex; align-items: center; justify-content: center;
         }
-        .num-btn:hover { background: rgba(14,165,233,0.15); border-color: var(--accent); }
-        .num-btn:active { transform: scale(0.94); }
-        .num-btn.del { font-size: 1rem; color: var(--muted); }
+        .num-btn:active { transform: scale(0.92); background: rgba(14,165,233,0.15); border-color: var(--accent); }
+        .num-btn.del { font-size: 1.2rem; color: var(--muted); }
         .num-btn.enter {
             background: var(--accent); color: var(--bg); border-color: var(--accent);
-            font-size: 0.75rem; letter-spacing: 0.05em;
+            font-size: 0.8rem; letter-spacing: 0.05em; font-family: 'Inter', sans-serif;
         }
-        .num-btn.enter:hover { box-shadow: 0 0 20px var(--accent-glow); }
 
         .pin-error {
-            color: #f87171; font-size: 0.75rem; height: 1rem;
+            color: #f87171; font-size: 0.8rem; height: 1rem;
             transition: opacity 0.3s;
         }
 
         /* ── HUB MAIN ── */
         .hub-wrap {
-            width: 100%; max-width: 860px; padding: 2rem;
+            width: 100%; max-width: 480px; padding: 1.5rem;
             text-align: center; animation: fadeUp 0.5s ease both;
+            display: flex; flex-direction: column; gap: 1.5rem;
         }
 
-        .logo-main { font-family: 'Syne', sans-serif; font-size: 3.5rem; font-weight: 800; letter-spacing: -0.04em; margin-bottom: 0.3rem; }
+        .header-main { margin-bottom: 0.5rem; }
+        .logo-main { font-family: 'Syne', sans-serif; font-size: 2.8rem; font-weight: 800; letter-spacing: -0.04em; line-height: 1.1; }
         .logo-main span { color: var(--accent); text-shadow: 0 0 30px var(--accent-glow); }
-        .logo-sub { color: var(--muted); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.3em; margin-bottom: 3.5rem; }
+        .logo-sub { color: var(--muted); font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.25em; margin-top: 0.5rem; }
 
-        /* stats strip */
-        .stats-strip {
-            display: flex; justify-content: center; gap: 3rem;
-            margin-bottom: 3.5rem;
-            padding: 1.2rem 2.5rem;
+        /* stats strip grid para movil */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
             background: var(--surface);
             border: 1px solid rgba(255,255,255,0.05);
             border-radius: 1.5rem;
-            display: inline-flex;
+            padding: 1.25rem;
         }
-        .s-stat { display: flex; flex-direction: column; gap: 0.2rem; }
-        .s-label { font-size: 0.58rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.2em; }
-        .s-val { font-family: 'JetBrains Mono', monospace; font-size: 1.15rem; font-weight: 700; color: var(--accent); }
+        .s-stat { display: flex; flex-direction: column; gap: 0.25rem; align-items: center; }
+        .s-label { font-size: 0.55rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.15em; text-align: center;}
+        .s-val { font-family: 'JetBrains Mono', monospace; font-size: 1.1rem; font-weight: 700; color: var(--accent); }
         .s-val.green { color: var(--success); }
 
         /* portal cards */
-        .portal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+        .portal-list { display: flex; flex-direction: column; gap: 1.25rem; }
 
         .portal-card {
             background: var(--surface);
             border: 1px solid rgba(255,255,255,0.05);
-            border-radius: 2rem;
-            padding: 2.5rem 2rem;
-            cursor: pointer;
-            transition: all 0.4s cubic-bezier(0.4,0,0.2,1);
+            border-radius: 1.5rem;
+            padding: 1.5rem;
+            text-align: center;
             position: relative; overflow: hidden;
-            display: flex; flex-direction: column; align-items: center; gap: 1.25rem;
+            display: flex; flex-direction: column; align-items: center; gap: 1rem;
             text-decoration: none; color: inherit;
         }
 
         .portal-card::before {
             content: "";
             position: absolute; inset: 0;
-            opacity: 0; transition: 0.4s;
+            opacity: 0.5; transition: 0.4s;
         }
-        .portal-card.pc::before  { background: radial-gradient(circle at center, rgba(14,165,233,0.15) 0%, transparent 70%); }
-        .portal-card.mob::before { background: radial-gradient(circle at center, rgba(34,197,94,0.12) 0%, transparent 70%); }
+        .portal-card.mob::before { background: radial-gradient(circle at top, rgba(34,197,94,0.1) 0%, transparent 80%); }
+        .portal-card.pc::before  { background: radial-gradient(circle at top, rgba(14,165,233,0.1) 0%, transparent 80%); }
 
-        .portal-card:hover {
-            transform: translateY(-8px);
-            box-shadow: 0 24px 50px rgba(0,0,0,0.5);
-        }
-        .portal-card.pc:hover  { border-color: var(--accent); box-shadow: 0 24px 50px rgba(0,0,0,0.5), 0 0 25px var(--accent-glow); }
-        .portal-card.mob:hover { border-color: var(--success); box-shadow: 0 24px 50px rgba(0,0,0,0.5), 0 0 25px rgba(34,197,94,0.2); }
-        .portal-card:hover::before { opacity: 1; }
+        .portal-card:active { transform: scale(0.98); }
+        .portal-card.mob { border-color: rgba(34,197,94,0.2); }
+        .portal-card.pc  { border-color: rgba(14,165,233,0.2); }
 
         .icon-wrap {
-            width: 80px; height: 80px;
-            border-radius: 1.5rem;
+            width: 64px; height: 64px;
+            border-radius: 1.2rem;
             display: flex; align-items: center; justify-content: center;
-            font-size: 2.4rem; z-index: 1;
+            font-size: 2rem; z-index: 1;
             border: 1px solid rgba(255,255,255,0.08);
         }
-        .portal-card.pc  .icon-wrap { background: rgba(14,165,233,0.08); }
-        .portal-card.mob .icon-wrap { background: rgba(34,197,94,0.08); }
+        .portal-card.mob .icon-wrap { background: rgba(34,197,94,0.1); }
+        .portal-card.pc  .icon-wrap { background: rgba(14,165,233,0.1); }
 
         .card-info { z-index: 1; }
         .card-info h2 {
             font-family: 'Syne', sans-serif;
-            font-size: 1.35rem; font-weight: 800; margin-bottom: 0.4rem;
+            font-size: 1.2rem; font-weight: 800; margin-bottom: 0.3rem;
         }
-        .card-info p { color: var(--muted); font-size: 0.78rem; line-height: 1.55; }
-
-        .card-chips { display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: center; z-index: 1; }
-        .chip {
-            font-size: 0.6rem; font-weight: 700; text-transform: uppercase;
-            letter-spacing: 0.05em; padding: 0.3rem 0.7rem; border-radius: 999px;
-        }
-        .chip.blue  { background: rgba(14,165,233,0.15); color: var(--accent); border: 1px solid rgba(14,165,233,0.3); }
-        .chip.green { background: rgba(34,197,94,0.12); color: var(--success); border: 1px solid rgba(34,197,94,0.3); }
+        .card-info p { color: var(--muted); font-size: 0.75rem; line-height: 1.4; }
 
         .btn-access {
-            margin-top: auto; z-index: 1;
-            padding: 0.8rem 2rem;
+            width: 100%; z-index: 1;
+            padding: 0.9rem;
             border-radius: 1rem;
             font-weight: 800; font-size: 0.75rem;
-            text-transform: uppercase; letter-spacing: 0.06em;
-            transition: all 0.3s; border: none; cursor: pointer;
+            text-transform: uppercase; letter-spacing: 0.05em;
+            border: none;
         }
-        .portal-card.pc  .btn-access { background: rgba(14,165,233,0.1); color: var(--accent); border: 1px solid rgba(14,165,233,0.3); }
-        .portal-card.mob .btn-access { background: rgba(34,197,94,0.1); color: var(--success); border: 1px solid rgba(34,197,94,0.3); }
-        .portal-card.pc:hover  .btn-access { background: var(--accent); color: var(--bg); }
-        .portal-card.mob:hover .btn-access { background: var(--success); color: var(--bg); }
+        .portal-card.mob .btn-access { background: var(--success); color: var(--bg); }
+        .portal-card.pc  .btn-access { background: rgba(14,165,233,0.15); color: var(--accent); border: 1px solid rgba(14,165,233,0.3); }
 
         /* footer */
         .hub-footer {
-            margin-top: 2.5rem;
+            margin-top: 1rem;
             color: var(--muted); font-size: 0.6rem;
-            text-transform: uppercase; letter-spacing: 0.2em;
-        }
-
-        @media (max-width: 640px) {
-            .portal-grid { grid-template-columns: 1fr; gap: 1.25rem; }
-            .logo-main { font-size: 2.5rem; }
-            .hub-wrap { padding: 1.25rem; }
-            .stats-strip { gap: 1.5rem; padding: 1rem 1.5rem; }
-            .lock-box { width: 320px; padding: 2rem 1.5rem; }
+            text-transform: uppercase; letter-spacing: 0.15em;
+            padding-bottom: 2rem;
         }
     </style>
 </head>
@@ -233,7 +214,7 @@
     <div id="lock-screen">
         <div class="lock-box">
             <div class="lock-logo">Credi<span>Listo</span></div>
-            <div class="lock-sub">Sistema de Gestión · Acceso Seguro</div>
+            <div class="lock-sub">Acceso Móvil Seguro</div>
 
             <div class="pin-dots">
                 <div class="pin-dot" id="d1"></div>
@@ -264,63 +245,53 @@
 
     <!-- ── HUB PRINCIPAL ── -->
     <div class="hub-wrap">
-        <div class="logo-main">Credi<span>Listo</span></div>
-        <div class="logo-sub">Centro de Gestión · SaaS Enterprise</div>
+        <div class="header-main">
+            <div class="logo-main">Credi<span>Listo</span></div>
+            <div class="logo-sub">Gestión Móvil Integral</div>
+        </div>
 
         <!-- Métricas globales en tiempo real -->
-        <div style="display:flex; justify-content:center; margin-bottom:3.5rem">
-            <div class="stats-strip">
-                <div class="s-stat">
-                    <span class="s-label">Capital Global</span>
-                    <span class="s-val" id="stat-cap">—</span>
-                </div>
-                <div class="s-stat">
-                    <span class="s-label">Cartera Activa</span>
-                    <span class="s-val" id="stat-cart">—</span>
-                </div>
-                <div class="s-stat">
-                    <span class="s-label">Clientes Activos</span>
-                    <span class="s-val green" id="stat-clis">—</span>
-                </div>
-                <div class="s-stat">
-                    <span class="s-label">Caja Global</span>
-                    <span class="s-val green" id="stat-caja">—</span>
-                </div>
+        <div class="stats-grid">
+            <div class="s-stat">
+                <span class="s-label">Capital</span>
+                <span class="s-val" id="stat-cap">—</span>
+            </div>
+            <div class="s-stat">
+                <span class="s-label">Cartera</span>
+                <span class="s-val" id="stat-cart">—</span>
+            </div>
+            <div class="s-stat">
+                <span class="s-label">Clientes</span>
+                <span class="s-val green" id="stat-clis">—</span>
+            </div>
+            <div class="s-stat">
+                <span class="s-label">Caja</span>
+                <span class="s-val green" id="stat-caja">—</span>
             </div>
         </div>
 
         <!-- Selector de portal -->
-        <div class="portal-grid">
-            <a class="portal-card pc" href="portal.html">
-                <div class="icon-wrap">🖥️</div>
-                <div class="card-info">
-                    <h2>PORTAL PC</h2>
-                    <p>Administración avanzada, reportes globales, auditoría de caja, gestión de socios y control de incidencias.</p>
-                </div>
-                <div class="card-chips">
-                    <span class="chip blue">Cobros del Día</span>
-                    <span class="chip blue">Finanzas</span>
-                    <span class="chip blue">Incidencias</span>
-                </div>
-                <button class="btn-access">ACCEDER — VERSIÓN ESCRITORIO</button>
-            </a>
-
+        <div class="portal-list">
             <a class="portal-card mob" href="portalmovil.html">
                 <div class="icon-wrap">📱</div>
                 <div class="card-info">
                     <h2>PORTAL MÓVIL</h2>
-                    <p>Gestión ágil en campo, cobros táctiles, aprobación de solicitudes y contacto directo vía WhatsApp.</p>
+                    <p>Cobros en campo, solicitudes y gestión rápida.</p>
                 </div>
-                <div class="card-chips">
-                    <span class="chip green">Cobros en Campo</span>
-                    <span class="chip green">Solicitudes</span>
-                    <span class="chip green">WhatsApp</span>
+                <button class="btn-access">ENTRAR MÓVIL</button>
+            </a>
+
+            <a class="portal-card pc" href="portal.html">
+                <div class="icon-wrap">🖥️</div>
+                <div class="card-info">
+                    <h2>VERSIÓN ESCRITORIO</h2>
+                    <p>Reportes globales, caja y administración.</p>
                 </div>
-                <button class="btn-access">ACCEDER — VERSIÓN MÓVIL</button>
+                <button class="btn-access">ENTRAR ESCRITORIO</button>
             </a>
         </div>
 
-        <div class="hub-footer">CrediListo SaaS · Sistema Activo · PIN: sesión segura</div>
+        <div class="hub-footer">CrediListo SaaS · Modo Móvil</div>
     </div>
 
     <script>
@@ -354,7 +325,7 @@
         function checkPin() {
             if(pinBuffer === "2025") {
                 document.getElementById('lock-screen').style.display = 'none';
-                sessionStorage.setItem('auth_credilisto', 'true');
+                sessionStorage.setItem('auth_credilisto_movil', 'true');
                 loadGlobalStats();
             } else {
                 document.getElementById('pin-error').textContent = "PIN incorrecto. Intente de nuevo.";
@@ -363,16 +334,8 @@
             }
         }
 
-        // Soporte teclado físico
-        document.addEventListener('keydown', e => {
-            if(document.getElementById('lock-screen').style.display === 'none') return;
-            if(e.key >= '0' && e.key <= '9') addDigit(e.key);
-            if(e.key === 'Backspace') delDigit();
-            if(e.key === 'Enter') checkPin();
-        });
-
         // Auto-acceso si ya autenticado
-        if(sessionStorage.getItem('auth_credilisto') === 'true') {
+        if(sessionStorage.getItem('auth_credilisto_movil') === 'true' || sessionStorage.getItem('auth_credilisto') === 'true') {
             document.getElementById('lock-screen').style.display = 'none';
             loadGlobalStats();
         }
@@ -387,28 +350,32 @@
                 { fin: 'config/finanzas3', cli: 'clientes3' },
             ];
 
-            for(const b of branches) {
-                const [fSnap, cSnap] = await Promise.all([
-                    db.ref(b.fin).once('value'),
-                    db.ref(b.cli).once('value'),
-                ]);
-                const fin = fSnap.val() || {};
-                totalCap  += parseFloat(fin.capitalInvertido || 0);
-                totalCaja += parseFloat(fin.cajaChica || 0);
+            try {
+                for(const b of branches) {
+                    const [fSnap, cSnap] = await Promise.all([
+                        db.ref(b.fin).once('value'),
+                        db.ref(b.cli).once('value'),
+                    ]);
+                    const fin = fSnap.val() || {};
+                    totalCap  += parseFloat(fin.capitalInvertido || 0);
+                    totalCaja += parseFloat(fin.cajaChica || 0);
 
-                Object.values(cSnap.val() || {}).forEach(cl => {
-                    if(cl.tipo === 'ACTIVO') {
-                        totalCart += parseFloat(cl.saldo || 0);
-                        totalClis++;
-                    }
-                });
+                    Object.values(cSnap.val() || {}).forEach(cl => {
+                        if(cl.tipo === 'ACTIVO') {
+                            totalCart += parseFloat(cl.saldo || 0);
+                            totalClis++;
+                        }
+                    });
+                }
+
+                const fmt = n => '$' + parseFloat(n).toLocaleString('es-SV', {minimumFractionDigits: 2});
+                document.getElementById('stat-cap').textContent  = fmt(totalCap);
+                document.getElementById('stat-cart').textContent = fmt(totalCart);
+                document.getElementById('stat-caja').textContent = fmt(totalCaja);
+                document.getElementById('stat-clis').textContent = totalClis;
+            } catch (error) {
+                console.error("Error loading stats:", error);
             }
-
-            const fmt = n => '$' + parseFloat(n).toLocaleString('es-SV', {minimumFractionDigits: 2});
-            document.getElementById('stat-cap').textContent  = fmt(totalCap);
-            document.getElementById('stat-cart').textContent = fmt(totalCart);
-            document.getElementById('stat-caja').textContent = fmt(totalCaja);
-            document.getElementById('stat-clis').textContent = totalClis;
         }
     </script>
 </body>
