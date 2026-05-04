@@ -150,10 +150,12 @@
                 <div class="m-stat-card"><span class="m-stat-label">SALDO</span><span id="mod-saldo" class="m-stat-val red">$0</span></div>
                 <div class="m-stat-card"><span class="m-stat-label">CUOTA</span><span id="mod-cuota" class="m-stat-val blue">$0</span></div>
             </div>
+            <div id="mod-mora-section" style="margin-bottom:0.75rem"></div>
             <div id="mod-cuotas-list"></div>
         </div>
         <div class="modal-footer" style="display:flex; gap:0.5rem">
-            <button class="btn btn-ghost btn-lg" style="color:#25d366" onclick="openWhatsApp()">💬 WP</button>
+            <button class="btn btn-ghost btn-sm" style="color:#25d366" onclick="openWhatsApp()">💬 WP</button>
+            <button class="btn btn-sm" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;flex:0 0 auto" onclick="abrirTicketCliente()">🧾 TICKET</button>
             <button class="btn btn-accent btn-lg" onclick="closeClientModal()">CERRAR</button>
         </div>
     </div>
@@ -209,6 +211,31 @@
         <div class="modal-footer"><button class="btn btn-accent btn-lg" style="background:var(--success)" onclick="procesarAprobacionFinal()">CONFIRMAR APROBACIÓN</button></div>
     </div>
 
+
+    <!-- MODAL: INGRESO MORATORIO POR CLIENTE -->
+    <div id="modal-mora-cliente" class="modal">
+        <div class="modal-header"><h3>⚡ Ingreso Moratorio</h3><button onclick="document.getElementById('modal-mora-cliente').classList.remove('active')" style="background:transparent;border:none;color:#fff;font-size:1.2rem">✕</button></div>
+        <div class="modal-body" style="display:flex;flex-direction:column;gap:1rem">
+            <div style="background:rgba(217,119,6,0.1);padding:0.75rem;border-radius:0.5rem;border:1px solid rgba(217,119,6,0.3)"><span id="mora-cl-nombre" style="font-weight:800;color:#92400e;font-size:0.85rem"></span></div>
+            <div><span class="ff-label">Monto Cobrado ($)</span><input type="number" id="mora-cl-monto" class="edit-input" placeholder="0.00" step="0.01" min="0"></div>
+            <div><span class="ff-label">Concepto</span><input type="text" id="mora-cl-concepto" class="edit-input" value="Recargo por atraso"></div>
+            <div><span class="ff-label">Fecha del Cobro</span><input type="date" id="mora-cl-fecha" class="edit-input"></div>
+        </div>
+        <div class="modal-footer"><button class="btn btn-lg" style="width:100%;background:#d97706;color:#fff" onclick="registrarMoraCliente()">⚡ REGISTRAR INGRESO MORATORIO</button></div>
+    </div>
+
+    <!-- MODAL: REGISTROS MORA GLOBAL -->
+    <div id="modal-registros-mora" class="modal">
+        <div class="modal-header"><h3>⚡ Registros Moratorios</h3><button onclick="document.getElementById('modal-registros-mora').classList.remove('active')" style="background:transparent;border:none;color:#fff;font-size:1.2rem">✕</button></div>
+        <div class="modal-body">
+            <div style="background:rgba(217,119,6,0.1);padding:0.75rem;border-radius:0.5rem;margin-bottom:1rem;display:flex;justify-content:space-between;align-items:center">
+                <span style="font-size:0.65rem;font-weight:800;color:#92400e;text-transform:uppercase">Total Sucursal</span>
+                <span id="registros-mora-total" style="font-family:'JetBrains Mono';font-weight:800;color:#d97706;font-size:1rem">$0.00</span>
+            </div>
+            <div id="registros-mora-list"></div>
+        </div>
+    </div>
+
     <div id="toast" class="toast"></div>
 
     <script>
@@ -220,6 +247,8 @@
         let store = { 1:{}, 2:{}, 3:{} };
         let finanzas = { 1:{}, 2:{}, 3:{} };
         let curId = null;
+        let moratorios = { 1: [], 2: [], 3: [] };
+        let currentTicketClienteId = null;
 
         function validarAcceso() {
             if(document.getElementById('login-pin').value === "2025") {
@@ -244,6 +273,7 @@
             [1, 2, 3].forEach(br => {
                 const s = br === 1 ? '' : br;
                 db.ref('clientes' + s).on('value', snap => { store[br] = snap.val() || {}; updateUI(); });
+                db.ref('registros_mora' + s).on('value', snap => { moratorios[br] = snap.val() ? Object.values(snap.val()) : []; updateUI(); });
                 db.ref(br === 1 ? 'config/finanzas' : `config/finanzas${br}`).on('value', snap => { finanzas[br] = snap.val() || {}; updateUI(); });
             });
         }
@@ -276,23 +306,30 @@
             let cobradoHoy = 0, totalMoraAmt = 0;
 
             activos.forEach(c => {
-                // Cálculo de Mora
-                let diasAtraso = 0;
-                let oldestUnpaid = null;
+                // Cálculo de Mora Multi-Cuota
+                let maxDiasAtraso = 0, hasMora = false, recargoTotal = 0, baseAplicada = false;
                 (c.cuotas||[]).forEach(q => {
-                    if(!q.pagada) {
+                    if(!q.pagada && !q.tipoExtra) {
                         const fq = q.fecha_prog_sv || q.fecha_prog;
-                        if(esFechaPasada(fq)) { if(!oldestUnpaid) oldestUnpaid = fq; }
-                    } else if(q.fecha_ISO === hoyISO) {
+                        if(fq && esFechaPasada(fq)) {
+                            const dias = calcularDiasDiferencia(fq);
+                            if(dias > 0) {
+                                hasMora = true;
+                                if(dias > maxDiasAtraso) maxDiasAtraso = dias;
+                                if(dias > 3) {
+                                    if(!baseAplicada) { recargoTotal += 5; baseAplicada = true; }
+                                    recargoTotal += (dias - 3);
+                                }
+                            }
+                        }
+                    } else if(q.pagada && q.fecha_ISO === hoyISO) {
                         cobradoHoy += parseFloat(q.valorPagado||0);
                     }
                 });
 
-                if(oldestUnpaid) {
-                    diasAtraso = calcularDiasDiferencia(oldestUnpaid);
-                    let recargo = diasAtraso > 3 ? 5 + (diasAtraso - 3) : 0;
-                    totalMoraAmt += recargo;
-                    listaMora.push({...c, diasAtraso, recargo});
+                if(hasMora) {
+                    totalMoraAmt += recargoTotal;
+                    listaMora.push({...c, diasAtraso: maxDiasAtraso, recargo: recargoTotal});
                 } else {
                     const tocaHoy = (c.cuotas||[]).some(q => !q.pagada && (q.fecha_prog_sv === hoySV || q.fecha_prog === hoySV));
                     if(tocaHoy) {
@@ -366,21 +403,22 @@
                 deuPendiente += parseFloat(c.saldo || 0);
             });
 
-            const yaCobrado = (totCobrar - deuPendiente);
-            const gananciaBruta = yaCobrado - (totCobrar - deuPendiente); // Simplificado para demo
-            const gananciaNeta = (totCobrar * 0.20) - (fin.gananciasRetiradas || 0);
+            const yaCobrado = totCobrar - deuPendiente;
+            const gananciaReal = yaCobrado * (0.2 / 1.2); 
+            const gananciaNeta = gananciaReal - parseFloat(fin.gananciasRetiradas || 0);
+            const totalMoratorio = (moratorios[currentBranch]||[]).reduce((acc, m) => acc + parseFloat(m.monto||0), 0);
 
             let sociosHtml = "";
             if(currentBranch === 1) {
                 sociosHtml = `
-                    <div class="m-stat-card"><span class="m-stat-label">SOCIO 1 (17%)</span><span class="m-stat-val blue">${fmt(gananciaNeta * 0.85)}</span></div>
-                    <div class="m-stat-card"><span class="m-stat-label">SOCIO 2 (3%)</span><span class="m-stat-val blue">${fmt(gananciaNeta * 0.15)}</span></div>
+                    <div class="m-stat-card"><span class="m-stat-label">SOCIO 1 (17%)</span><span class="m-stat-val blue">${fmt(gananciaNeta * (17/20))}</span></div>
+                    <div class="m-stat-card"><span class="m-stat-label">SOCIO 2 (3%)</span><span class="m-stat-val blue">${fmt(gananciaNeta * (3/20))}</span></div>
                 `;
             } else {
                 sociosHtml = `
-                    <div class="m-stat-card"><span class="m-stat-label">SOCIO 1 (12%)</span><span class="m-stat-val blue">${fmt(gananciaNeta * 0.60)}</span></div>
-                    <div class="m-stat-card"><span class="m-stat-label">SOCIO 2 (4%)</span><span class="m-stat-val blue">${fmt(gananciaNeta * 0.20)}</span></div>
-                    <div class="m-stat-card"><span class="m-stat-label">SOCIO 3 (4%)</span><span class="m-stat-val blue">${fmt(gananciaNeta * 0.20)}</span></div>
+                    <div class="m-stat-card"><span class="m-stat-label">SOCIO 1 (12%)</span><span class="m-stat-val blue">${fmt(gananciaNeta * (12/20))}</span></div>
+                    <div class="m-stat-card"><span class="m-stat-label">SOCIO 2 (4%)</span><span class="m-stat-val blue">${fmt(gananciaNeta * (4/20))}</span></div>
+                    <div class="m-stat-card"><span class="m-stat-label">SOCIO 3 (4%)</span><span class="m-stat-val blue">${fmt(gananciaNeta * (4/20))}</span></div>
                 `;
             }
 
@@ -396,6 +434,10 @@
                 <div class="m-stats-row">
                     <div class="m-stat-card"><span class="m-stat-label">YA COBRADO</span><span class="m-stat-val success">${fmt(yaCobrado)}</span></div>
                     <div class="m-stat-card"><span class="m-stat-label">CAJA CHICA</span><span class="m-stat-val blue">${fmt(fin.cajaChica)}</span></div>
+                </div>
+                <div class="m-stat-card" style="margin-bottom:0.75rem; background:linear-gradient(135deg,rgba(217,119,6,0.1),transparent); border-left:3px solid #d97706; cursor:pointer" onclick="abrirModalRegistrosMora()">
+                    <span class="m-stat-label" style="color:#92400e">SALDO MORATORIO ⚡ (clic para detalle)</span>
+                    <span class="m-stat-val" style="color:#d97706">${fmt(totalMoratorio)}</span>
                 </div>
                 <div class="m-stat-card" style="margin-bottom:0.75rem; background:var(--accent-dim); border-color:var(--accent)">
                     <span class="m-stat-label" style="color:var(--accent)">GANANCIA DISPONIBLE A HOY (20%)</span>
@@ -586,7 +628,18 @@
             c.saldo = (parseFloat(c.total) - totalCobrado).toFixed(2);
             const finPath = currentBranch===1?'config/finanzas':`config/finanzas${currentBranch}`;
             const nuevaCaja = parseFloat((parseFloat(finanzas[currentBranch].cajaChica||0) + amt).toFixed(2));
-            await Promise.all([ db.ref(`clientes${currentBranch===1?'':currentBranch}/${curId}`).set(c), db.ref(finPath).update({ cajaChica: nuevaCaja }) ]);
+            await Promise.all([ 
+                db.ref(`clientes${currentBranch===1?'':currentBranch}/${curId}`).set(c), 
+                db.ref(finPath).update({ cajaChica: nuevaCaja }),
+                db.ref('pagos_clientes/' + curId).push({
+                    monto: isNaN(amt) ? 0 : amt,
+                    fecha_ISO: fechaISO || '',
+                    fecha_SV: fechaSV || '',
+                    hora: c.cuotas[idx].hora || '',
+                    sucursal: currentBranch || 1,
+                    cuota_n: c.cuotas[idx].n || 0
+                })
+            ]);
             toast(`Cobro de ${fmt(amt)} registrado (${fechaSV})`);
         }
 
@@ -665,6 +718,108 @@
             const q = input.value.toLowerCase();
             const items = document.querySelectorAll('#' + listId + ' .ficha-mora-m');
             items.forEach(it => { it.style.display = it.textContent.toLowerCase().includes(q) ? 'block' : 'none'; });
+        }
+
+        // ═══════════════════════════════════════
+        // MORATORIO — Sección en expediente móvil
+        // ═══════════════════════════════════════
+        function renderMorasCliente(cId) {
+            const wrap = document.getElementById('mod-mora-section');
+            if(!wrap) return;
+            const c = store[currentBranch][cId];
+            if(!c) return;
+            const misRegistros = (moratorios[currentBranch]||[])
+                .filter(m => m.clienteId === cId)
+                .sort((a,b) => (b.fecha||'').localeCompare(a.fecha||''));
+            const total = misRegistros.reduce((acc,m) => acc + parseFloat(m.monto||0), 0);
+            wrap.innerHTML = `
+                <div style="background:linear-gradient(135deg,rgba(217,119,6,0.1),transparent);border:1px solid rgba(217,119,6,0.3);border-radius:0.75rem;padding:0.75rem;margin-bottom:0.5rem">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:${misRegistros.length?'0.5rem':'0'}">
+                        <span style="font-size:0.6rem;font-weight:800;color:#92400e;text-transform:uppercase">⚡ Ingresos Moratorios</span>
+                        <div style="display:flex;align-items:center;gap:0.5rem">
+                            <span style="font-family:'JetBrains Mono';font-weight:800;color:#d97706;font-size:0.9rem">${fmt(total)}</span>
+                            <button class="btn btn-sm" style="background:#d97706;color:#fff;padding:0.3rem 0.6rem;font-size:0.6rem" onclick="abrirModalMoraCliente()">+ INGRESAR</button>
+                        </div>
+                    </div>
+                    ${misRegistros.slice(0,3).map(m => `
+                        <div style="display:flex;justify-content:space-between;font-size:0.72rem;padding:0.3rem 0;border-top:1px solid rgba(217,119,6,0.2)">
+                            <span style="color:#92400e">${m.concepto||'Recargo'} · ${m.fecha||'—'}</span>
+                            <span style="font-weight:800;color:#d97706">${fmt(m.monto)}</span>
+                        </div>`).join('')}
+                    ${misRegistros.length > 3 ? `<div style="font-size:0.6rem;color:#d97706;text-align:center;margin-top:0.25rem">+${misRegistros.length-3} más</div>` : ''}
+                </div>`;
+        }
+
+        function abrirModalMoraCliente() {
+            const c = store[currentBranch][curId];
+            if(!c) return;
+            document.getElementById('mora-cl-nombre').textContent = c.nombre;
+            document.getElementById('mora-cl-monto').value = '';
+            document.getElementById('mora-cl-concepto').value = 'Recargo por atraso';
+            document.getElementById('mora-cl-fecha').value = getHoyISO();
+            document.getElementById('modal-mora-cliente').classList.add('active');
+        }
+
+        async function registrarMoraCliente() {
+            const monto = parseFloat(document.getElementById('mora-cl-monto').value);
+            if(!monto || monto <= 0) return toast('Ingrese un monto válido');
+            const concepto = document.getElementById('mora-cl-concepto').value || 'Recargo por atraso';
+            const fecha = document.getElementById('mora-cl-fecha').value || getHoyISO();
+            const c = store[currentBranch][curId];
+            const suffix = currentBranch === 1 ? '' : currentBranch;
+            await db.ref('registros_mora' + suffix).push({
+                clienteId: curId, cliente: c.nombre, monto, concepto, fecha,
+                sucursal: currentBranch, registradoEn: new Date().toISOString()
+            });
+            document.getElementById('modal-mora-cliente').classList.remove('active');
+            toast(`Mora ${fmt(monto)} registrada`);
+            renderMorasCliente(curId);
+        }
+
+        function abrirModalRegistrosMora() {
+            document.getElementById('modal-registros-mora').classList.add('active');
+            renderListaRegistrosMora();
+        }
+
+        function renderListaRegistrosMora() {
+            const list = document.getElementById('registros-mora-list');
+            const totalEl = document.getElementById('registros-mora-total');
+            if(!list) return;
+            const registros = (moratorios[currentBranch]||[]).sort((a,b) => (b.fecha||'').localeCompare(a.fecha||''));
+            const total = registros.reduce((acc,m) => acc + parseFloat(m.monto||0), 0);
+            if(totalEl) totalEl.textContent = fmt(total);
+            list.innerHTML = registros.length ? registros.map(m => `
+                <div class="ficha-mora-m" style="border-left-color:#d97706">
+                    <div style="display:flex;justify-content:space-between;align-items:center">
+                        <div><div style="font-weight:800;font-size:0.8rem">${m.cliente||'—'}</div><div style="font-size:0.65rem;color:var(--muted)">${m.concepto||'Recargo'} · ${m.fecha||'—'}</div></div>
+                        <span style="font-family:'JetBrains Mono';font-weight:800;color:#d97706">${fmt(m.monto)}</span>
+                    </div>
+                </div>`).join('') : '<div style="text-align:center;padding:2rem;color:var(--muted);font-size:0.8rem">Sin registros moratorios</div>';
+        }
+
+        // ═══════════════════════════════════════
+        // TICKET VIP — versión móvil
+        // ═══════════════════════════════════════
+        function abrirTicketCliente() {
+            const c = store[currentBranch][curId];
+            if(!c) return toast('Sin cliente seleccionado');
+            currentTicketClienteId = curId;
+            const cuotasPagadas = (c.cuotas||[]).filter(q => q.pagada);
+            const totalPagado = cuotasPagadas.reduce((acc,q) => acc + parseFloat(q.valorPagado||0), 0);
+            const moraTotal = (moratorios[currentBranch]||[]).filter(m => m.clienteId === curId).reduce((acc,m) => acc + parseFloat(m.monto||0), 0);
+            const recargo = parseFloat(prompt(`Recargos cobrados a ${c.nombre} (sugerido: $${moraTotal.toFixed(2)}):`, moraTotal.toFixed(2)) || 0);
+            imprimirTicketMovil(c, cuotasPagadas, totalPagado, recargo);
+        }
+
+        function imprimirTicketMovil(c, cuotasPagadas, totalPagado, recargo) {
+            const granTotal = totalPagado + recargo;
+            const filas = cuotasPagadas.map(q => `<tr><td style="padding:5px 3px;border-bottom:1px solid #f0f0f0;font-size:10px">Cuota #${q.n}</td><td style="padding:5px 3px;border-bottom:1px solid #f0f0f0;font-size:10px;color:#555">${q.fecha_ISO ? q.fecha_ISO.split('-').reverse().join('/') : (q.fecha||'—')}</td><td style="padding:5px 3px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:700;font-size:10px">$${parseFloat(q.valorPagado||0).toFixed(2)}</td></tr>`).join('');
+            const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Comprobante | ${c.nombre}</title><link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet"><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Inter',sans-serif;background:#f1f5f9;display:flex;justify-content:center;padding:16px}.ticket{background:#fff;width:340px;border-radius:16px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,0.15)}.tk-head{background:linear-gradient(135deg,#0f172a,#1e3a5f);padding:22px 20px 30px;position:relative}.tk-head::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:22px;background:white;clip-path:ellipse(55% 100% at 50% 100%)}.tk-logo{font-family:'Syne',sans-serif;font-size:20px;font-weight:800;color:#fff}.tk-logo span{color:#0ea5e9}.tk-sub{color:rgba(255,255,255,0.5);font-size:8px;letter-spacing:0.2em;text-transform:uppercase;margin-top:3px}.tk-body{padding:28px 18px 18px}.tk-badge{background:rgba(14,165,233,0.08);border:1px solid rgba(14,165,233,0.2);border-radius:10px;padding:12px;margin-bottom:14px}.tk-cn{font-family:'Syne',sans-serif;font-size:16px;font-weight:800;color:#0f172a}.tk-cm{font-size:10px;color:#64748b;font-weight:600;margin-top:2px}.tk-dt{display:flex;justify-content:space-between;font-size:9px;color:#94a3b8;margin-bottom:14px}.stitle{font-size:7px;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:#94a3b8;margin-bottom:6px}table{width:100%;border-collapse:collapse}th{font-size:7px;font-weight:800;text-transform:uppercase;color:#94a3b8;padding:5px 3px;border-bottom:2px solid #e2e8f0;text-align:left}th:last-child{text-align:right}.divider{border:none;border-top:2px dashed #e2e8f0;margin:12px 0}.row{display:flex;justify-content:space-between;margin-bottom:6px;font-size:11px}.row .lbl{color:#64748b;font-weight:600}.row .val{font-family:'JetBrains Mono',monospace;font-weight:700}.total-box{background:linear-gradient(135deg,#0f172a,#1e3a5f);border-radius:10px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;margin:12px 0}.total-box .lbl{color:rgba(255,255,255,0.6);font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em}.total-box .val{font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700;color:#0ea5e9}.footer{text-align:center;padding:12px 0 0;border-top:1px solid #e2e8f0;margin-top:12px}.footer p{font-size:8px;color:#94a3b8;line-height:1.7;font-weight:600}.bc{font-family:'JetBrains Mono',monospace;font-size:7px;color:#cbd5e1;letter-spacing:0.15em;margin-top:5px}@media print{body{background:#fff;padding:0}.ticket{box-shadow:none;border-radius:0;width:100%}}</style></head><body><div class="ticket"><div class="tk-head"><div class="tk-logo">CREDI<span>LISTO</span></div><div class="tk-sub">Comprobante de Pago · V24 Pro</div></div><div class="tk-body"><div class="tk-badge"><div class="tk-cn">${c.nombre}</div><div class="tk-cm">DUI: ${c.dui||'—'} | Tel: ${c.tel||'—'}</div></div><div class="tk-dt"><span>📅 ${getFechaHoySV()}</span><span>INVER ${currentBranch}</span></div><div class="stitle">Detalle de Pagos</div><table><thead><tr><th>Cuota</th><th>Fecha</th><th style="text-align:right">Monto</th></tr></thead><tbody>${filas}</tbody></table><hr class="divider"><div class="row"><span class="lbl">Subtotal</span><span class="val">$${totalPagado.toFixed(2)}</span></div>${recargo>0?`<div class="row"><span class="lbl" style="color:#d97706">⚡ Recargos</span><span class="val" style="color:#d97706">$${recargo.toFixed(2)}</span></div>`:''}<div class="total-box"><span class="lbl">Total Comprobado</span><span class="val">$${granTotal.toFixed(2)}</span></div><div class="footer"><p>Gracias por su pago puntual.<br>Este comprobante es válido como recibo oficial.<br><strong>CrediListo V24 · Santiago de María, Usulután</strong></p><div class="bc">${Date.now().toString(36).toUpperCase().slice(-10)}</div></div></div></div></body></html>`;
+            const win = window.open('', '_blank');
+            win.document.write(html);
+            win.document.close();
+            win.focus();
+            setTimeout(() => win.print(), 800);
         }
     </script>
 </body>

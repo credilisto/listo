@@ -394,6 +394,7 @@
                         </div>
                         <div style="display:flex; gap:0.5rem">
                             <button class="btn btn-ghost" onclick="openWhatsApp()">💬 WhatsApp</button>
+                            <button class="btn btn-sm" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;border-radius:0.75rem;font-weight:800;padding:0.5rem 1rem;font-size:0.7rem;border:none;cursor:pointer" onclick="abrirTicketCliente()">🧾 TICKET</button>
                             <button class="btn btn-ghost" onclick="closeClientModal()">✕</button>
                         </div>
                     </div>
@@ -441,6 +442,7 @@
                                         <div class="docs-grid" id="m-docs-grid"></div>
                                     </div>
                                 </div>
+                                <div id="mora-cliente-section" style="margin-top:1.5rem"></div>
                                 <div id="footer-actions-area" style="margin-top:1.5rem"></div>
                             </div>
                         </div>
@@ -469,6 +471,76 @@
                     </div>
                 </div>
             </div>
+
+            <!-- MODAL: INGRESO MORATORIO POR CLIENTE -->
+            <div id="modal-mora-cliente" class="modal">
+                <div class="modal-content" style="max-width:420px">
+                    <div class="modal-header" style="border-bottom:2px solid #fde68a">
+                        <div><h3 style="color:#92400e">⚡ Ingreso Moratorio</h3><p id="mora-cl-nombre" style="font-size:0.75rem;color:#d97706;font-weight:700;margin-top:0.25rem"></p></div>
+                        <button class="btn btn-ghost" onclick="document.getElementById('modal-mora-cliente').classList.remove('active')">✕</button>
+                    </div>
+                    <div class="modal-body" style="display:flex;flex-direction:column;gap:1rem">
+                        <div class="ficha-field"><span class="ff-label">Monto Cobrado ($)</span><input type="number" id="mora-cl-monto" class="edit-input" placeholder="0.00" step="0.01" min="0"></div>
+                        <div class="ficha-field"><span class="ff-label">Concepto</span><input type="text" id="mora-cl-concepto" class="edit-input" value="Recargo por atraso"></div>
+                        <div class="ficha-field"><span class="ff-label">Fecha del Cobro</span><input type="date" id="mora-cl-fecha" class="edit-input"></div>
+                        <button class="btn btn-full btn-lg" style="background:#d97706;color:#fff;border-radius:0.75rem" onclick="registrarMoraCliente()">⚡ REGISTRAR INGRESO MORATORIO</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MODAL: REGISTROS MORA GLOBAL -->
+            <div id="modal-registros-mora" class="modal">
+                <div class="modal-content" style="max-width:650px">
+                    <div class="modal-header">
+                        <div><h3>⚡ Registros Moratorios — INVER <span id="mora-gl-br"></span></h3><p style="font-size:0.75rem;color:var(--muted)">Total: <span id="registros-mora-total" style="font-weight:800;color:#d97706">$0.00</span></p></div>
+                        <button class="btn btn-ghost" onclick="document.getElementById('modal-registros-mora').classList.remove('active')">✕</button>
+                    </div>
+                    <div class="modal-body" style="padding:1rem"><div id="registros-mora-list" class="zebra-list"></div></div>
+                </div>
+            </div>
+
+            <!-- MODAL: TICKET VIP -->
+            <div id="modal-ticket" class="modal">
+                <div class="modal-content" style="max-width:460px">
+                    <div class="modal-header" style="background:linear-gradient(135deg,#0f172a,#1e3a5f);border-radius:1.5rem 1.5rem 0 0;padding:1.5rem 2rem">
+                        <div>
+                            <div style="font-family:'Syne',sans-serif;font-size:1.3rem;font-weight:800;color:#fff">CREDI<span style="color:#0ea5e9">LISTO</span> <span style="font-size:0.6rem;color:rgba(255,255,255,0.5);letter-spacing:0.15em">COMPROBANTE</span></div>
+                            <div id="tk-fecha-emision" style="font-size:0.7rem;color:rgba(255,255,255,0.5);margin-top:0.25rem"></div>
+                        </div>
+                        <button style="background:rgba(255,255,255,0.1);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:1rem" onclick="document.getElementById('modal-ticket').classList.remove('active')">✕</button>
+                    </div>
+                    <div class="modal-body" style="padding:1.5rem">
+                        <div style="background:linear-gradient(135deg,rgba(14,165,233,0.08),rgba(14,165,233,0.02));border:1px solid rgba(14,165,233,0.2);border-radius:12px;padding:1rem;margin-bottom:1rem">
+                            <div id="tk-nombre" style="font-family:'Syne',sans-serif;font-size:1.2rem;font-weight:800;color:#0f172a"></div>
+                            <div id="tk-dui" style="font-size:0.75rem;color:#64748b;font-weight:600;margin-top:0.25rem"></div>
+                        </div>
+                        <div style="font-size:0.6rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:#94a3b8;margin-bottom:0.5rem">Detalle de Pagos</div>
+                        <table style="width:100%;border-collapse:collapse;margin-bottom:1rem">
+                            <thead><tr>
+                                <th style="font-size:0.6rem;font-weight:800;text-transform:uppercase;color:#94a3b8;padding:0.5rem 0.25rem;border-bottom:2px solid #e2e8f0;text-align:left">Cuota</th>
+                                <th style="font-size:0.6rem;font-weight:800;text-transform:uppercase;color:#94a3b8;padding:0.5rem 0.25rem;border-bottom:2px solid #e2e8f0;text-align:left">Fecha</th>
+                                <th style="font-size:0.6rem;font-weight:800;text-transform:uppercase;color:#94a3b8;padding:0.5rem 0.25rem;border-bottom:2px solid #e2e8f0;text-align:right">Monto</th>
+                            </tr></thead>
+                            <tbody id="tk-pagos-list"></tbody>
+                        </table>
+                        <hr style="border:none;border-top:2px dashed #e2e8f0;margin:1rem 0">
+                        <div style="display:flex;justify-content:space-between;margin-bottom:0.5rem;font-size:0.85rem"><span style="color:#64748b;font-weight:600">Subtotal pagado</span><span id="tk-total-pagado" style="font-family:'JetBrains Mono';font-weight:700"></span></div>
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;font-size:0.85rem">
+                            <span style="color:#d97706;font-weight:600">⚡ Recargos cobrados</span>
+                            <div style="display:flex;align-items:center;gap:0.5rem">
+                                <span style="color:#64748b;font-size:0.75rem">$</span>
+                                <input type="number" id="tk-recargo" class="edit-input" style="width:90px;padding:0.35rem 0.5rem;font-family:'JetBrains Mono';font-weight:700;color:#d97706;text-align:right" oninput="actualizarTotalTicket()" step="0.01" min="0">
+                            </div>
+                        </div>
+                        <div style="background:linear-gradient(135deg,#0f172a,#1e3a5f);border-radius:12px;padding:1rem 1.25rem;display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem">
+                            <span style="color:rgba(255,255,255,0.7);font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em">Total Comprobado</span>
+                            <span id="tk-gran-total" style="font-family:'JetBrains Mono';font-size:1.4rem;font-weight:700;color:#0ea5e9"></span>
+                        </div>
+                        <button class="btn btn-accent btn-full btn-lg" onclick="imprimirTicket()">🖨️ IMPRIMIR COMPROBANTE VIP</button>
+                    </div>
+                </div>
+            </div>
+
         </main>
     </div>
 
@@ -485,6 +557,8 @@
         let store = { 1:{}, 2:{}, 3:{} };
         let finanzas = { 1:{}, 2:{}, 3:{} };
         let curId = null;
+        let moratorios = { 1: [], 2: [], 3: [] };
+        let currentTicketClienteId = null;
 
         function validarAcceso() {
             const pin = document.getElementById('login-pin').value;
@@ -518,6 +592,7 @@
             [1, 2, 3].forEach(br => {
                 const suffix = br === 1 ? '' : br;
                 db.ref('clientes' + suffix).on('value', snap => { store[br] = snap.val() || {}; updateUI(); });
+                db.ref('registros_mora' + suffix).on('value', snap => { moratorios[br] = snap.val() ? Object.values(snap.val()) : []; updateUI(); });
                 db.ref(br === 1 ? 'config/finanzas' : `config/finanzas${br}`).on('value', snap => { 
                     let data = snap.val() || {};
                     // Corrección interna solicitada para INVER 3 (Ajuste de $500 a $1,000)
@@ -541,14 +616,6 @@
             updateUI();
         }
 
-        function showView(v, el) {
-            document.querySelectorAll('.view').forEach(x => x.classList.remove('active'));
-            document.getElementById('view-'+v).classList.add('active');
-            document.querySelectorAll('.nav-item').forEach(x => x.classList.remove('active'));
-            if(el) el.classList.add('active');
-            if(v === 'dashboard') renderCobrosDelDia();
-        }
-
         function renderCobrosDelDia() {
             const panel = document.getElementById('cobros-panel');
             if(!panel) return;
@@ -569,24 +636,32 @@
                 const yaPago = (c.cuotas||[]).some(q => q.pagada && q.fecha_ISO === hoyISO);
                 if(yaPago) { pagados.push(c); return; }
 
-                // Lógica de Mora
-                let diasAtraso = 0;
-                let oldestUnpaid = null;
+                // Lógica de Mora Multi-Cuota: cada cuota vencida acumula su propio recargo
+                let maxDiasAtraso = 0;
+                let hasMora = false;
+                let recargoTotal = 0;
+                let baseAplicada = false;
+
                 (c.cuotas||[]).forEach(q => {
-                    if(!q.pagada) {
+                    if(!q.pagada && !q.tipoExtra) {
                         const fq = q.fecha_prog_sv || q.fecha_prog;
-                        if(esFechaPasada(fq)) {
-                            if(!oldestUnpaid) oldestUnpaid = fq;
+                        if(fq && esFechaPasada(fq)) {
+                            const dias = calcularDiasDiferencia(fq);
+                            if(dias > 0) {
+                                hasMora = true;
+                                if(dias > maxDiasAtraso) maxDiasAtraso = dias;
+                                if(dias > 3) {
+                                    if(!baseAplicada) { recargoTotal += 5; baseAplicada = true; }
+                                    recargoTotal += (dias - 3);
+                                }
+                            }
                         }
                     }
                 });
 
-                if(oldestUnpaid) {
-                    diasAtraso = calcularDiasDiferencia(oldestUnpaid);
-                    let recargo = 0;
-                    if(diasAtraso > 3) recargo = 5 + (diasAtraso - 3); // $5 base + $1 por día extra
-                    totalRecargoMora += recargo;
-                    listaMora.push({...c, diasAtraso, recargo});
+                if(hasMora) {
+                    totalRecargoMora += recargoTotal;
+                    listaMora.push({...c, diasAtraso: maxDiasAtraso, recargo: recargoTotal});
                 } else {
                     let tocaHoy = false;
                     (c.cuotas||[]).forEach(q => {
@@ -632,7 +707,7 @@
                             <div style="display:flex; gap:0.5rem; margin-bottom:0.75rem">
                                 <span class="badge" style="background:#fee2e2; color:#b91c1c; border:1px solid #fecaca">⚠️ ${c.diasAtraso} DÍAS ATRASO</span>
                                 <span class="badge" style="background:#ffedd5; color:#9a3412; border:1px solid #fed7aa">💰 MORA: ${fmt(c.recargo)}</span>
-                                <span class="badge" style="background:var(--surface2); color:var(--muted); border:1px solid var(--border)">${c.frecuencia.toUpperCase()}</span>
+                                <span class="badge" style="background:var(--surface2); color:var(--muted); border:1px solid var(--border)">${(c.frecuencia||'diario').toUpperCase()}</span>
                             </div>
                             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem">
                                 <h4 style="font-size:1.1rem; font-weight:800; color:var(--sidebar)">${c.nombre}</h4>
@@ -935,6 +1010,8 @@
                 `;
             }
 
+            const totalMoratorio = (moratorios[currentBranch]||[]).reduce((acc, m) => acc + parseFloat(m.monto||0), 0);
+
             const panel = document.getElementById('finanzas-panel');
             if(panel) {
                 panel.innerHTML = `
@@ -948,6 +1025,11 @@
                         <div class="stat-card"> <span class="sc-label">RECUPERADO TOTAL (YA COBRADO)</span> <span class="sc-val success">${fmt(yaCobrado)}</span> </div>
                         
                         <div class="stat-card"> <span class="sc-label">CAJA CHICA (EFECTIVO DISPONIBLE)</span> <span class="sc-val blue">${fmt(fin.cajaChica)}</span> </div>
+                        <div class="stat-card" style="border-left:5px solid #d97706; cursor:pointer" onclick="abrirModalRegistrosMora()">
+                            <span class="sc-label" style="color:#92400e">SALDO MORATORIO COBRADO ⚡</span>
+                            <span class="sc-val" style="color:#d97706">${fmt(totalMoratorio)}</span>
+                            <span style="font-size:0.6rem;color:#92400e;font-weight:700">${(moratorios[currentBranch]||[]).length} registros — clic para ver detalle</span>
+                        </div>
                         
                         <div class="stat-card" style="grid-column: span 2; background:var(--accent-dim)"> 
                             <span class="sc-label" style="color:var(--accent)">GANANCIA DISPONIBLE A HOY (20%)</span> 
@@ -1226,6 +1308,9 @@
                 footer.innerHTML = `<div style="text-align:center; padding:1rem; background:var(--surface2); border-radius:0.75rem; font-weight:700; font-size:0.8rem">CLIENTE EN ARCHIVO HISTÓRICO</div>`;
             }
 
+            // Mora Cliente Section
+            renderMorasCliente(curId);
+
             // Docs
             const d = document.getElementById('m-docs-grid');
             const slot = (t, l, u) => `<div class="doc-slot"><div class="doc-preview" onclick="document.getElementById('fi-${t}').click()">${u?`<img src="${u}">`:`<div class="doc-placeholder"><span>📎</span>${l}</div>`}</div><div class="upload-bar" id="bar-${t}"></div></div>`;
@@ -1257,7 +1342,15 @@
             
             await Promise.all([
                 db.ref('clientes'+suffix+'/'+curId).set(c),
-                db.ref(finPath).update({ cajaChica: nuevaCaja })
+                db.ref(finPath).update({ cajaChica: nuevaCaja }),
+                db.ref('pagos_clientes/' + curId).push({
+                    monto: isNaN(amt) ? 0 : amt,
+                    fecha_ISO: fechaISO || '',
+                    fecha_SV: fechaSV || '',
+                    hora: c.cuotas[idx].hora || '',
+                    sucursal: currentBranch || 1,
+                    cuota_n: c.cuotas[idx].n || 0
+                })
             ]);
             toast(`Pago de $${amt} registrado (${fechaSV})`, 'success');
         }
@@ -1584,6 +1677,173 @@
             await db.ref(`clientes${suffix}/${curId}`).set(c);
             toast(`Abono parcial de $${montoAbono.toFixed(2)} programado`, "success");
             renderExpediente();
+        }
+
+        // ═══════════════════════════════════════════════
+        // MORATORIO: Renderizar sección en expediente
+        // ═══════════════════════════════════════════════
+        function renderMorasCliente(cId) {
+            const wrap = document.getElementById('mora-cliente-section');
+            if(!wrap) return;
+            const c = store[currentBranch][cId];
+            if(!c) return;
+            const misRegistros = (moratorios[currentBranch]||[])
+                .filter(m => m.clienteId === cId)
+                .sort((a,b) => (b.fecha||'').localeCompare(a.fecha||''));
+            const totalMoraCliente = misRegistros.reduce((acc,m) => acc + parseFloat(m.monto||0), 0);
+            wrap.innerHTML = `
+                <div class="section-card">
+                    <div class="section-header" style="background:linear-gradient(135deg,rgba(217,119,6,0.08),transparent)">
+                        <h3 style="color:#92400e">⚡ Ingresos Moratorios</h3>
+                        <div style="display:flex;align-items:center;gap:0.75rem">
+                            <span style="font-family:'JetBrains Mono';font-weight:800;color:#d97706">${fmt(totalMoraCliente)}</span>
+                            <button class="btn btn-sm" style="background:#d97706;color:#fff;border:none;border-radius:0.6rem;font-size:0.65rem;font-weight:800;padding:0.4rem 0.8rem;cursor:pointer" onclick="abrirModalMoraCliente()">+ INGRESAR</button>
+                        </div>
+                    </div>
+                    <div style="max-height:200px;overflow-y:auto">
+                        ${misRegistros.length === 0
+                            ? `<p style="text-align:center;color:var(--muted);font-size:0.75rem;padding:1rem 0">Sin registros moratorios aún</p>`
+                            : misRegistros.map(m => `
+                                <div style="display:flex;justify-content:space-between;align-items:center;padding:0.6rem 1rem;border-bottom:1px solid var(--border);font-size:0.8rem">
+                                    <div><strong>${m.concepto||'Recargo'}</strong><br><span style="color:var(--muted);font-size:0.7rem">${m.fecha||'—'}</span></div>
+                                    <span style="font-family:'JetBrains Mono';font-weight:800;color:#d97706">${fmt(m.monto)}</span>
+                                </div>`).join('')}
+                    </div>
+                </div>`;
+        }
+
+        function abrirModalMoraCliente() {
+            const c = store[currentBranch][curId];
+            if(!c) return;
+            document.getElementById('mora-cl-nombre').textContent = c.nombre;
+            document.getElementById('mora-cl-monto').value = '';
+            document.getElementById('mora-cl-concepto').value = 'Recargo por atraso';
+            document.getElementById('mora-cl-fecha').value = getHoyISO();
+            document.getElementById('modal-mora-cliente').classList.add('active');
+        }
+
+        async function registrarMoraCliente() {
+            const monto = parseFloat(document.getElementById('mora-cl-monto').value);
+            if(!monto || monto <= 0) return toast('Ingrese un monto válido','error');
+            const concepto = document.getElementById('mora-cl-concepto').value || 'Recargo por atraso';
+            const fecha = document.getElementById('mora-cl-fecha').value || getHoyISO();
+            const c = store[currentBranch][curId];
+            const suffix = currentBranch === 1 ? '' : currentBranch;
+            await db.ref('registros_mora' + suffix).push({
+                clienteId: curId,
+                cliente: c.nombre,
+                monto: monto,
+                concepto: concepto,
+                fecha: fecha,
+                sucursal: currentBranch,
+                registradoEn: new Date().toISOString()
+            });
+            document.getElementById('modal-mora-cliente').classList.remove('active');
+            toast(`Mora de ${fmt(monto)} registrada para ${c.nombre}`, 'success');
+            renderMorasCliente(curId);
+        }
+
+        // ═══════════════════════════════════════════════
+        // MORATORIO: Vista global de la sucursal
+        // ═══════════════════════════════════════════════
+        function abrirModalRegistrosMora() {
+            document.getElementById('mora-gl-br').textContent = currentBranch;
+            document.getElementById('modal-registros-mora').classList.add('active');
+            renderListaRegistrosMora();
+        }
+
+        function renderListaRegistrosMora() {
+            const list = document.getElementById('registros-mora-list');
+            const totalEl = document.getElementById('registros-mora-total');
+            if(!list) return;
+            const registros = (moratorios[currentBranch]||[]).sort((a,b) => (b.fecha||'').localeCompare(a.fecha||''));
+            const total = registros.reduce((acc,m) => acc + parseFloat(m.monto||0), 0);
+            if(totalEl) totalEl.textContent = fmt(total);
+            if(registros.length === 0) {
+                list.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--muted)">No hay registros moratorios en esta sucursal</div>';
+                return;
+            }
+            list.innerHTML = registros.map(m => `
+                <div class="list-item">
+                    <div class="item-info">
+                        <strong>${m.cliente||'—'}</strong>
+                        <span>${m.concepto||'Recargo'} · ${m.fecha||'—'}</span>
+                    </div>
+                    <div class="item-stats"><span style="color:#d97706;font-weight:800;font-family:'JetBrains Mono'">${fmt(m.monto)}</span></div>
+                </div>`).join('');
+        }
+
+        // ═══════════════════════════════════════════════
+        // TICKET VIP
+        // ═══════════════════════════════════════════════
+        function abrirTicketCliente() {
+            const c = store[currentBranch][curId];
+            if(!c) return toast('No hay cliente seleccionado','error');
+            currentTicketClienteId = curId;
+            const cuotasPagadas = (c.cuotas||[]).filter(q => q.pagada);
+            const totalPagado = cuotasPagadas.reduce((acc,q) => acc + parseFloat(q.valorPagado||0), 0);
+            const moraCliente = (moratorios[currentBranch]||[]).filter(m => m.clienteId === curId);
+            const totalMoraCliente = moraCliente.reduce((acc,m) => acc + parseFloat(m.monto||0), 0);
+            document.getElementById('tk-nombre').textContent = c.nombre;
+            document.getElementById('tk-dui').textContent = 'DUI: ' + (c.dui||'—') + '  |  Tel: ' + (c.tel||'—');
+            document.getElementById('tk-fecha-emision').textContent = '📅 ' + getFechaHoySV();
+            document.getElementById('tk-total-pagado').textContent = fmt(totalPagado);
+            document.getElementById('tk-recargo').value = totalMoraCliente.toFixed(2);
+            const tkList = document.getElementById('tk-pagos-list');
+            if(tkList) {
+                tkList.innerHTML = cuotasPagadas.length
+                    ? cuotasPagadas.map(q => `<tr>
+                        <td style="padding:0.4rem 0.25rem;border-bottom:1px solid #f0f0f0;font-size:0.8rem">Cuota #${q.n}</td>
+                        <td style="padding:0.4rem 0.25rem;border-bottom:1px solid #f0f0f0;font-size:0.8rem;color:#64748b">${q.fecha_ISO ? q.fecha_ISO.split('-').reverse().join('/') : (q.fecha||'—')}</td>
+                        <td style="padding:0.4rem 0.25rem;border-bottom:1px solid #f0f0f0;text-align:right;font-family:'JetBrains Mono';font-weight:700;font-size:0.8rem;color:#10b981">${fmt(q.valorPagado)}</td>
+                    </tr>`).join('')
+                    : `<tr><td colspan="3" style="text-align:center;padding:1rem;color:var(--muted);font-size:0.75rem">Sin pagos registrados</td></tr>`;
+            }
+            actualizarTotalTicket();
+            document.getElementById('modal-ticket').classList.add('active');
+        }
+
+        function actualizarTotalTicket() {
+            const recargo = parseFloat(document.getElementById('tk-recargo').value) || 0;
+            const c = store[currentBranch][currentTicketClienteId];
+            const totalPagado = (c?.cuotas||[]).filter(q=>q.pagada).reduce((acc,q) => acc + parseFloat(q.valorPagado||0), 0);
+            document.getElementById('tk-gran-total').textContent = fmt(totalPagado + recargo);
+        }
+
+        function imprimirTicket() {
+            const c = store[currentBranch][currentTicketClienteId];
+            if(!c) return;
+            const cuotasPagadas = (c.cuotas||[]).filter(q => q.pagada);
+            const totalPagado = cuotasPagadas.reduce((acc,q) => acc + parseFloat(q.valorPagado||0), 0);
+            const recargo = parseFloat(document.getElementById('tk-recargo').value) || 0;
+            const granTotal = totalPagado + recargo;
+            const filas = cuotasPagadas.map(q => `<tr>
+                <td style="padding:6px 4px;border-bottom:1px solid #f0f0f0;font-size:11px">Cuota #${q.n}</td>
+                <td style="padding:6px 4px;border-bottom:1px solid #f0f0f0;font-size:11px;color:#555">${q.fecha_ISO ? q.fecha_ISO.split('-').reverse().join('/') : (q.fecha||'—')}</td>
+                <td style="padding:6px 4px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:700;font-size:11px">$${parseFloat(q.valorPagado||0).toFixed(2)}</td>
+            </tr>`).join('');
+            const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Comprobante | ${c.nombre}</title>
+            <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
+            <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Inter',sans-serif;background:#f1f5f9;display:flex;align-items:flex-start;justify-content:center;padding:20px;min-height:100vh}.ticket{background:#fff;width:380px;border-radius:20px;overflow:hidden;box-shadow:0 25px 60px rgba(0,0,0,0.18)}.tk-head{background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 100%);padding:28px 24px 36px;position:relative}.tk-head::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:28px;background:white;clip-path:ellipse(55% 100% at 50% 100%)}.tk-logo{font-family:'Syne',sans-serif;font-size:24px;font-weight:800;color:#fff}.tk-logo span{color:#0ea5e9}.tk-sub{color:rgba(255,255,255,0.5);font-size:9px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;margin-top:4px}.tk-body{padding:32px 24px 24px}.tk-badge{background:linear-gradient(135deg,rgba(14,165,233,0.1),rgba(14,165,233,0.03));border:1px solid rgba(14,165,233,0.25);border-radius:12px;padding:14px;margin-bottom:18px}.tk-cn{font-family:'Syne',sans-serif;font-size:18px;font-weight:800;color:#0f172a}.tk-cm{font-size:11px;color:#64748b;font-weight:600;margin-top:3px}.tk-dt{display:flex;justify-content:space-between;font-size:10px;color:#94a3b8;margin-bottom:16px}.tk-stitle{font-size:8px;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:#94a3b8;margin-bottom:8px}table{width:100%;border-collapse:collapse}th{font-size:8px;font-weight:800;text-transform:uppercase;color:#94a3b8;letter-spacing:0.08em;padding:6px 4px;border-bottom:2px solid #e2e8f0;text-align:left}th:last-child{text-align:right}.tk-div{border:none;border-top:2px dashed #e2e8f0;margin:16px 0}.tk-row{display:flex;justify-content:space-between;margin-bottom:8px;font-size:12px}.tk-row .lbl{color:#64748b;font-weight:600}.tk-row .val{font-family:'JetBrains Mono',monospace;font-weight:700;color:#0f172a}.tk-total{background:linear-gradient(135deg,#0f172a,#1e3a5f);border-radius:12px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;margin:14px 0}.tk-total .lbl{color:rgba(255,255,255,0.65);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em}.tk-total .val{font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;color:#0ea5e9}.tk-foot{text-align:center;padding:14px 0 0;border-top:1px solid #e2e8f0;margin-top:14px}.tk-foot p{font-size:9px;color:#94a3b8;line-height:1.7;font-weight:600}.tk-bc{font-family:'JetBrains Mono',monospace;font-size:8px;color:#cbd5e1;letter-spacing:0.15em;margin-top:6px}@media print{body{background:#fff;padding:0}.ticket{box-shadow:none;border-radius:0;width:100%}}</style></head>
+            <body><div class="ticket">
+                <div class="tk-head"><div class="tk-logo">CREDI<span>LISTO</span></div><div class="tk-sub">Comprobante de Pago · V24 Pro</div></div>
+                <div class="tk-body">
+                    <div class="tk-badge"><div class="tk-cn">${c.nombre}</div><div class="tk-cm">DUI: ${c.dui||'—'} &nbsp;|&nbsp; Tel: ${c.tel||'—'}</div></div>
+                    <div class="tk-dt"><span>📅 Emisión: <strong>${getFechaHoySV()}</strong></span><span>INVER ${currentBranch}</span></div>
+                    <div class="tk-stitle">Historial de Pagos Realizados</div>
+                    <table><thead><tr><th>Cuota</th><th>Fecha</th><th style="text-align:right">Monto</th></tr></thead><tbody>${filas}</tbody></table>
+                    <hr class="tk-div">
+                    <div class="tk-row"><span class="lbl">Subtotal pagado</span><span class="val">$${totalPagado.toFixed(2)}</span></div>
+                    ${recargo > 0 ? `<div class="tk-row"><span class="lbl" style="color:#d97706">⚡ Recargos cobrados</span><span class="val" style="color:#d97706">$${recargo.toFixed(2)}</span></div>` : ''}
+                    <div class="tk-total"><span class="lbl">Total Comprobado</span><span class="val">$${granTotal.toFixed(2)}</span></div>
+                    <div class="tk-foot"><p>Gracias por su pago puntual. Este comprobante es válido como recibo oficial.<br><strong>CrediListo V24 Enterprise · Santiago de María, Usulután</strong></p><div class="tk-bc">${Date.now().toString(36).toUpperCase().slice(-10)}</div></div>
+                </div>
+            </div></body></html>`;
+            const win = window.open('', '_blank');
+            win.document.write(html);
+            win.document.close();
+            win.focus();
+            setTimeout(() => win.print(), 800);
         }
     </script>
 </body>
