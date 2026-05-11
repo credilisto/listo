@@ -376,6 +376,12 @@
                         <div style="font-weight:800; font-size:0.85rem">${c.nombre}</div>
                         <div style="font-size:0.7rem; color:var(--muted); margin-top:0.3rem">Saldo: <span class="red">${fmt(c.saldo)}</span> · Cuota: ${fmt((c.cuotas||[]).find(q=>!q.pagada)?.valorPagado||0)}</div>
                         <div style="margin-top:0.4rem; background:rgba(34,197,94,0.15); border:1px solid rgba(34,197,94,0.4); border-radius:0.4rem; padding:0.3rem 0.6rem; display:inline-block; font-size:0.72rem; font-weight:800; color:#16a34a">💵 TOTAL A PAGAR: ${fmt((parseFloat((c.cuotas||[]).find(q=>!q.pagada)?.valorPagado||0)) + parseFloat(c.recargo||0))}</div>
+                        
+                        <div style="display:flex; gap:0.4rem; margin-top:0.75rem">
+                            <input type="text" id="nota-${c.id}" placeholder="Nota incidencia..." class="edit-input" style="flex:1; padding:0.5rem; font-size:0.75rem" onclick="event.stopPropagation()">
+                            <button class="btn btn-ghost btn-sm" style="background:var(--accent-dim); color:var(--accent); border-color:var(--accent)" onclick="event.stopPropagation(); guardarNotaRapida('${c.id}')">💾</button>
+                        </div>
+                        <button class="btn btn-accent btn-sm" style="background:#d97706; margin-top:0.5rem; width:100%; font-size:0.7rem" onclick="event.stopPropagation(); pagarMoraRapida('${c.id}', ${c.recargo})">⚡ PAGAR MORA Y RESETEAR</button>
                     </div>
                 `).join('')}
 
@@ -904,6 +910,49 @@
             const moraTotal = (moratorios[currentBranch]||[]).filter(m => m.clienteId === curId).reduce((acc,m) => acc + parseFloat(m.monto||0), 0);
             const recargo = parseFloat(prompt(`Recargos cobrados a ${c.nombre} (sugerido: $${moraTotal.toFixed(2)}):`, moraTotal.toFixed(2)) || 0);
             imprimirTicketMovil(c, cuotasPagadas, totalPagado, recargo);
+        }
+
+        async function guardarNotaRapida(id) {
+            const nota = document.getElementById('nota-'+id).value;
+            if(!nota) return toast("Escriba una nota");
+            const c = store[currentBranch][id];
+            const pathInc = currentBranch===1?'config/incidencias':`config/incidencias${currentBranch}`;
+            await db.ref(pathInc).push({
+                monto: 0, tipo: 'NOTA', motivo: 'Nota en Mora (Móvil): ' + nota,
+                responsable: 'Gestor Móvil', cliente: c.nombre,
+                fecha: getFechaHoySV(), hora: new Date().toLocaleTimeString()
+            });
+            toast("✅ Nota guardada");
+            document.getElementById('nota-'+id).value = '';
+        }
+
+        async function pagarMoraRapida(id, monto) {
+            if(!confirm(`¿Registrar pago de mora por ${fmt(monto)} para ${store[currentBranch][id].nombre}?`)) return;
+            const c = store[currentBranch][id];
+            const suffix = currentBranch === 1 ? '' : currentBranch;
+            const finPath = currentBranch===1?'config/finanzas':`config/finanzas${currentBranch}`;
+            
+            await db.ref('registros_mora' + suffix).push({
+                clienteId: id, cliente: c.nombre, monto: monto, concepto: 'Pago de Mora (Reseteo Móvil)', fecha: getHoyISO(),
+                sucursal: currentBranch, registradoEn: new Date().toISOString()
+            });
+
+            const moraAnterior = parseFloat(finanzas[currentBranch].moraCobrada||0);
+            await db.ref(finPath).update({ moraCobrada: (moraAnterior + monto).toFixed(2) });
+
+            (c.cuotas||[]).forEach(q => {
+                if(!q.pagada && !q.tipoExtra) {
+                    const fq = q.fecha_prog_sv || q.fecha_prog;
+                    if(fq && esFechaPasada(fq)) {
+                        q.fecha_prog_sv = getFechaHoySV();
+                        q.fecha_prog = getHoyISO().split('-').reverse().join('/');
+                    }
+                }
+            });
+
+            await db.ref('clientes'+suffix+'/'+id).set(c);
+            toast("⚡ Mora cobrada y contador reiniciado");
+            updateUI();
         }
 
         function imprimirTicketMovil(c, cuotasPagadas, totalPagado, recargo) {

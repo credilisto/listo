@@ -768,8 +768,11 @@
                                 <span style="background:rgba(34,197,94,0.15); border:1px solid rgba(34,197,94,0.5); border-radius:0.5rem; padding:0.4rem 1rem; font-size:0.8rem; font-weight:800; color:#16a34a">💵 TOTAL A PAGAR: ${fmt((parseFloat((c.cuotas||[]).find(q=>!q.pagada)?.valorPagado||0)) + parseFloat(c.recargo||0))}</span>
                             </div>
                             <div style="display:flex; gap:0.5rem">
-                                <input type="text" placeholder="Agregar nota de incidencia..." class="edit-input" style="flex:1; padding:0.6rem; font-size:0.8rem" onclick="event.stopPropagation()">
-                                <button class="btn btn-ghost btn-sm" style="background:var(--accent-dim); color:var(--accent); border-color:var(--accent)">💾 NOTA</button>
+                                <input type="text" id="nota-${c.id}" placeholder="Agregar nota de incidencia..." class="edit-input" style="flex:1; padding:0.6rem; font-size:0.8rem" onclick="event.stopPropagation()">
+                                <button class="btn btn-ghost btn-sm" style="background:var(--accent-dim); color:var(--accent); border-color:var(--accent)" onclick="event.stopPropagation(); guardarNotaRapida('${c.id}')">💾 NOTA</button>
+                            </div>
+                            <div style="margin-top:0.75rem">
+                                <button class="btn btn-accent btn-full btn-sm" style="background:#d97706; border:none" onclick="event.stopPropagation(); pagarMoraRapida('${c.id}', ${c.recargo})">⚡ PAGAR MORA (${fmt(c.recargo)}) Y REINICIAR CONTADOR</button>
                             </div>
                         </div>
                     `).join('')}
@@ -835,6 +838,56 @@
             const tel = c.tel.replace(/\D/g,'');
             const msg = encodeURIComponent(`Hola ${c.nombre}, le saludamos de CrediListo. Le recordamos que su crédito presenta un atraso de ${dias} días con un recargo por mora de ${fmt(rec)}. Su saldo pendiente total es de ${fmt(saldo)}. Por favor ponerse al día lo antes posible para evitar mayores recargos. ¡Gracias!`);
             window.open(`https://wa.me/503${tel}?text=${msg}`, '_blank');
+        }
+        
+        async function guardarNotaRapida(id) {
+            const nota = document.getElementById('nota-'+id).value;
+            if(!nota) return toast("Escriba una nota", "error");
+            const c = store[currentBranch][id];
+            const pathInc = currentBranch===1?'config/incidencias':`config/incidencias${currentBranch}`;
+            await db.ref(pathInc).push({
+                monto: 0,
+                tipo: 'NOTA',
+                motivo: 'Nota en Mora: ' + nota,
+                responsable: 'Admin',
+                cliente: c.nombre,
+                fecha: getFechaHoySV(),
+                hora: new Date().toLocaleTimeString()
+            });
+            toast("Nota guardada", "success");
+            document.getElementById('nota-'+id).value = '';
+        }
+
+        async function pagarMoraRapida(id, monto) {
+            if(!confirm(`¿Registrar pago de mora por ${fmt(monto)} para ${store[currentBranch][id].nombre}?`)) return;
+            const c = store[currentBranch][id];
+            const suffix = currentBranch === 1 ? '' : currentBranch;
+            const finPath = currentBranch===1?'config/finanzas':`config/finanzas${currentBranch}`;
+            
+            // 1. Registrar el ingreso de mora
+            await db.ref('registros_mora' + suffix).push({
+                clienteId: id, cliente: c.nombre, monto: monto, concepto: 'Pago de Mora (Reseteo)', fecha: getHoyISO(),
+                sucursal: currentBranch, registradoEn: new Date().toISOString()
+            });
+
+            // 2. Aumentar moraCobrada
+            const nuevaMora = parseFloat((parseFloat(finanzas[currentBranch].moraCobrada||0) + monto).toFixed(2));
+            await db.ref(finPath).update({ moraCobrada: nuevaMora });
+
+            // 3. Resetear la regla de los 3 días: Actualizamos la fecha_prog de todas las cuotas vencidas a HOY
+            (c.cuotas||[]).forEach(q => {
+                if(!q.pagada && !q.tipoExtra) {
+                    const fq = q.fecha_prog_sv || q.fecha_prog;
+                    if(fq && esFechaPasada(fq)) {
+                        q.fecha_prog_sv = getFechaHoySV();
+                        q.fecha_prog = getHoyISO().split('-').reverse().join('/'); // Asegurar formato DD/MM/YYYY
+                    }
+                }
+            });
+
+            await db.ref('clientes'+suffix+'/'+id).set(c);
+            toast("Mora cobrada y contador reiniciado", "success");
+            updateUI();
         }
         
         function esFechaPasada(fStr) {
@@ -1069,8 +1122,12 @@
                         <div class="stat-card"> <span class="sc-label">RECUPERADO TOTAL (YA COBRADO)</span> <span class="sc-val success">${fmt(yaCobrado)}</span> </div>
                         
                         <div class="stat-card"> <span class="sc-label">CAJA CHICA (EFECTIVO DISPONIBLE)</span> <span class="sc-val blue">${fmt(fin.cajaChica)}</span> </div>
+                        <div class="stat-card" style="border-left:5px solid #d97706">
+                            <span class="sc-label" style="color:#92400e">MORA COBRADA (ACUMULADA) ⚡</span>
+                            <span class="sc-val" style="color:#d97706">${fmt(fin.moraCobrada||0)}</span>
+                        </div>
                         <div class="stat-card" style="border-left:5px solid #d97706; cursor:pointer" onclick="abrirModalRegistrosMora()">
-                            <span class="sc-label" style="color:#92400e">SALDO MORATORIO COBRADO ⚡</span>
+                            <span class="sc-label" style="color:#92400e">REGISTROS MORATORIOS ⚡</span>
                             <span class="sc-val" style="color:#d97706">${fmt(totalMoratorio)}</span>
                             <span style="font-size:0.6rem;color:#92400e;font-weight:700">${(moratorios[currentBranch]||[]).length} registros — clic para ver detalle</span>
                         </div>
