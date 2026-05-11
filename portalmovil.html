@@ -20,62 +20,62 @@
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-        body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; font-size: 16px; }
 
-        .mobile-header { background: var(--sidebar); color: #fff; padding: 1rem; display: flex; align-items: center; justify-content: space-between; z-index: 100; }
-        .logo-m { font-family: 'Syne', sans-serif; font-size: 1.2rem; font-weight: 800; }
+        .mobile-header { background: var(--sidebar); color: #fff; padding: 1.2rem 1rem; display: flex; align-items: center; justify-content: space-between; z-index: 100; }
+        .logo-m { font-family: 'Syne', sans-serif; font-size: 1.4rem; font-weight: 800; }
         .logo-m span { color: var(--accent); }
 
-        .branch-tabs { display: flex; gap: 0.3rem; background: rgba(255,255,255,0.05); padding: 0.2rem; border-radius: 0.5rem; }
-        .br-tab { border: none; background: transparent; color: #94a3b8; padding: 0.3rem 0.6rem; border-radius: 0.4rem; font-size: 0.6rem; font-weight: 800; }
+        .branch-tabs { display: flex; gap: 0.4rem; background: rgba(255,255,255,0.05); padding: 0.3rem; border-radius: 0.6rem; }
+        .br-tab { border: none; background: transparent; color: #94a3b8; padding: 0.4rem 0.8rem; border-radius: 0.5rem; font-size: 0.75rem; font-weight: 800; }
         .br-tab.active { background: var(--accent); color: #fff; }
 
-        .bottom-nav { background: #fff; border-top: 1px solid var(--border); display: flex; justify-content: space-around; padding: 0.5rem; z-index: 100; padding-bottom: calc(0.5rem + env(safe-area-inset-bottom)); }
-        .nav-btn { display: flex; flex-direction: column; align-items: center; gap: 0.1rem; border: none; background: transparent; color: var(--muted); font-weight: 700; font-size: 0.55rem; flex: 1; }
+        .bottom-nav { background: #fff; border-top: 1px solid var(--border); display: flex; justify-content: space-around; padding: 0.75rem 0.5rem; z-index: 100; padding-bottom: calc(0.75rem + env(safe-area-inset-bottom)); }
+        .nav-btn { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; border: none; background: transparent; color: var(--muted); font-weight: 700; font-size: 0.7rem; flex: 1; }
         .nav-btn.active { color: var(--accent); }
-        .nav-icon { font-size: 1.2rem; }
+        .nav-icon { font-size: 1.4rem; }
 
-        .main-scroll { flex: 1; overflow-y: auto; padding: 0.75rem; padding-bottom: 5rem; }
+        .main-scroll { flex: 1; overflow-y: auto; padding: 1rem; padding-bottom: 5rem; }
         .view { display: none; }
         .view.active { display: block; }
 
-        .m-stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 0.75rem; }
-        .m-stat-card { background: #fff; padding: 0.75rem; border-radius: 0.75rem; border: 1px solid var(--border); box-shadow: var(--shadow); }
-        .m-stat-label { font-size: 0.5rem; font-weight: 800; color: var(--muted); text-transform: uppercase; display: block; margin-bottom: 0.15rem; }
-        .m-stat-val { font-family: 'JetBrains Mono', monospace; font-size: 0.95rem; font-weight: 700; }
+        .m-stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem; }
+        .m-stat-card { background: #fff; padding: 1rem; border-radius: 0.85rem; border: 1px solid var(--border); box-shadow: var(--shadow); }
+        .m-stat-label { font-size: 0.65rem; font-weight: 800; color: var(--muted); text-transform: uppercase; display: block; margin-bottom: 0.3rem; letter-spacing: 0.05em; }
+        .m-stat-val { font-family: 'JetBrains Mono', monospace; font-size: 1.1rem; font-weight: 700; }
 
-        .m-section-title { font-family: 'Syne', sans-serif; font-size: 0.85rem; font-weight: 800; margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: space-between; }
+        .m-section-title { font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 800; margin-bottom: 1rem; display: flex; align-items: center; justify-content: space-between; }
 
-        .ficha-mora-m { background: #fff; border-radius: 0.75rem; padding: 0.75rem; margin-bottom: 0.6rem; border-left: 4px solid var(--danger); box-shadow: var(--shadow); position: relative; }
+        .ficha-mora-m { background: #fff; border-radius: 0.85rem; padding: 1rem; margin-bottom: 0.8rem; border-left: 5px solid var(--danger); box-shadow: var(--shadow); position: relative; }
         .ficha-mora-m.normal { border-left-color: var(--accent); }
-        .m-badge { font-size: 0.55rem; padding: 0.2rem 0.4rem; border-radius: 0.3rem; font-weight: 800; margin-right: 0.3rem; display: inline-block; }
+        .m-badge { font-size: 0.7rem; padding: 0.25rem 0.5rem; border-radius: 0.4rem; font-weight: 800; margin-right: 0.4rem; display: inline-block; }
 
-        .m-table-wrap { background: #fff; border-radius: 0.75rem; border: 1px solid var(--border); overflow: hidden; margin-bottom: 1.5rem; }
-        .m-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
-        .m-table th { background: var(--surface2); padding: 0.5rem 0.75rem; text-align: left; font-size: 0.55rem; color: var(--muted); text-transform: uppercase; border-bottom: 1px solid var(--border); }
-        .m-table td { padding: 0.75rem; border-bottom: 1px solid var(--border); }
+        .m-table-wrap { background: #fff; border-radius: 0.85rem; border: 1px solid var(--border); overflow: hidden; margin-bottom: 1.5rem; }
+        .m-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .m-table th { background: var(--surface2); padding: 0.75rem 1rem; text-align: left; font-size: 0.65rem; color: var(--muted); text-transform: uppercase; border-bottom: 1px solid var(--border); letter-spacing: 0.05em; }
+        .m-table td { padding: 1rem; border-bottom: 1px solid var(--border); }
 
-        .btn { border: none; border-radius: 0.5rem; font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 0.4rem; transition: 0.2s; font-family: inherit; }
+        .btn { border: none; border-radius: 0.6rem; font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 0.5rem; transition: 0.2s; font-family: inherit; cursor: pointer; }
         .btn-accent { background: var(--accent); color: #fff; }
         .btn-ghost { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
         .btn-danger { background: var(--danger); color: #fff; }
-        .btn-sm { padding: 0.5rem 0.75rem; font-size: 0.65rem; }
-        .btn-lg { padding: 0.85rem; width: 100%; font-size: 0.8rem; }
+        .btn-sm { padding: 0.65rem 1rem; font-size: 0.75rem; }
+        .btn-lg { padding: 1.1rem; width: 100%; font-size: 1rem; }
 
         .modal { position: fixed; inset: 0; background: #fff; z-index: 1000; display: flex; flex-direction: column; transform: translateY(100%); transition: 0.3s; }
         .modal.active { transform: translateY(0); }
-        .modal-header { padding: 1rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; background: var(--sidebar); color: #fff; }
-        .modal-body { flex: 1; overflow-y: auto; padding: 1rem; }
-        .modal-footer { padding: 1rem; border-top: 1px solid var(--border); background: #fff; }
+        .modal-header { padding: 1.2rem 1rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; background: var(--sidebar); color: #fff; }
+        .modal-body { flex: 1; overflow-y: auto; padding: 1.2rem; }
+        .modal-footer { padding: 1.2rem; border-top: 1px solid var(--border); background: #fff; }
 
         #view-login { position: fixed; inset: 0; background: var(--sidebar); z-index: 2000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem; text-align: center; }
-        .pin-input { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; font-size: 2rem; text-align: center; width: 180px; padding: 0.8rem; border-radius: 0.75rem; margin: 1.5rem 0; letter-spacing: 0.4em; outline: none; }
+        .pin-input { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; font-size: 2.5rem; text-align: center; width: 220px; padding: 1rem; border-radius: 1rem; margin: 2rem 0; letter-spacing: 0.4em; outline: none; }
 
-        .toast { position: fixed; top: 1rem; left: 1rem; right: 1rem; background: var(--sidebar); color: #fff; padding: 0.75rem; border-radius: 0.75rem; text-align: center; font-weight: 800; transform: translateY(-200%); transition: 0.4s; z-index: 3000; font-size: 0.75rem; }
+        .toast { position: fixed; top: 1.5rem; left: 1rem; right: 1rem; background: var(--sidebar); color: #fff; padding: 1rem; border-radius: 0.85rem; text-align: center; font-weight: 800; transform: translateY(-200%); transition: 0.4s; z-index: 3000; font-size: 0.85rem; box-shadow: 0 10px 20px rgba(0,0,0,0.2); }
         .toast.show { transform: translateY(0); }
 
-        .edit-input { width: 100%; padding: 0.75rem; border-radius: 0.5rem; border: 1px solid var(--border); font-family: inherit; font-size: 0.85rem; outline: none; }
-        .ff-label { font-size: 0.5rem; font-weight: 800; color: var(--muted); text-transform: uppercase; margin-bottom: 0.2rem; display: block; }
+        .edit-input { width: 100%; padding: 1rem; border-radius: 0.6rem; border: 1px solid var(--border); font-family: inherit; font-size: 1rem; outline: none; }
+        .ff-label { font-size: 0.65rem; font-weight: 800; color: var(--muted); text-transform: uppercase; margin-bottom: 0.4rem; display: block; letter-spacing: 0.05em; }
         .red { color: var(--danger); } .success { color: var(--success); } .blue { color: var(--accent); }
     </style>
 </head>
@@ -115,6 +115,15 @@
             <div id="solicitudes-list"></div>
         </div>
 
+        <div id="view-bitacora" class="view">
+            <div class="m-section-title">
+                <span>📓 Bitácora Diaria</span>
+                <input type="date" id="bit-fecha-filtro" class="edit-input" style="width:130px; font-size:0.8rem; padding:0.5rem" onchange="renderBitacora()">
+            </div>
+            <div id="bitacora-content"></div>
+            <button class="btn btn-accent btn-lg" style="margin-top:1.5rem" onclick="guardarBitacora()">💾 GUARDAR BITÁCORA</button>
+        </div>
+
         <div id="view-finanzas" class="view">
             <div id="finanzas-panel-full"></div>
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem; margin-top:1rem">
@@ -133,6 +142,9 @@
         </button>
         <button class="nav-btn" onclick="showView('solicitudes', this)">
             <span class="nav-icon" style="color:var(--accent); font-size:1.6rem">📋</span><span>SOLICITUDES</span>
+        </button>
+        <button class="nav-btn" onclick="showView('bitacora', this)">
+            <span class="nav-icon">📓</span><span>BITÁCORA</span>
         </button>
         <button class="nav-btn" onclick="showView('finanzas', this)">
             <span class="nav-icon">💰</span><span>FINANZAS</span>
@@ -292,6 +304,9 @@
             document.querySelectorAll('.nav-btn').forEach(x => x.classList.remove('active'));
             el.classList.add('active');
             if(v === 'dashboard') renderCobrosDelDia();
+            if(v === 'cartera') renderCartera();
+            if(v === 'solicitudes') renderSolicitudes();
+            if(v === 'bitacora') renderBitacora();
             if(v === 'finanzas') renderFinanzas();
         }
 
@@ -389,6 +404,86 @@
                     `;
                 }).join('')}
             `;
+        }
+
+        async function renderBitacora() {
+            const wrap = document.getElementById('bitacora-content');
+            if(!wrap) return;
+            const fecha = document.getElementById('bit-fecha-filtro').value || getHoyISO();
+            document.getElementById('bit-fecha-filtro').value = fecha;
+
+            const br = currentBranch;
+            const snap = await db.ref(`bitacora_diaria/${br}/${fecha}`).once('value');
+            const data = snap.val() || {};
+
+            let cobradoHoy = 0;
+            Object.values(store[br]||{}).forEach(c => (c.cuotas||[]).forEach(q => {
+                if(q.pagada && q.fecha_ISO === fecha) cobradoHoy += parseFloat(q.valorPagado||0);
+            }));
+            const moraHoy = (moratorios[br]||[]).filter(m => m.fecha === fecha).reduce((acc, m) => acc + parseFloat(m.monto||0), 0);
+            
+            let saldoAnterior = data.saldoAnterior || 0;
+            if(!data.saldoAnterior) {
+                const d = new Date(fecha + 'T12:00:00');
+                d.setDate(d.getDate() - 1);
+                const fechaAyer = d.toISOString().split('T')[0];
+                const snapAyer = await db.ref(`bitacora_diaria/${br}/${fechaAyer}`).once('value');
+                saldoAnterior = snapAyer.val()?.nuevoSaldo || 0;
+            }
+
+            const entregaDia = data.entregaDia || 0;
+            const entregaMora = data.entregaMora || 0;
+            const nuevoSaldo = (parseFloat(saldoAnterior) + cobradoHoy + moraHoy - entregaDia - entregaMora).toFixed(2);
+
+            wrap.innerHTML = `
+                <div class="m-stats-row">
+                    <div class="m-stat-card"> <span class="m-stat-label">Saldo Anterior</span> <input type="number" id="bit-saldo-ant" class="edit-input" style="padding:0.5rem" value="${saldoAnterior}" onchange="recalcBitacora()"> </div>
+                    <div class="m-stat-card"> <span class="m-stat-label">Cobros Hoy</span> <span class="m-stat-val success">${fmt(cobradoHoy)}</span> </div>
+                </div>
+                <div class="m-stats-row">
+                    <div class="m-stat-card"> <span class="m-stat-label">Entrega Día</span> <input type="number" id="bit-entrega-dia" class="edit-input" style="padding:0.5rem" value="${entregaDia}" onchange="recalcBitacora()"> </div>
+                    <div class="m-stat-card"> <span class="m-stat-label">Entrega Mora</span> <input type="number" id="bit-entrega-mora" class="edit-input" style="padding:0.5rem" value="${entregaMora}" onchange="recalcBitacora()"> </div>
+                </div>
+                <div class="m-stat-card" style="margin-bottom:1rem; background:var(--accent-dim); border-color:var(--accent)">
+                    <span class="m-stat-label" style="color:var(--accent)">Nuevo Saldo en Caja</span>
+                    <span class="m-stat-val" id="bit-nuevo-saldo" style="color:var(--accent); font-size:1.4rem">${fmt(nuevoSaldo)}</span>
+                </div>
+                <div class="m-stat-card">
+                    <span class="m-stat-label">Notas del Día</span>
+                    <textarea id="bit-notas" class="edit-input" style="height:80px; font-size:0.9rem" placeholder="Ajustes o notas...">${data.notas || ''}</textarea>
+                </div>
+            `;
+        }
+
+        function recalcBitacora() {
+            const ant = parseFloat(document.getElementById('bit-saldo-ant').value || 0);
+            const entrega = parseFloat(document.getElementById('bit-entrega-dia').value || 0);
+            const mora = parseFloat(document.getElementById('bit-entrega-mora').value || 0);
+            const fecha = document.getElementById('bit-fecha-filtro').value;
+            const br = currentBranch;
+            let cobradoHoy = 0;
+            Object.values(store[br]||{}).forEach(c => (c.cuotas||[]).forEach(q => {
+                if(q.pagada && q.fecha_ISO === fecha) cobradoHoy += parseFloat(q.valorPagado||0);
+            }));
+            const moraHoy = (moratorios[br]||[]).filter(m => m.fecha === fecha).reduce((acc, m) => acc + parseFloat(m.monto||0), 0);
+            const nuevo = (ant + cobradoHoy + moraHoy - entrega - mora).toFixed(2);
+            document.getElementById('bit-nuevo-saldo').textContent = fmt(nuevo);
+        }
+
+        async function guardarBitacora() {
+            const fecha = document.getElementById('bit-fecha-filtro').value;
+            const br = currentBranch;
+            const nuevoSaldoStr = document.getElementById('bit-nuevo-saldo').textContent.replace('$','').replace(',','');
+            const payload = {
+                saldoAnterior: parseFloat(document.getElementById('bit-saldo-ant').value || 0),
+                entregaDia: parseFloat(document.getElementById('bit-entrega-dia').value || 0),
+                entregaMora: parseFloat(document.getElementById('bit-entrega-mora').value || 0),
+                nuevoSaldo: parseFloat(nuevoSaldoStr),
+                notas: document.getElementById('bit-notas').value,
+                fecha: fecha
+            };
+            await db.ref(`bitacora_diaria/${br}/${fecha}`).set(payload);
+            toast("✅ Bitácora guardada");
         }
 
         function renderFinanzas() {
