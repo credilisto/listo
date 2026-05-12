@@ -198,7 +198,33 @@
         .chip.blue  { background: rgba(14,165,233,0.15); color: var(--accent); border: 1px solid rgba(14,165,233,0.3); }
         .chip.green { background: rgba(34,197,94,0.12); color: var(--success); border: 1px solid rgba(34,197,94,0.3); }
 
-        .btn-access {
+        /* ── MODAL BITÁCORA DIARIA ── */
+        .modal-wrap {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 2000; opacity: 0; pointer-events: none; transition: opacity 0.2s;
+        }
+        .modal-wrap.active { opacity: 1; pointer-events: all; }
+        .modal-content {
+            background: var(--surface);
+            border-radius: 1rem;
+            padding: 1.5rem 2rem;
+            max-width: 620px; width: 90%;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+        }
+        .modal-content h3 { margin-top:0; margin-bottom:0.75rem; font-weight:800; font-size:1.1rem; color:var(--accent); }
+        .edit-input {
+            width:100%; height:200px; resize:vertical;
+            background: var(--surface2); color:var(--text);
+            border:1px solid var(--border); border-radius:0.5rem;
+            padding:0.75rem; font-family:'JetBrains Mono',monospace;
+            margin-bottom:1rem;
+        }
+        .modal-actions { display:flex; gap:0.75rem; justify-content:flex-end; }
+        .modal-actions .btn { padding:0.5rem 1rem; font-weight:600; border:none; border-radius:0.5rem; cursor:pointer; }
+        .modal-actions .btn:hover { opacity:0.9; }
+        .modal-actions .btn-close { background:var(--muted); color:#fff; }
+        .modal-actions .btn-save { background:var(--accent); color:#fff; }
             margin-top: auto; z-index: 1;
             padding: 0.8rem 2rem;
             border-radius: 1rem;
@@ -212,6 +238,22 @@
         .portal-card.mob:hover .btn-access { background: var(--success); color: var(--bg); }
 
         /* footer */
+        .btn-gen-bitacora {
+            background: var(--accent);
+            color: var(--bg);
+            border: none;
+            border-radius: 0.75rem;
+            padding: 0.75rem 1rem;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            margin-top: 1rem;
+            transition: transform 0.15s ease, box-shadow 0.2s ease;
+        }
+        .btn-gen-bitacora:hover {
+            transform: scale(1.02);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+        }
         .hub-footer {
             margin-top: 2.5rem;
             color: var(--muted); font-size: 0.6rem;
@@ -290,6 +332,7 @@
         </div>
 
         <!-- Selector de portal -->
+        <button class="btn-gen-bitacora" onclick="generarBitacoraDia()">Generar Bitácora Diaria</button>
         <div class="portal-grid">
             <a class="portal-card pc" href="portal.html">
                 <div class="icon-wrap">🖥️</div>
@@ -323,6 +366,17 @@
         <div class="hub-footer">CrediListo SaaS · Sistema Activo · PIN: sesión segura</div>
     </div>
 
+    <!-- Modal Bitácora Diaria -->
+    <div class="modal-wrap" id="modal-bitacora">
+        <div class="modal-content">
+            <h3>Bitácora Diaria</h3>
+            <textarea id="bitacora-textarea" class="edit-input" placeholder="Incidencias / notas del día..."></textarea>
+            <div class="modal-actions">
+                <button class="btn btn-close" onclick="cerrarModalBitacora()">Cancelar</button>
+                <button class="btn btn-save" onclick="guardarIncidenciasBitacora()">Guardar</button>
+            </div>
+        </div>
+    </div>
     <script>
         /* ── Firebase ── */
         const DB_URL = "https://credilistosv-default-rtdb.firebaseio.com";
