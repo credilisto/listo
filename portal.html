@@ -1180,28 +1180,8 @@
 
             const moraHoy = (moratorios[br]||[]).filter(m => m.fecha === fecha).reduce((acc, m) => acc + parseFloat(m.monto||0), 0);
             
-            // Intentar obtener saldo anterior si no hay datos guardados
-            let saldoAnterior = data.saldoAnterior || 0;
-            if(!data.saldoAnterior) {
-                const d = new Date(fecha + 'T12:00:00');
-                d.setDate(d.getDate() - 1);
-                const fechaAyer = d.toISOString().split('T')[0];
-                const snapAyer = await db.ref(`bitacora_diaria/${br}/${fechaAyer}`).once('value');
-                saldoAnterior = snapAyer.val()?.nuevoSaldo || 0;
-            }
-
-            const ajustes = 0; // Se podría sumar de incidencias si se desea automatizar más
-            const entregaDia = data.entregaDia || 0;
-            const entregaMora = data.entregaMora || 0;
-            
-            const nuevoSaldo = (parseFloat(saldoAnterior) + cobradoHoy + moraHoy - entregaDia - entregaMora).toFixed(2);
-
             wrap.innerHTML = `
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <span class="sc-label">SALDO ANTERIOR CAJA CHICA</span>
-                        <input type="number" id="bit-saldo-ant" class="edit-input" value="${saldoAnterior}" onchange="recalcBitacora()">
-                    </div>
+                <div class="stats-grid" style="grid-template-columns: 1fr 1fr;">
                     <div class="stat-card">
                         <span class="sc-label">COBROS DEL DÍA (SISTEMA)</span>
                         <span class="sc-val success">${fmt(cobradoHoy)}</span>
@@ -1209,21 +1189,6 @@
                     <div class="stat-card">
                         <span class="sc-label">MORATORIOS DEL DÍA (SISTEMA)</span>
                         <span class="sc-val" style="color:#d97706">${fmt(moraHoy)}</span>
-                    </div>
-                </div>
-
-                <div class="stats-grid" style="margin-top:1.5rem">
-                    <div class="stat-card">
-                        <span class="sc-label">ENTREGA DEL DÍA (RETIRO)</span>
-                        <input type="number" id="bit-entrega-dia" class="edit-input" value="${entregaDia}" onchange="recalcBitacora()">
-                    </div>
-                    <div class="stat-card">
-                        <span class="sc-label">ENTREGA MORATORIOS</span>
-                        <input type="number" id="bit-entrega-mora" class="edit-input" value="${entregaMora}" onchange="recalcBitacora()">
-                    </div>
-                    <div class="stat-card" style="background:var(--accent-dim)">
-                        <span class="sc-label" style="color:var(--accent)">NUEVO SALDO CAJA CHICA</span>
-                        <span class="sc-val" id="bit-nuevo-saldo" style="color:var(--accent)">${fmt(nuevoSaldo)}</span>
                     </div>
                 </div>
 
@@ -1236,40 +1201,17 @@
             `;
         }
 
-        function recalcBitacora() {
-            const ant = parseFloat(document.getElementById('bit-saldo-ant').value || 0);
-            const entrega = parseFloat(document.getElementById('bit-entrega-dia').value || 0);
-            const mora = parseFloat(document.getElementById('bit-entrega-mora').value || 0);
-            
-            // Re-obtener cobros del sistema para la fecha actual
-            const fecha = document.getElementById('bit-fecha-filtro').value;
-            const br = currentBranch;
-            let cobradoHoy = 0;
-            Object.values(store[br]||{}).forEach(c => (c.cuotas||[]).forEach(q => {
-                if(q.pagada && q.fecha_ISO === fecha) cobradoHoy += parseFloat(q.valorPagado||0);
-            }));
-            const moraHoy = (moratorios[br]||[]).filter(m => m.fecha === fecha).reduce((acc, m) => acc + parseFloat(m.monto||0), 0);
-
-            const nuevo = (ant + cobradoHoy + moraHoy - entrega - mora).toFixed(2);
-            document.getElementById('bit-nuevo-saldo').textContent = fmt(nuevo);
-        }
-
         async function guardarBitacora() {
             const fecha = document.getElementById('bit-fecha-filtro').value;
             const br = currentBranch;
-            const nuevoSaldoStr = document.getElementById('bit-nuevo-saldo').textContent.replace('$','').replace(',','');
             
             const payload = {
-                saldoAnterior: parseFloat(document.getElementById('bit-saldo-ant').value || 0),
-                entregaDia: parseFloat(document.getElementById('bit-entrega-dia').value || 0),
-                entregaMora: parseFloat(document.getElementById('bit-entrega-mora').value || 0),
-                nuevoSaldo: parseFloat(nuevoSaldoStr),
                 notas: document.getElementById('bit-notas').value,
                 fecha: fecha,
-                usuario: "Admin" // Podría ser dinámico
+                usuario: "Admin"
             };
 
-            await db.ref(`bitacora_diaria/${br}/${fecha}`).set(payload);
+            await db.ref(`bitacora_diaria/${br}/${fecha}`).update(payload);
             toast("Bitácora guardada correctamente", "success");
         }
 
@@ -2071,7 +2013,7 @@
         /* ── BITÁCORA TEXTO (GENERACIÓN DIARIA) ── */
         async function generarBitacoraTexto() {
             const fechaFmt = new Date().toLocaleDateString('es-SV', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
-            const fechaISO = getFechaHoySV();
+            const hoyISO = getHoyISO();
             const fin = finanzas[currentBranch] || {};
             const clientes = Object.values(store[currentBranch] || {});
 
@@ -2079,6 +2021,7 @@
             let carActiva = 0;
             let totCobrar = 0;
             let deuPendiente = 0;
+            let detallePagos = [];
 
             clientes.forEach(c => {
                 if(c.tipo === 'ACTIVO') {
@@ -2087,19 +2030,25 @@
                     deuPendiente += parseFloat(c.saldo || 0);
                 }
                 (c.cuotas || []).forEach(q => {
-                    if(q.pagada && q.fechaPago === fechaISO) {
-                        cobrosDia += parseFloat(q.valorPagado || 0);
+                    if(q.pagada && q.fecha_ISO === hoyISO) {
+                        const valor = parseFloat(q.valorPagado || 0);
+                        cobrosDia += valor;
+                        detallePagos.push(`  • ${c.nombre}: $${valor.toFixed(2)}`);
                     }
                 });
             });
 
             // Moratorios del día
             let moraDia = 0;
-            const morSnap = await db.ref(`moratorios/${currentBranch === 1 ? '' : currentBranch}/${fechaISO}`).once('value');
-            const morArr = morSnap.val() || [];
-            if(Array.isArray(morArr)) {
-                moraDia = morArr.reduce((a, m) => a + parseFloat(m.monto || 0), 0);
-            }
+            let detalleMora = [];
+            const morArr = moratorios[currentBranch] || [];
+            morArr.forEach(m => {
+                if(m.fecha === hoyISO) {
+                    const valor = parseFloat(m.monto || 0);
+                    moraDia += valor;
+                    detalleMora.push(`  • ${m.cliente || 'Desconocido'} (${m.concepto || 'Recargo'}): $${valor.toFixed(2)}`);
+                }
+            });
 
             const capInvertido = parseFloat(fin.capitalInvertido || 0);
             const cajaChica = parseFloat(fin.cajaChica || 0);
@@ -2121,7 +2070,13 @@
 
             let texto = `=== BITÁCORA DIARIA – ${fechaFmt} (INVER ${currentBranch}) ===\n\n`;
             texto += `Cobros realizados este día: $${cobrosDia.toFixed(2)}\n`;
-            texto += `Cobro de intereses moratorios: $${moraDia.toFixed(2)}\n\n`;
+            if (detallePagos.length > 0) {
+                texto += `Detalle de cobros:\n${detallePagos.join('\n')}\n`;
+            }
+            texto += `\nCobro de intereses moratorios: $${moraDia.toFixed(2)}\n`;
+            if (detalleMora.length > 0) {
+                texto += `Detalle de mora:\n${detalleMora.join('\n')}\n`;
+            }
             texto += `--- CONSOLIDADO FINANCIERO ---\n`;
             texto += `Capital invertido: $${capInvertido.toFixed(2)}\n`;
             texto += `Cartera activa: $${carActiva.toFixed(2)}\n`;
