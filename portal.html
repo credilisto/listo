@@ -250,6 +250,7 @@
                     <div><h1>📓 Bitácora Diaria</h1><p>Registro de flujo de caja y entregas por jornada</p></div>
                     <div style="display:flex; gap:0.5rem">
                         <input type="date" id="bit-fecha-filtro" class="edit-input" style="width:160px" onchange="renderBitacora()">
+                        <button class="btn btn-accent" onclick="generarBitacoraTexto()" style="background:var(--accent); color:var(--bg)">📝 GENERAR TEXTO</button>
                         <button class="btn btn-accent" onclick="guardarBitacora()">💾 GUARDAR DÍA</button>
                     </div>
                 </div>
@@ -487,6 +488,23 @@
                     </div>
                 </div>
             </div>
+
+            <!-- MODAL BITACORA TEXTO -->
+            <div id="modal-bitacora-texto" class="modal">
+                <div class="modal-content" style="max-width: 650px;">
+                    <div class="modal-header">
+                        <h3>Bitácora Diaria (Texto)</h3>
+                        <button class="btn btn-ghost" onclick="cerrarModalBitacoraTexto()">✕</button>
+                    </div>
+                    <div class="modal-body">
+                        <textarea id="bitacora-textarea" class="edit-input" style="height:250px; resize:vertical; font-family:'JetBrains Mono',monospace;" placeholder="Incidencias / notas del día..."></textarea>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-accent btn-full" onclick="guardarIncidenciasBitacora()">✓ GUARDAR INCIDENCIAS</button>
+                    </div>
+                </div>
+            </div>
+
             <!-- MODAL HISTORIAL DE COBROS -->
             <div id="modal-historial-cobros" class="modal">
                 <div class="modal-content" style="max-width: 700px">
@@ -1892,9 +1910,6 @@
             renderExpediente();
         }
 
-        // ═══════════════════════════════════════════════
-        // MORATORIO: Renderizar sección en expediente
-        // ═══════════════════════════════════════════════
         function renderMorasCliente(cId) {
             const wrap = document.getElementById('mora-cliente-section');
             if(!wrap) return;
@@ -1956,9 +1971,6 @@
             renderMorasCliente(curId);
         }
 
-        // ═══════════════════════════════════════════════
-        // MORATORIO: Vista global de la sucursal
-        // ═══════════════════════════════════════════════
         function abrirModalRegistrosMora() {
             document.getElementById('mora-gl-br').textContent = currentBranch;
             document.getElementById('modal-registros-mora').classList.add('active');
@@ -1986,9 +1998,6 @@
                 </div>`).join('');
         }
 
-        // ═══════════════════════════════════════════════
-        // TICKET VIP
-        // ═══════════════════════════════════════════════
         function abrirTicketCliente() {
             const c = store[currentBranch][curId];
             if(!c) return toast('No hay cliente seleccionado','error');
@@ -2057,6 +2066,94 @@
             win.document.close();
             win.focus();
             setTimeout(() => win.print(), 800);
+        }
+
+        /* ── BITÁCORA TEXTO (GENERACIÓN DIARIA) ── */
+        async function generarBitacoraTexto() {
+            const fechaFmt = new Date().toLocaleDateString('es-SV', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+            const fechaISO = getFechaHoySV();
+            const fin = finanzas[currentBranch] || {};
+            const clientes = Object.values(store[currentBranch] || {});
+
+            let cobrosDia = 0;
+            let carActiva = 0;
+            let totCobrar = 0;
+            let deuPendiente = 0;
+
+            clientes.forEach(c => {
+                if(c.tipo === 'ACTIVO') {
+                    carActiva += parseFloat(c.monto || 0);
+                    totCobrar += parseFloat(c.total || 0);
+                    deuPendiente += parseFloat(c.saldo || 0);
+                }
+                (c.cuotas || []).forEach(q => {
+                    if(q.pagada && q.fechaPago === fechaISO) {
+                        cobrosDia += parseFloat(q.valorPagado || 0);
+                    }
+                });
+            });
+
+            // Moratorios del día
+            let moraDia = 0;
+            const morSnap = await db.ref(`moratorios/${currentBranch === 1 ? '' : currentBranch}/${fechaISO}`).once('value');
+            const morArr = morSnap.val() || [];
+            if(Array.isArray(morArr)) {
+                moraDia = morArr.reduce((a, m) => a + parseFloat(m.monto || 0), 0);
+            }
+
+            const capInvertido = parseFloat(fin.capitalInvertido || 0);
+            const cajaChica = parseFloat(fin.cajaChica || 0);
+            const capReciclado = Math.max(0, carActiva - capInvertido);
+            const recuperado = totCobrar - deuPendiente;
+            const gananciasRet = parseFloat(fin.gananciasRetiradas || 0);
+            const gananciaDisp = (totCobrar - capInvertido) - gananciasRet;
+
+            // Desglose por socios
+            const socios = {};
+            if(currentBranch === 1) {
+                socios['SOCIO 1 (17%)'] = gananciaDisp * (17/20);
+                socios['SOCIO 2 (3%)']  = gananciaDisp * (3/20);
+            } else {
+                socios['SOCIO 1 (12%)'] = gananciaDisp * (12/20);
+                socios['SOCIO 2 (4%)']  = gananciaDisp * (4/20);
+                socios['SOCIO 3 (4%)']  = gananciaDisp * (4/20);
+            }
+
+            let texto = `=== BITÁCORA DIARIA – ${fechaFmt} (INVER ${currentBranch}) ===\n\n`;
+            texto += `Cobros realizados este día: $${cobrosDia.toFixed(2)}\n`;
+            texto += `Cobro de intereses moratorios: $${moraDia.toFixed(2)}\n\n`;
+            texto += `--- CONSOLIDADO FINANCIERO ---\n`;
+            texto += `Capital invertido: $${capInvertido.toFixed(2)}\n`;
+            texto += `Cartera activa: $${carActiva.toFixed(2)}\n`;
+            texto += `Capital reinvertido: $${capReciclado.toFixed(2)}\n`;
+            texto += `Total a cobrar (cap + int): $${totCobrar.toFixed(2)}\n`;
+            texto += `Deuda por cobrar: $${deuPendiente.toFixed(2)}\n`;
+            texto += `Recuperado / cobrado: $${recuperado.toFixed(2)}\n`;
+            texto += `Caja chica disponible: $${cajaChica.toFixed(2)}\n`;
+            texto += `Registro moratorio total del día: $${moraDia.toFixed(2)}\n`;
+            texto += `Ganancia disponible total: $${gananciaDisp.toFixed(2)}\n`;
+            
+            Object.entries(socios).forEach(([nombre, valor]) => {
+                texto += `  • ${nombre}: $${valor.toFixed(2)}\n`;
+            });
+            texto += `Retiro o comisión de este día: $${gananciasRet.toFixed(2)}\n\n`;
+            texto += `--- INCIDENCIAS / NOTAS ---\n`;
+
+            document.getElementById('bitacora-textarea').value = texto;
+            document.getElementById('modal-bitacora-texto').classList.add('active');
+        }
+
+        function cerrarModalBitacoraTexto() {
+            document.getElementById('modal-bitacora-texto').classList.remove('active');
+        }
+
+        async function guardarIncidenciasBitacora() {
+            const fechaISO = getFechaHoySV();
+            const incidencias = document.getElementById('bitacora-textarea').value;
+            const suffix = currentBranch === 1 ? '' : currentBranch;
+            await db.ref(`bitacora_diaria/${suffix}/${fechaISO}/incidencias`).set(incidencias);
+            toast('Incidencias guardadas en bitácora', 'success');
+            cerrarModalBitacoraTexto();
         }
     </script>
 </body>
