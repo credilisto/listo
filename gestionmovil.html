@@ -226,7 +226,8 @@
 
     <script>
         const DB_URL = "https://credilistosv-default-rtdb.firebaseio.com";
-        firebase.initializeApp({ databaseURL: DB_URL });
+        const FB_CFG = { apiKey: "AIzaSyC1GiJitT0QegrVe9o6CHCsvf7sEZELwRk", authDomain: "credilistosv.firebaseapp.com", databaseURL: DB_URL, projectId: "credilistosv", storageBucket: "credilistosv.firebasestorage.app" };
+        firebase.initializeApp(FB_CFG);
         const db = firebase.database();
         firebase.auth().signInAnonymously().catch(error => console.error("Error Auth:", error));
 
@@ -261,7 +262,10 @@
                 db.ref(br === 1 ? 'config/finanzas' : `config/finanzas${br}`).on('value', snap => { finanzas[br] = snap.val() || {}; updateUI(); });
             });
         }
-        initSync();
+        let syncInit = false;
+        firebase.auth().onAuthStateChanged(user => {
+            if(user && !syncInit) { syncInit = true; initSync(); }
+        });
 
         function switchBranch(br, el) {
             currentBranch = br;

@@ -381,7 +381,8 @@
     <script>
         /* ── Firebase ── */
         const DB_URL = "https://credilistosv-default-rtdb.firebaseio.com";
-        const app = firebase.initializeApp({ databaseURL: DB_URL });
+        const FB_CFG = { apiKey: "AIzaSyC1GiJitT0QegrVe9o6CHCsvf7sEZELwRk", authDomain: "credilistosv.firebaseapp.com", databaseURL: DB_URL, projectId: "credilistosv", storageBucket: "credilistosv.firebasestorage.app" };
+        const app = firebase.initializeApp(FB_CFG);
         const db  = app.database();
         firebase.auth().signInAnonymously().catch(error => console.error("Error Auth:", error));
 

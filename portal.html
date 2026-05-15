@@ -669,7 +669,10 @@
                 });
             });
         }
-        initSync();
+        let syncInit = false;
+        firebase.auth().onAuthStateChanged(user => {
+            if(user && !syncInit) { syncInit = true; initSync(); }
+        });
 
         function switchBranch(br) {
             currentBranch = br;
@@ -1092,19 +1095,20 @@
 
         function renderFinanzas() {
             const fin = finanzas[currentBranch] || {};
-            const activos = Object.values(store[currentBranch]).filter(c => c.tipo === 'ACTIVO');
+            const todos = Object.values(store[currentBranch]).filter(c => c.tipo === 'ACTIVO' || c.tipo === 'ARCHIVO');
             
             let carActiva = 0, totCobrar = 0, deuPendiente = 0;
             let diarios = 0, semanales = 0;
 
-            activos.forEach(c => {
-                carActiva += parseFloat(c.monto||0);
+            todos.forEach(c => {
+                if(c.tipo === 'ACTIVO') {
+                    carActiva += parseFloat(c.monto||0);
+                    if((c.frecuencia||'diario').toLowerCase() === 'semanal') semanales++; else diarios++;
+                }
                 totCobrar += parseFloat(c.total||0);
                 deuPendiente += parseFloat(c.saldo||0);
-                if((c.frecuencia||'diario').toLowerCase() === 'semanal') semanales++; else diarios++;
             });
 
-            const utilAcumulada = totCobrar - carActiva; 
             const yaCobrado = totCobrar - deuPendiente;
             const gananciaReal = yaCobrado * (0.2 / 1.2); 
             const gananciaNeta = gananciaReal - (parseFloat(fin.gananciasRetiradas||0));
