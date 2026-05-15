@@ -6,6 +6,7 @@
     <title>CrediListo · Sistema de Gestión</title>
     <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
     <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-database-compat.js"></script>
 
     <style>
@@ -382,6 +383,7 @@
         const DB_URL = "https://credilistosv-default-rtdb.firebaseio.com";
         const app = firebase.initializeApp({ databaseURL: DB_URL });
         const db  = app.database();
+        firebase.auth().signInAnonymously().catch(error => console.error("Error Auth:", error));
 
         /* ── PIN Logic ── */
         let pinBuffer = "";
