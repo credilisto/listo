@@ -9,6 +9,7 @@
 
     <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-database-compat.js"></script>
 
     <style>
@@ -436,6 +437,118 @@
 
         .pb-extra { padding-bottom: 3rem; }
 
+        /* ── CORTE DE GANANCIAS A HOY ─────────────────── */
+        .corte-hoy-section {
+            background: linear-gradient(135deg, rgba(74,222,128,0.06) 0%, rgba(56,189,248,0.04) 100%);
+            border: 1px solid rgba(74,222,128,0.22);
+            border-radius: 1.1rem;
+            padding: 1.25rem;
+            margin-bottom: 1.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+        .corte-hoy-section::before {
+            content: '';
+            position: absolute; top: 0; left: 0; right: 0; height: 3px;
+            background: linear-gradient(90deg, var(--green), var(--accent), var(--green));
+            background-size: 200% 100%;
+            animation: shimmer 2.5s linear infinite;
+        }
+        @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+        .corte-header {
+            display: flex; justify-content: space-between; align-items: flex-start;
+            margin-bottom: 1rem; gap: 1rem; flex-wrap: wrap;
+        }
+        .corte-title {
+            font-family: 'Syne', sans-serif;
+            font-weight: 800; font-size: 0.9rem;
+            color: var(--green);
+            display: flex; align-items: center; gap: 0.5rem;
+        }
+        .corte-subtitle {
+            font-size: 0.6rem; color: var(--muted); margin-top: 0.2rem;
+            letter-spacing: 0.05em; font-weight: 500;
+        }
+        .corte-total-wrap {
+            text-align: right;
+        }
+        .corte-total-label {
+            font-size: 0.55rem; font-weight: 700; letter-spacing: 0.12em;
+            text-transform: uppercase; color: var(--green); opacity: 0.7;
+        }
+        .corte-total-val {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 2rem; font-weight: 700;
+            color: var(--green);
+            line-height: 1.1;
+        }
+        .corte-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.75rem;
+            margin-bottom: 0.85rem;
+        }
+        .corte-inver {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 0.75rem;
+            padding: 0.9rem 1rem;
+            position: relative;
+            overflow: hidden;
+        }
+        .corte-inver::before {
+            content: ''; position: absolute;
+            top: 0; left: 0; right: 0; height: 2px;
+        }
+        .ci1::before { background: var(--accent); }
+        .ci2::before { background: var(--purple); }
+        .ci3::before { background: var(--orange); }
+        .corte-inver-label {
+            font-size: 0.55rem; font-weight: 800;
+            letter-spacing: 0.12em; text-transform: uppercase;
+            margin-bottom: 0.4rem;
+        }
+        .ci1 .corte-inver-label { color: var(--accent); }
+        .ci2 .corte-inver-label { color: var(--purple); }
+        .ci3 .corte-inver-label { color: var(--orange); }
+        .corte-inver-val {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.15rem; font-weight: 700;
+            color: var(--green);
+        }
+        .corte-inver-sub {
+            font-size: 0.58rem; color: var(--muted); margin-top: 0.2rem;
+        }
+        .corte-socios {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 0.5rem;
+            border-top: 1px solid var(--border);
+            padding-top: 0.85rem;
+            margin-top: 0.25rem;
+        }
+        .corte-socio {
+            display: flex; align-items: center; gap: 0.5rem;
+        }
+        .cs-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+        .cs-info { display: flex; flex-direction: column; }
+        .cs-name { font-size: 0.6rem; font-weight: 700; color: var(--muted2); }
+        .cs-val {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem; font-weight: 700;
+        }
+        .corte-pulse {
+            display: inline-block; width: 7px; height: 7px;
+            border-radius: 50%; background: var(--green);
+            animation: pulse 1.5s ease-in-out infinite;
+            margin-left: 0.3rem;
+            vertical-align: middle;
+        }
+        @media (max-width: 600px) {
+            .corte-grid { grid-template-columns: 1fr; }
+            .corte-total-val { font-size: 1.5rem; }
+        }
+
         /* Responsive */
         @media (max-width: 700px) {
             .client-row {
@@ -588,6 +701,7 @@ const MODULE_BADGE = {
 function initFirebase() {
     firebase.initializeApp(FB_CFG);
     db = firebase.database();
+    firebase.auth().signInAnonymously().catch(error => console.error("Error Auth:", error));
     subscribeAll();
 }
 
@@ -631,10 +745,10 @@ function subscribeAll() {
         checkAndRender();
     });
 
-    /* Configs */
-    db.ref('config/finanzas').on('value',  s => { dataStore.cfg1 = s.val() || {}; });
-    db.ref('config/finanzas2').on('value', s => { dataStore.cfg2 = s.val() || {}; });
-    db.ref('config/finanzas3').on('value', s => { dataStore.cfg3 = s.val() || {}; });
+    /* Configs (incluyen cajaChica y gananciasRetiradas para el corte) */
+    db.ref('config/finanzas').on('value',  s => { dataStore.cfg1 = s.val() || {}; checkAndRender(); });
+    db.ref('config/finanzas2').on('value', s => { dataStore.cfg2 = s.val() || {}; checkAndRender(); });
+    db.ref('config/finanzas3').on('value', s => { dataStore.cfg3 = s.val() || {}; checkAndRender(); });
 }
 
 function checkAndRender() {
@@ -707,6 +821,109 @@ function getGanancia(cliente) {
     const monto = $$(cliente.monto);
     const total = $$(cliente.total) || monto * 1.2;
     return total - monto;
+}
+
+/*
+ * Calcula la ganancia a hoy (corte) para un grupo de clientes, usando
+ * la misma fórmula que portal.html:
+ *   yaCobrado = total - saldo (lo que ya pagaron)
+ *   gananciaReal = yaCobrado × (0.2 / 1.2)
+ *   gananciaNeta = gananciaReal - gananciasRetiradas
+ */
+function calcCorteGanancias(clientes, cfg) {
+    let totCobrar = 0, deuPendiente = 0;
+    clientes.forEach(c => {
+        totCobrar    += $$(c.total) || ($$(c.monto) * 1.2);
+        deuPendiente += $$(c.saldo);
+    });
+    const yaCobrado    = totCobrar - deuPendiente;
+    const gananciaReal = yaCobrado * (0.2 / 1.2);
+    const gananciasRet = $$(cfg.gananciasRetiradas);
+    const gananciaNeta = gananciaReal - gananciasRet;
+    return { yaCobrado, gananciaReal, gananciasRet, gananciaNeta, totCobrar, deuPendiente };
+}
+
+/*
+ * Genera el HTML del widget "Corte de Ganancias a Hoy"
+ * mostrando los 3 INVER (o solo el activo) y la distribución por socios.
+ */
+function buildCorteHoyHTML(modsToShow, clientsByMod) {
+    const now = new Date();
+    const fechaHoy = now.toLocaleDateString('es-SV', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+    const horaHoy  = now.toLocaleTimeString('es-SV', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+
+    const cfgMap = { inver1: dataStore.cfg1, inver2: dataStore.cfg2, inver3: dataStore.cfg3 };
+    const colorMap = {
+        inver1: { color: 'var(--accent)',  cls: 'ci1', label: 'INVER 1' },
+        inver2: { color: 'var(--purple)',  cls: 'ci2', label: 'INVER 2' },
+        inver3: { color: 'var(--orange)',  cls: 'ci3', label: 'INVER 3' }
+    };
+
+    // Calcular cada inver
+    const cortePorMod = {};
+    let totalNeta = 0;
+    for (const mod of modsToShow) {
+        const r = calcCorteGanancias(clientsByMod[mod] || [], cfgMap[mod] || {});
+        cortePorMod[mod] = r;
+        totalNeta += r.gananciaNeta;
+    }
+
+    // Bloques por INVER
+    let inverHtml = '';
+    for (const mod of modsToShow) {
+        const r = cortePorMod[mod];
+        const cm = colorMap[mod];
+        inverHtml += `
+        <div class="corte-inver ${cm.cls}">
+            <div class="corte-inver-label">${cm.label}</div>
+            <div class="corte-inver-val">${fmt$(r.gananciaNeta)}</div>
+            <div class="corte-inver-sub">
+                Cobrado: ${fmt$(r.yaCobrado)} · Retirado: ${fmt$(r.gananciasRet)}
+            </div>
+        </div>`;
+    }
+
+    // Distribución por socios (sumando todos los mods activos)
+    const socioTotales = {};
+    for (const mod of modsToShow) {
+        const neta = cortePorMod[mod].gananciaNeta;
+        SPLITS[mod].forEach(s => {
+            if (!socioTotales[s.name]) socioTotales[s.name] = { color: s.color, total: 0 };
+            // Cada socio recibe su proporción de la ganancia neta del módulo
+            // pct / 20 da la fracción del total de ganancia
+            socioTotales[s.name].total += neta * (s.pct / 20);
+        });
+    }
+
+    const sociosHtml = Object.entries(socioTotales).map(([name, info]) => `
+        <div class="corte-socio">
+            <span class="cs-dot" style="background:${info.color}"></span>
+            <div class="cs-info">
+                <span class="cs-name">${name}</span>
+                <span class="cs-val" style="color:${info.color}">${fmt$(info.total)}</span>
+            </div>
+        </div>
+    `).join('');
+
+    return `
+    <div class="corte-hoy-section">
+        <div class="corte-header">
+            <div>
+                <div class="corte-title">✂️ Corte de Ganancias a Hoy<span class="corte-pulse"></span></div>
+                <div class="corte-subtitle">Si se retiran HOY · ${fechaHoy} · ${horaHoy}</div>
+            </div>
+            <div class="corte-total-wrap">
+                <div class="corte-total-label">Total a retirar</div>
+                <div class="corte-total-val">${fmt$(totalNeta)}</div>
+            </div>
+        </div>
+        <div class="corte-grid">
+            ${inverHtml}
+        </div>
+        <div class="corte-socios">
+            ${sociosHtml}
+        </div>
+    </div>`;
 }
 
 /*
@@ -787,6 +1004,9 @@ function render() {
 
     // ── BUILD HTML ─────────────────────────────────────
     let html = '';
+
+    // ── CORTE DE GANANCIAS A HOY ───────────────────────
+    html += buildCorteHoyHTML(modsToShow, clientsByMod);
 
     // Summary cards
     html += `<div class="summary-row">

@@ -8,6 +8,7 @@
     
     <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
     <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-database-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-storage-compat.js"></script>
     
@@ -607,6 +608,9 @@
 
         firebase.initializeApp(FB_CFG);
         const db = firebase.database();
+        firebase.auth().signInAnonymously().catch(error => {
+            console.error("Error en Auth Anónima:", error);
+        });
 
         let currentBranch = 1;
         let store = { 1:{}, 2:{}, 3:{} };
