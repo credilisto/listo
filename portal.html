@@ -251,7 +251,6 @@
                     <div style="display:flex; gap:0.5rem">
                         <input type="date" id="bit-fecha-filtro" class="edit-input" style="width:160px" onchange="renderBitacora()">
                         <button class="btn btn-accent" onclick="generarBitacoraTexto()" style="background:var(--accent); color:var(--bg)">📝 GENERAR TEXTO</button>
-                        <button class="btn btn-accent" onclick="guardarBitacora()">💾 GUARDAR DÍA</button>
                     </div>
                 </div>
                 <div id="bitacora-content"></div>
@@ -499,8 +498,8 @@
                     <div class="modal-body">
                         <textarea id="bitacora-textarea" class="edit-input" style="height:250px; resize:vertical; font-family:'JetBrains Mono',monospace;" placeholder="Incidencias / notas del día..."></textarea>
                     </div>
-                    <div class="modal-footer">
-                        <button class="btn btn-accent btn-full" onclick="guardarIncidenciasBitacora()">✓ GUARDAR INCIDENCIAS</button>
+                    <div class="modal-footer" id="modal-bitacora-footer">
+                        <button class="btn btn-accent btn-full" onclick="guardarIncidenciasBitacora(false)">✓ GUARDAR Y DESCARGAR ARCHIVO</button>
                     </div>
                 </div>
             </div>
@@ -1180,6 +1179,8 @@
 
             const moraHoy = (moratorios[br]||[]).filter(m => m.fecha === fecha).reduce((acc, m) => acc + parseFloat(m.monto||0), 0);
             
+            const textoReporte = data.reporte_texto ? data.reporte_texto.texto : '';
+
             wrap.innerHTML = `
                 <div class="stats-grid" style="grid-template-columns: 1fr 1fr;">
                     <div class="stat-card">
@@ -1193,26 +1194,36 @@
                 </div>
 
                 <div class="section-card" style="margin-top:1.5rem">
-                    <div class="section-header"><h3>Notas e Incidencias del Día</h3></div>
+                    <div class="section-header">
+                        <h3>Reporte Generado</h3>
+                        ${textoReporte ? `
+                            <div style="display:flex; gap:0.5rem;">
+                                <button class="btn btn-ghost btn-sm" onclick="editarBitacoraTexto()">✏️ EDITAR</button>
+                                <button class="btn btn-accent btn-sm" onclick="descargarArchivoTextoURI('${encodeURIComponent(textoReporte)}', 'Bitacora_Inver${br}_${fecha}.txt')">⬇️ DESCARGAR TXT</button>
+                            </div>
+                        ` : ''}
+                    </div>
                     <div style="padding:1.5rem">
-                        <textarea id="bit-notas" class="edit-input" style="height:100px; resize:none" placeholder="Escriba aquí cualquier observación o ajuste...">${data.notas || ''}</textarea>
+                        ${textoReporte 
+                            ? `<pre style="background:var(--surface2); padding:1rem; border-radius:0.5rem; font-family:'JetBrains Mono', monospace; font-size:0.8rem; white-space:pre-wrap; border:1px solid var(--border)">${textoReporte}</pre>` 
+                            : `<div style="color:var(--muted); text-align:center; padding:2rem;">Aún no se ha generado la bitácora para este día.<br><br><button class="btn btn-accent" onclick="generarBitacoraTexto()">📝 GENERAR AHORA</button></div>`
+                        }
                     </div>
                 </div>
             `;
         }
 
-        async function guardarBitacora() {
-            const fecha = document.getElementById('bit-fecha-filtro').value;
+        async function editarBitacoraTexto() {
+            const fecha = document.getElementById('bit-fecha-filtro').value || getHoyISO();
             const br = currentBranch;
-            
-            const payload = {
-                notas: document.getElementById('bit-notas').value,
-                fecha: fecha,
-                usuario: "Admin"
-            };
-
-            await db.ref(`bitacora_diaria/${br}/${fecha}`).update(payload);
-            toast("Bitácora guardada correctamente", "success");
+            const snap = await db.ref(`bitacora_diaria/${br}/${fecha}/reporte_texto`).once('value');
+            const data = snap.val() || {};
+            if(data.texto) {
+                document.getElementById('bitacora-textarea').value = data.texto;
+                const footer = document.getElementById('modal-bitacora-footer');
+                footer.innerHTML = `<button class="btn btn-accent btn-full" onclick="guardarIncidenciasBitacora(true)">✓ GUARDAR EDICIÓN Y DESCARGAR</button>`;
+                document.getElementById('modal-bitacora-texto').classList.add('active');
+            }
         }
 
         function renderRecaudacionDiaria() {
@@ -2095,6 +2106,8 @@
             texto += `--- INCIDENCIAS / NOTAS ---\n`;
 
             document.getElementById('bitacora-textarea').value = texto;
+            const footer = document.getElementById('modal-bitacora-footer');
+            footer.innerHTML = `<button class="btn btn-accent btn-full" onclick="guardarIncidenciasBitacora(false)">✓ GUARDAR Y DESCARGAR ARCHIVO</button>`;
             document.getElementById('modal-bitacora-texto').classList.add('active');
         }
 
@@ -2102,13 +2115,51 @@
             document.getElementById('modal-bitacora-texto').classList.remove('active');
         }
 
-        async function guardarIncidenciasBitacora() {
-            const fechaISO = getFechaHoySV();
-            const incidencias = document.getElementById('bitacora-textarea').value;
-            const suffix = currentBranch === 1 ? '' : currentBranch;
-            await db.ref(`bitacora_diaria/${suffix}/${fechaISO}/incidencias`).set(incidencias);
-            toast('Incidencias guardadas en bitácora', 'success');
+        function descargarArchivoTexto(texto, nombreArchivo) {
+            const blob = new Blob([texto], { type: "text/plain;charset=utf-8" });
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = nombreArchivo;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        function descargarArchivoTextoURI(encodedTexto, nombreArchivo) {
+            descargarArchivoTexto(decodeURIComponent(encodedTexto), nombreArchivo);
+        }
+
+        async function guardarIncidenciasBitacora(esEdicion = false) {
+            const fecha = document.getElementById('bit-fecha-filtro').value || getHoyISO();
+            const textoOriginal = document.getElementById('bitacora-textarea').value;
+            const br = currentBranch;
+            
+            let editor = null;
+            let textoFinal = textoOriginal;
+
+            if (esEdicion) {
+                editor = prompt("Ingrese el nombre del responsable de esta edición:");
+                if (!editor) {
+                    toast("Debe ingresar un responsable para guardar la edición", "error");
+                    return;
+                }
+                textoFinal += `\n\n[Editado por: ${editor} el ${new Date().toLocaleString('es-SV')}]`;
+            }
+
+            const payload = {
+                texto: textoFinal,
+                editadoPor: editor || "Sistema",
+                ultimaEdicion: new Date().toISOString()
+            };
+
+            await db.ref(`bitacora_diaria/${br}/${fecha}/reporte_texto`).update(payload);
+            
+            // Descargar el archivo
+            descargarArchivoTexto(textoFinal, `Bitacora_Inver${br}_${fecha}.txt`);
+            
+            toast('Bitácora guardada y archivo descargado', 'success');
             cerrarModalBitacoraTexto();
+            renderBitacora();
         }
     </script>
 </body>
