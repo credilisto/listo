@@ -6,9 +6,10 @@
     <title>Solicitud | CrediListo</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-database-compat.js"></script>
     <style>
-        :root { --dark: #050b16; --cyan: #00d2ff; }
+        :root { --dark: #050b16; --cyan: #00d2ff; --glass: rgba(255,255,255,0.03); }
         body { background-color: var(--dark); color: white; font-family: 'Inter', sans-serif; }
         .input-field { 
             width: 100%; padding: 1rem; background: rgba(255,255,255,0.05); 
@@ -16,7 +17,16 @@
             outline: none; transition: all 0.3s; color: white;
         }
         .input-field:focus { border-color: var(--cyan); background: rgba(255,255,255,0.1); }
+        .input-field option { background-color: #0f172a; color: white; }
         .label-style { font-size: 0.7rem; font-weight: 800; text-transform: uppercase; color: #64748b; margin-bottom: 0.3rem; display: block; letter-spacing: 0.05em; }
+        
+        .premium-card {
+            background: linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 1.5rem;
+            padding: 2rem;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+        }
     </style>
 </head>
 <body class="pb-20">
@@ -27,11 +37,11 @@
 
     <main class="max-w-xl mx-auto px-6 mt-10">
         <header class="text-center mb-10">
-            <h1 class="text-3xl font-black italic uppercase tracking-tighter">Nueva <span class="text-cyan-400">Solicitud</span></h1>
+            <h1 class="text-4xl font-black italic uppercase tracking-tighter">Nueva <span class="text-cyan-400">Solicitud</span></h1>
             <p class="text-slate-500 text-[10px] font-black uppercase mt-2 tracking-widest">Completa tu información para evaluar tu crédito</p>
         </header>
 
-        <form id="formCredito" class="space-y-6">
+        <form id="formCredito" class="space-y-6 premium-card">
             <div class="space-y-4">
                 <h2 class="text-cyan-400 text-[10px] font-black uppercase tracking-[0.2em] border-b border-white/5 pb-2">Identidad y Contacto</h2>
                 <div>
@@ -62,15 +72,11 @@
                     <div>
                         <span class="label-style">Monto Solicitado</span>
                         <select id="monto" required class="input-field">
-                            <option value="" disabled selected>Selecciona</option>
+                            <option value="" disabled selected>Selecciona Monto</option>
                             <option value="50">$50.00</option>
                             <option value="100">$100.00</option>
                             <option value="150">$150.00</option>
                             <option value="200">$200.00</option>
-                            <option value="250">$250.00</option>
-                            <option value="300">$300.00</option>
-                            <option value="400">$400.00</option>
-                            <option value="500">$500.00</option>
                         </select>
                     </div>
                     <div>
@@ -112,10 +118,19 @@
     </main>
 
     <script>
-        // CONFIGURACIÓN CORREGIDA PARA REALTIME DATABASE
-        const firebaseConfig = { databaseURL: "https://credilistosv-default-rtdb.firebaseio.com" };
+        // CONFIGURACIÓN MAESTRA DESDE PORTAL.HTML
+        const firebaseConfig = { 
+            apiKey: "AIzaSyC1GiJitT0QegrVe9o6CHCsvf7sEZELwRk", 
+            authDomain: "credilistosv.firebaseapp.com", 
+            databaseURL: "https://credilistosv-default-rtdb.firebaseio.com", 
+            projectId: "credilistosv", 
+            storageBucket: "credilistosv.firebasestorage.app" 
+        };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
+
+        // Autenticación Anónima para evitar PERMISSION_DENIED
+        firebase.auth().signInAnonymously().catch(err => console.error("Error Auth:", err));
 
         document.getElementById('formCredito').addEventListener('submit', async (e) => {
             e.preventDefault();
