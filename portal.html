@@ -214,7 +214,9 @@
                 <button class="nav-item" onclick="showView('bitacora', this)"><span>📓</span> BITÁCORA DIARIA</button>
                 <button class="nav-item" onclick="showView('finanzas', this)">💰 Finanzas Globales</button>
                 <button class="nav-item" onclick="showView('incidencias', this)"><span>📑</span> INCIDENCIAS</button>
+                <button class="nav-item" onclick="window.location.href='analisis_calendario.html'"><span>📅</span> ANÁLISIS CALENDARIO</button>
                 <button class="nav-item" onclick="showView('archivo', this)">📁 Archivo Histórico</button>
+
             </nav>
         </aside>
 
@@ -717,9 +719,12 @@
                             if(dias > 0) {
                                 hasMora = true;
                                 if(dias > maxDiasAtraso) maxDiasAtraso = dias;
-                                if(dias > 3) {
-                                    if(!baseAplicada) { recargoTotal += 5; baseAplicada = true; }
-                                    recargoTotal += (dias - 3);
+                                if(dias >= 3) {
+                                    recargoTotal += (dias - 2);
+                                    if(dias > 30 && !baseAplicada) {
+                                        recargoTotal += 5;
+                                        baseAplicada = true;
+                                    }
                                 }
                             }
                         }
