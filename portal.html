@@ -1108,10 +1108,10 @@
             todos.forEach(c => {
                 if(c.tipo === 'ACTIVO') {
                     carActiva += parseFloat(c.monto||0);
+                    totCobrar += parseFloat(c.total||0);
+                    deuPendiente += parseFloat(c.saldo||0);
                     if((c.frecuencia||'diario').toLowerCase() === 'semanal') semanales++; else diarios++;
                 }
-                totCobrar += parseFloat(c.total||0);
-                deuPendiente += parseFloat(c.saldo||0);
             });
 
             const yaCobrado = totCobrar - deuPendiente;
