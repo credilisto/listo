@@ -66,8 +66,6 @@
 
             <div class="space-y-4 pt-4">
                 <h2 class="text-cyan-400 text-[10px] font-black uppercase tracking-[0.2em] border-b border-white/5 pb-2">Datos del Crédito</h2>
-             <div class="space-y-4 pt-4">
-                <h2 class="text-cyan-400 text-[10px] font-black uppercase tracking-[0.2em] border-b border-white/5 pb-2">Datos del Crédito</h2>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <span class="label-style">Monto Solicitado</span>
@@ -95,6 +93,24 @@
                     <span class="label-style">Propósito</span>
                     <input type="text" id="proposito" required class="input-field">
                 </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    <div>
+                        <span class="label-style">¿Trabaja con otra empresa de crédito informal?</span>
+                        <select id="otra_empresa" required class="input-field">
+                            <option value="" disabled selected>Seleccione una opción</option>
+                            <option value="SI">SÍ</option>
+                            <option value="NO">NO</option>
+                        </select>
+                    </div>
+                    <div>
+                        <span class="label-style">¿Tiene un crédito con una cooperativa o banco?</span>
+                        <select id="credito_banco" required class="input-field">
+                            <option value="" disabled selected>Seleccione una opción</option>
+                            <option value="SI">SÍ</option>
+                            <option value="NO">NO</option>
+                        </select>
+                    </div>
+                </div>
             </div>
 
             <div class="space-y-4 pt-4">
@@ -112,10 +128,62 @@
             </div>
 
             <button type="submit" class="w-full py-5 mt-6 rounded-2xl bg-white text-black font-black uppercase tracking-widest hover:scale-[1.02] transition-all shadow-xl">
-                Enviar Solicitud
+                Ver Condiciones y Continuar
             </button>
         </form>
     </main>
+
+    <!-- Modal de Demo / Condiciones del Crédito -->
+    <div id="modalCondiciones" class="fixed inset-0 bg-black/90 backdrop-blur-sm z-[100] hidden flex-col justify-center items-center px-4">
+        <div class="w-full max-w-lg premium-card relative max-h-[90vh] overflow-y-auto">
+            <h2 class="text-2xl font-black italic uppercase tracking-tighter text-center mb-6">Condiciones del <span class="text-cyan-400">Crédito</span></h2>
+            
+            <div class="space-y-4 mb-6">
+                <div class="p-4 bg-cyan-900/20 border border-cyan-500/30 rounded-xl text-center">
+                    <p class="text-[11px] font-black uppercase tracking-widest text-cyan-400 mb-1">Monto a Recibir</p>
+                    <p id="demoMonto" class="text-3xl font-black text-white">$0.00</p>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="p-4 bg-white/5 border border-white/10 rounded-xl text-center">
+                        <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Interés</p>
+                        <p class="text-xl font-bold text-white">20%</p>
+                    </div>
+                    <div class="p-4 bg-white/5 border border-white/10 rounded-xl text-center">
+                        <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Vencimiento</p>
+                        <p class="text-xl font-bold text-white">30 DÍAS</p>
+                    </div>
+                </div>
+
+                <div class="p-4 bg-white/5 border border-white/10 rounded-xl text-center">
+                    <p id="demoFrecuenciaLabel" class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Cuota (Frecuencia)</p>
+                    <p id="demoCuota" class="text-2xl font-black text-white">$0.00</p>
+                </div>
+
+                <div class="p-4 bg-white/5 border border-white/10 rounded-xl text-center">
+                    <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Total a Pagar</p>
+                    <p id="demoTotal" class="text-xl font-bold text-white">$0.00</p>
+                </div>
+
+                <div class="p-4 border border-red-500/30 bg-red-900/10 rounded-xl mt-4">
+                    <p class="text-[10px] font-black uppercase tracking-widest text-red-400 mb-2">Cláusula Importante</p>
+                    <p class="text-xs text-slate-300 leading-relaxed text-justify">
+                        SI SU CUOTA CORRESPONDE AL DÍA LUNES DE CADA SEMANA, PUEDE HACER EL PAGO EL LUNES, MARTES O HASTA MIÉRCOLES PERO A PARTIR DEL 4 DÍA DE ATRASO DE CUOTA, SE LE RECARGA UN DÓLAR ($1.00) DE RECARGO, Y SI SE LLEGA LA SIGUIENTE CUOTA Y PASA DEL CUARTO DÍA, ESTA TAMBIÉN IRÁ ACUMULANDO RECARGO.<br><br>
+                        SI SE VENCE EL PLAZO DE 30 DÍAS SE LE RECARGA AL CUARTO DÍA DE VENCIDO 5 DÓLARES MÁS UN DÓLAR POR CADA DÍA ADICIONAL.
+                    </p>
+                </div>
+            </div>
+
+            <div class="flex flex-col space-y-3">
+                <button id="btnAceptarEnviar" class="w-full py-4 rounded-xl bg-cyan-500 text-black font-black uppercase tracking-widest hover:scale-[1.02] transition-all shadow-xl">
+                    Aceptar y Enviar Solicitud
+                </button>
+                <button id="btnVolver" class="w-full py-4 rounded-xl bg-transparent border border-white/20 text-white font-black uppercase tracking-widest hover:bg-white/5 transition-all">
+                    Volver a Editar
+                </button>
+            </div>
+        </div>
+    </div>
 
     <script>
         // CONFIGURACIÓN MAESTRA DESDE PORTAL.HTML
@@ -132,17 +200,42 @@
         // Autenticación Anónima para evitar PERMISSION_DENIED
         firebase.auth().signInAnonymously().catch(err => console.error("Error Auth:", err));
 
-        document.getElementById('formCredito').addEventListener('submit', async (e) => {
+        let datosSolicitud = null;
+        let montoGlobal = null;
+        let frecuenciaGlobal = null;
+
+        document.getElementById('formCredito').addEventListener('submit', (e) => {
             e.preventDefault();
-            const btn = e.target.querySelector('button');
-            btn.disabled = true; 
-            btn.innerText = "PROCESANDO...";
-
-            const idGenerado = Date.now();
-            const montoVal = document.getElementById('monto').value;
+            
+            const montoVal = parseFloat(document.getElementById('monto').value);
             const frecVal = document.getElementById('frecuencia').value;
+            
+            // Calculos
+            const interes = 0.20;
+            const totalPagar = montoVal + (montoVal * interes);
+            let cuota = 0;
+            let textoFrecuencia = "";
 
-            const datos = {
+            if(frecVal === "semanal") {
+                cuota = totalPagar / 4;
+                textoFrecuencia = "CUOTA SEMANAL (4 PAGOS)";
+            } else {
+                cuota = totalPagar / 30;
+                textoFrecuencia = "CUOTA DIARIA (30 PAGOS)";
+            }
+
+            // Llenar Modal
+            document.getElementById('demoMonto').innerText = "$" + montoVal.toFixed(2);
+            document.getElementById('demoFrecuenciaLabel').innerText = textoFrecuencia;
+            document.getElementById('demoCuota').innerText = "$" + cuota.toFixed(2);
+            document.getElementById('demoTotal').innerText = "$" + totalPagar.toFixed(2);
+
+            // Preparar datos
+            const idGenerado = Date.now();
+            montoGlobal = montoVal;
+            frecuenciaGlobal = frecVal;
+            
+            datosSolicitud = {
                 id: idGenerado,
                 nombre: document.getElementById('nombre').value.toUpperCase(),
                 dui: document.getElementById('dui').value,
@@ -150,7 +243,9 @@
                 dirCasa: document.getElementById('direccion_casa').value,
                 negocio: document.getElementById('rubro').value,
                 inversion: document.getElementById('proposito').value,
-                monto: montoVal,
+                otraEmpresa: document.getElementById('otra_empresa').value,
+                creditoBanco: document.getElementById('credito_banco').value,
+                monto: montoVal.toString(),
                 frecuencia: frecVal,
                 refNom: document.getElementById('ref_nombre').value,
                 refTel: document.getElementById('ref_tel').value,
@@ -158,18 +253,35 @@
                 fecha: new Date().toLocaleDateString('es-SV')
             };
 
+            // Mostrar Modal
+            document.getElementById('modalCondiciones').classList.remove('hidden');
+            document.getElementById('modalCondiciones').classList.add('flex');
+        });
+
+        document.getElementById('btnVolver').addEventListener('click', () => {
+            document.getElementById('modalCondiciones').classList.add('hidden');
+            document.getElementById('modalCondiciones').classList.remove('flex');
+        });
+
+        document.getElementById('btnAceptarEnviar').addEventListener('click', async () => {
+            if(!datosSolicitud) return;
+            
+            const btn = document.getElementById('btnAceptarEnviar');
+            const btnVolver = document.getElementById('btnVolver');
+            btn.disabled = true;
+            btnVolver.disabled = true;
+            btn.innerText = "PROCESANDO...";
+
             try {
-                // Guardamos directamente en la rama 'clientes' como PENDIENTE
-                await db.ref('clientes/' + idGenerado).set(datos);
-                // Enviamos los datos a la página enviado.html por la URL para el cálculo
-                window.location.href = `enviado.html?monto=${montoVal}&frecuencia=${frecVal}`;
+                await db.ref('clientes/' + datosSolicitud.id).set(datosSolicitud);
+                window.location.href = `enviado.html?monto=${montoGlobal}&frecuencia=${frecuenciaGlobal}`;
             } catch (error) {
                 alert("Error al enviar: " + error.message);
                 btn.disabled = false; 
-                btn.innerText = "ENVIAR SOLICITUD";
+                btnVolver.disabled = false;
+                btn.innerText = "ACEPTAR Y ENVIAR SOLICITUD";
             }
         });
     </script>
 </body>
 </html>
-
