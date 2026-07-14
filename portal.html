@@ -1103,9 +1103,17 @@
             const todos = Object.values(store[currentBranch]).filter(c => c.tipo === 'ACTIVO' || c.tipo === 'ARCHIVO');
             
             let carActiva = 0, totCobrar = 0, deuPendiente = 0;
+            let totCobrarGlobal = 0, deuPendienteGlobal = 0;
             let diarios = 0, semanales = 0;
 
             todos.forEach(c => {
+                // Suma GLOBAL (ACTIVO + ARCHIVO): la comisión se calcula sobre todo lo
+                // cobrado históricamente, incluyendo cuentas ya archivadas/cerradas.
+                totCobrarGlobal += parseFloat(c.total||0);
+                deuPendienteGlobal += parseFloat(c.saldo||0);
+
+                // Suma solo de cuentas ACTIVAS: para las tarjetas de cartera y deuda
+                // pendiente, que deben reflejar únicamente lo vigente, no lo archivado.
                 if(c.tipo === 'ACTIVO') {
                     carActiva += parseFloat(c.monto||0);
                     totCobrar += parseFloat(c.total||0);
@@ -1114,7 +1122,7 @@
                 }
             });
 
-            const yaCobrado = totCobrar - deuPendiente;
+            const yaCobrado = totCobrarGlobal - deuPendienteGlobal;
             const gananciaReal = yaCobrado * (0.2 / 1.2); 
             const gananciaNeta = gananciaReal - (parseFloat(fin.gananciasRetiradas||0));
 
