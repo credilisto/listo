@@ -67,6 +67,9 @@
         .h-val { font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; font-weight: 700; }
         .h-val.green { color: var(--success); }
         .h-val.blue { color: var(--accent); }
+        .h-val.purple { color: #a855f7; }
+        .sc-val.purple { color: #a855f7; }
+        .purple { color: #a855f7; }
         .header-actions { display: flex; gap: 0.5rem; flex-shrink: 0; }
 
         .view { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 1rem; padding-bottom: calc(84px + env(safe-area-inset-bottom)); display: none; }
@@ -110,6 +113,8 @@
         .btn-ghost { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
         .btn-danger { background: var(--danger); color: #fff; }
         .btn-blue { background: var(--accent-soft); color: var(--accent); border: 1px solid rgba(14,165,233,0.2); }
+        .btn-purple { background: #a855f7; color: #fff; }
+        .btn-purple:active { background: #9333ea; }
 
         /* TABLAS SEMANALES */
         .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 0.75rem; border: 1px solid var(--border); }
@@ -268,7 +273,7 @@
                         <span class="h-val green" id="header-cobrado">$0.00</span>
                     </div>
                     <div class="h-stat">
-                        <span class="h-label">CAJA CHICA</span>
+                        <span class="h-label">EFECTIVO DISPONIBLE</span>
                         <span class="h-val blue" id="header-caja">$0.00</span>
                     </div>
                 </div>
@@ -321,9 +326,10 @@
 
             <div id="view-finanzas" class="view">
                 <div id="finanzas-panel"></div>
-                <div style="display:flex; gap:1rem; margin-top:1.5rem">
-                    <button class="btn btn-accent btn-lg" style="flex:1" onclick="modalConfigurarFinanzas()">⚙️ AJUSTE DE CAJA</button>
-                    <button class="btn btn-danger btn-lg" style="flex:1" onclick="modalRetiroEfectivo()">💸 RETIRO / COMISIÓN</button>
+                <div style="display:flex; gap:1rem; margin-top:1.5rem; flex-wrap:wrap">
+                    <button class="btn btn-accent btn-lg" style="flex:1; min-width:180px" onclick="modalConfigurarFinanzas()">⚙️ AJUSTE DE CAJA</button>
+                    <button class="btn btn-purple btn-lg" style="flex:1; min-width:180px" onclick="modalTransferenciaInterna()">🔄 TRANSF. CUSTODIA</button>
+                    <button class="btn btn-danger btn-lg" style="flex:1; min-width:180px" onclick="modalRetiroEfectivo()">💸 RETIRO / COMISIÓN</button>
                 </div>
 
                 <div class="section-card" style="margin-top:2rem">
@@ -360,6 +366,24 @@
                         <div class="ficha-field"><span class="ff-label">Responsable</span><input type="text" id="adj-resp" class="edit-input"></div>
                     </div>
                     <div class="modal-footer"><button class="btn btn-accent btn-full" onclick="ejecutarAjuste()">✓ APLICAR AJUSTE</button></div>
+                </div>
+            </div>
+
+            <!-- MODAL TRANSFERENCIA INTERNA -->
+            <div id="modal-transferencia" class="modal">
+                <div class="modal-content">
+                    <div class="modal-header"><h3>Transferencia Interna</h3><button class="btn btn-ghost" onclick="cerrarModalTransferencia()">✕</button></div>
+                    <div class="modal-body">
+                        <div class="ficha-field"><span class="ff-label">Dirección</span>
+                            <select id="trans-direccion" class="edit-input">
+                                <option value="TO_CUSTODIA">CAJA CHICA ➔ CUSTODIA / BANCO</option>
+                                <option value="TO_CAJA">CUSTODIA / BANCO ➔ CAJA CHICA</option>
+                            </select>
+                        </div>
+                        <div class="ficha-field"><span class="ff-label">Monto ($)</span><input type="number" id="trans-monto" step="0.01" class="edit-input"></div>
+                        <div class="ficha-field"><span class="ff-label">Responsable</span><input type="text" id="trans-resp" class="edit-input"></div>
+                    </div>
+                    <div class="modal-footer"><button class="btn btn-purple btn-full" onclick="ejecutarTransferencia()">✓ CONFIRMAR TRANSFERENCIA</button></div>
                 </div>
             </div>
 
@@ -1261,9 +1285,10 @@
         }
 
         function updateUI() {
-            const fin = finanzas[currentBranch] || { capitalInvertido:0, cajaChica:0 };
+            const fin = finanzas[currentBranch] || { capitalInvertido:0, cajaChica:0, custodia:0 };
             document.getElementById('header-capital').textContent = fmt(fin.capitalInvertido);
-            document.getElementById('header-caja').textContent = fmt(fin.cajaChica);
+            const totalEfectivo = parseFloat(fin.cajaChica || 0) + parseFloat(fin.custodia || 0);
+            document.getElementById('header-caja').textContent = fmt(totalEfectivo);
             
             const activos = Object.values(store[currentBranch]).filter(c => c.tipo === 'ACTIVO');
             const pend = Object.values(store[currentBranch]).filter(c => c.tipo === 'PENDIENTE');
@@ -1481,6 +1506,10 @@
                         <div class="stat-card"> <span class="sc-label">RECUPERADO TOTAL (YA COBRADO)</span> <span class="sc-val success">${fmt(yaCobrado)}</span> </div>
                         
                         <div class="stat-card"> <span class="sc-label">CAJA CHICA (EFECTIVO DISPONIBLE)</span> <span class="sc-val blue">${fmt(fin.cajaChica)}</span> </div>
+                        <div class="stat-card" style="border-left:5px solid #a855f7">
+                            <span class="sc-label" style="color:#7e22ce">CUSTODIA / BANCO</span>
+                            <span class="sc-val" style="color:#a855f7">${fmt(fin.custodia||0)}</span>
+                        </div>
                         <div class="stat-card" style="border-left:5px solid #d97706">
                             <span class="sc-label" style="color:#92400e">MORA COBRADA (ACUMULADA) ⚡</span>
                             <span class="sc-val" style="color:#d97706">${fmt(fin.moraCobrada||0)}</span>
@@ -1620,17 +1649,18 @@
                 list.innerHTML = items.map(inc => {
                     const isNeg = inc.tipo === 'SUB' || inc.tipo === 'RETIRO' || inc.tipo === 'GASTO';
                     const isAudit = inc.tipo === 'AUDITORIA';
+                    const isTrans = inc.tipo === 'TRANSFERENCIA';
                     return `
                         <div class="list-item">
                             <div class="item-info">
                                 <strong style="display:flex; align-items:center; gap:0.5rem">
-                                    ${isAudit ? '🛡️' : (isNeg ? '📉' : '📈')} ${inc.motivo}
+                                    ${isAudit ? '🛡️' : (isTrans ? '🔄' : (isNeg ? '📉' : '📈'))} ${inc.motivo}
                                 </strong>
                                 <span>${inc.fecha} ${inc.hora} · Resp: ${inc.responsable}</span>
                             </div>
                             <div class="item-stats">
-                                <span class="${isAudit ? 'blue' : (isNeg ? 'red' : 'success')}">
-                                    ${isAudit ? '' : (isNeg ? '-' : '+')}${fmt(inc.monto)}
+                                <span class="${isAudit ? 'blue' : (isTrans ? 'purple' : (isNeg ? 'red' : 'success'))}" style="${isTrans ? 'color:#a855f7;' : ''}">
+                                    ${isAudit ? '' : (isTrans ? '' : (isNeg ? '-' : '+'))}${fmt(inc.monto)}
                                 </span>
                             </div>
                         </div>
@@ -2125,7 +2155,8 @@
             if(!monto || !resp) return toast("Monto y Responsable requeridos","error");
 
             const fin = finanzas[currentBranch];
-            if(monto > fin.cajaChica) return toast("Fondos insuficientes en Caja","error");
+            const custodiaVal = parseFloat(fin.custodia || 0);
+            if(monto > custodiaVal) return toast("Fondos insuficientes en Custodia / Banco","error");
 
             let nuevasGretiradas = parseFloat(fin.gananciasRetiradas || 0);
             if(motivo === 'COMISION') nuevasGretiradas += monto;
@@ -2133,7 +2164,7 @@
             const path = currentBranch===1?'config/finanzas':`config/finanzas${currentBranch}`;
             const pathInc = currentBranch===1?'config/incidencias':`config/incidencias${currentBranch}`;
             
-            const upd = { cajaChica: (fin.cajaChica - monto).toFixed(2) };
+            const upd = { custodia: (custodiaVal - monto).toFixed(2) };
             if(motivo === 'COMISION') upd.gananciasRetiradas = nuevasGretiradas.toFixed(2);
 
             await db.ref(path).update(upd);
@@ -2143,11 +2174,64 @@
             toast("Retiro registrado","danger");
         }
 
+        function modalTransferenciaInterna() {
+            document.getElementById('modal-transferencia').classList.add('active');
+        }
+        function cerrarModalTransferencia() {
+            document.getElementById('modal-transferencia').classList.remove('active');
+            document.getElementById('trans-monto').value = '';
+            document.getElementById('trans-resp').value = '';
+        }
+        async function ejecutarTransferencia() {
+            const monto = parseFloat(document.getElementById('trans-monto').value);
+            const direccion = document.getElementById('trans-direccion').value;
+            const resp = document.getElementById('trans-resp').value;
+            if(!monto || !resp) return toast("Monto y Responsable requeridos","error");
+            if(monto <= 0) return toast("El monto debe ser mayor a cero","error");
+
+            const fin = finanzas[currentBranch] || { capitalInvertido:0, cajaChica:0, custodia:0 };
+            let cajaChicaVal = parseFloat(fin.cajaChica || 0);
+            let custodiaVal = parseFloat(fin.custodia || 0);
+
+            if(direccion === 'TO_CUSTODIA') {
+                if(cajaChicaVal < monto) return toast("Fondos insuficientes en Caja Chica","error");
+                cajaChicaVal -= monto;
+                custodiaVal += monto;
+            } else {
+                if(custodiaVal < monto) return toast("Fondos insuficientes en Custodia / Banco","error");
+                custodiaVal -= monto;
+                cajaChicaVal += monto;
+            }
+
+            const path = currentBranch===1?'config/finanzas':`config/finanzas${currentBranch}`;
+            const pathInc = currentBranch===1?'config/incidencias':`config/incidencias${currentBranch}`;
+            
+            const upd = { 
+                cajaChica: cajaChicaVal.toFixed(2),
+                custodia: custodiaVal.toFixed(2)
+            };
+
+            const concepto = direccion === 'TO_CUSTODIA' ? 'TRANSFERENCIA: Caja Chica -> Custodia' : 'TRANSFERENCIA: Custodia -> Caja Chica';
+
+            await db.ref(path).update(upd);
+            await db.ref(pathInc).push({ 
+                monto, 
+                tipo: 'TRANSFERENCIA', 
+                motivo: concepto, 
+                responsable: resp, 
+                fecha: getFechaHoySV(), 
+                hora: new Date().toLocaleTimeString() 
+            });
+            
+            cerrarModalTransferencia();
+            toast("Transferencia realizada","success");
+        }
+
         function renderInformeGlobal() {
             const wrap = document.getElementById('global-informe-panel');
             if(!wrap) return;
 
-            let tClientes = 0, tCartera = 0, tCaja = 0, tProfit = 0;
+            let tClientes = 0, tCartera = 0, tCaja = 0, tCustodia = 0, tProfit = 0;
             [1,2,3,4].forEach(br => {
                 const activos = Object.values(store[br]||{}).filter(c => c.tipo === 'ACTIVO');
                 const fin = finanzas[br] || {};
@@ -2160,13 +2244,14 @@
                     tProfit += cob * (0.2 / 1.2);
                 });
                 tCaja += parseFloat(fin.cajaChica||0);
+                tCustodia += parseFloat(fin.custodia||0);
             });
 
             wrap.innerHTML = `
                 <div class="stats-grid">
                     <div class="stat-card"> <span class="sc-label">TOTAL CLIENTES (GLOBAL)</span> <span class="sc-val">${tClientes}</span> </div>
                     <div class="stat-card"> <span class="sc-label">CARTERA TOTAL EN CALLE</span> <span class="sc-val blue">${fmt(tCartera)}</span> </div>
-                    <div class="stat-card"> <span class="sc-label">CAJA CHICA GLOBAL</span> <span class="sc-val blue">${fmt(tCaja)}</span> </div>
+                    <div class="stat-card"> <span class="sc-label">EFECTIVO DISPONIBLE GLOBAL</span> <span class="sc-val blue">${fmt(tCaja + tCustodia)}</span> </div>
                     <div class="stat-card" style="background:var(--accent-dim)"> <span class="sc-label" style="color:var(--accent)">UTILIDAD GLOBAL RECAUDADA</span> <span class="sc-val" style="color:var(--accent)">${fmt(tProfit)}</span> </div>
                 </div>
                 
@@ -2180,7 +2265,8 @@
                                 <div style="padding:1rem">
                                     <p style="margin-bottom:0.5rem"><strong>Clientes:</strong> ${activos.length}</p>
                                     <p style="margin-bottom:0.5rem"><strong>Cartera:</strong> ${fmt(car)}</p>
-                                    <p><strong>Caja:</strong> ${fmt(finanzas[br]?.cajaChica||0)}</p>
+                                    <p style="margin-bottom:0.5rem"><strong>Caja:</strong> ${fmt(finanzas[br]?.cajaChica||0)}</p>
+                                    <p><strong>Custodia:</strong> ${fmt(finanzas[br]?.custodia||0)}</p>
                                 </div>
                             </div>
                         `;
