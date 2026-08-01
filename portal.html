@@ -674,6 +674,20 @@
                             <div id="tk-nombre" style="font-family:'Syne',sans-serif;font-size:1.2rem;font-weight:800;color:#0f172a"></div>
                             <div id="tk-dui" style="font-size:0.75rem;color:#64748b;font-weight:600;margin-top:0.25rem"></div>
                         </div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.5rem;margin-bottom:1rem">
+                            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.6rem 0.5rem;text-align:center">
+                                <div style="font-size:0.55rem;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;color:#94a3b8;margin-bottom:0.2rem">Crédito</div>
+                                <div id="tk-credito-monto" style="font-family:'JetBrains Mono';font-weight:700;font-size:0.8rem;color:#0f172a"></div>
+                            </div>
+                            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.6rem 0.5rem;text-align:center">
+                                <div style="font-size:0.55rem;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;color:#94a3b8;margin-bottom:0.2rem">Interés</div>
+                                <div id="tk-credito-interes" style="font-family:'JetBrains Mono';font-weight:700;font-size:0.8rem;color:#0f172a"></div>
+                            </div>
+                            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.6rem 0.5rem;text-align:center">
+                                <div style="font-size:0.55rem;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;color:#94a3b8;margin-bottom:0.2rem">Total Crédito</div>
+                                <div id="tk-credito-total" style="font-family:'JetBrains Mono';font-weight:700;font-size:0.8rem;color:#0f172a"></div>
+                            </div>
+                        </div>
                         <div style="font-size:0.6rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:#94a3b8;margin-bottom:0.5rem">Detalle de Pagos</div>
                         <table style="width:100%;border-collapse:collapse;margin-bottom:1rem">
                             <thead><tr>
@@ -696,7 +710,7 @@
                             <span style="color:rgba(255,255,255,0.7);font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em">Total Comprobado</span>
                             <span id="tk-gran-total" style="font-family:'JetBrains Mono';font-size:1.4rem;font-weight:700;color:#0ea5e9"></span>
                         </div>
-                        <button class="btn btn-accent btn-full btn-lg" onclick="imprimirTicket()">🖨️ IMPRIMIR COMPROBANTE VIP</button>
+                        <button class="btn btn-accent btn-full btn-lg" onclick="imprimirTicket()">🖨️ IMPRIMIR COMPROBANTE</button>
                     </div>
                 </div>
             </div>
@@ -757,6 +771,134 @@
             return iso.split('-').reverse().join('/');
         }
 
+        // Fecha desde la cual TODO movimiento de caja chica (incluyendo créditos otorgados
+        // con fondos de caja chica) queda registrado en config/incidencias{sucursal}.
+        // Antes de esta fecha, algunos créditos otorgados desde caja chica no se registraron
+        // como incidencia, por lo que la reconstrucción retroactiva para fechas anteriores
+        // puede subestimar el saldo real de esos días.
+        const FECHA_FIX_AUDITORIA_ISO = '2026-08-01';
+
+        function svToISO(fechaSV) {
+            if(!fechaSV) return '';
+            const p = fechaSV.split('/');
+            if(p.length !== 3) return '';
+            return `${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`;
+        }
+
+        // Trae, una sola vez, todo el historial de movimientos que afectan la caja chica
+        // de una sucursal: abonos de clientes (pagos_clientes) e incidencias (ajustes,
+        // transferencias, créditos otorgados desde caja).
+        async function obtenerMovimientosCaja(br) {
+            const pathInc = br===1 ? 'config/incidencias' : `config/incidencias${br}`;
+            const [incSnap, pagosSnap] = await Promise.all([
+                db.ref(pathInc).once('value'),
+                db.ref('pagos_clientes').once('value')
+            ]);
+            const incidencias = incSnap.val() ? Object.values(incSnap.val()) : [];
+            const pagosRoot = pagosSnap.val() || {};
+            const pagosSucursal = [];
+            Object.entries(pagosRoot).forEach(([clienteId, porCliente]) => {
+                Object.values(porCliente || {}).forEach(pago => {
+                    if(parseInt(pago.sucursal) === br) pagosSucursal.push({ ...pago, clienteId });
+                });
+            });
+            return { incidencias, pagosSucursal };
+        }
+
+        // Dado el saldo ACTUAL de caja chica y el historial de movimientos, reconstruye
+        // hacia atrás el saldo que existía al CIERRE de fechaISO, deshaciendo todo lo
+        // ocurrido después de esa fecha.
+        function calcularSaldoAFecha(fechaISO, cajaActual, movimientos) {
+            let inflowsDespues = 0, outflowsDespues = 0;
+            movimientos.pagosSucursal.forEach(pago => {
+                if(pago.fecha_ISO && pago.fecha_ISO > fechaISO) inflowsDespues += parseFloat(pago.monto || 0);
+            });
+            movimientos.incidencias.forEach(inc => {
+                const incISO = svToISO(inc.fecha);
+                if(!incISO || incISO <= fechaISO) return;
+                const monto = parseFloat(inc.monto || 0);
+                if(inc.tipo === 'ADD') inflowsDespues += monto;
+                else if(inc.tipo === 'SUB' || inc.tipo === 'CREDITO_CAJA') outflowsDespues += monto;
+                else if(inc.tipo === 'TRANSFERENCIA') {
+                    if((inc.motivo||'').includes('Caja Chica -> Custodia')) outflowsDespues += monto;
+                    else if((inc.motivo||'').includes('Custodia -> Caja Chica')) inflowsDespues += monto;
+                }
+                // 'RETIRO' no afecta caja chica (sale de custodia/banco), se ignora.
+            });
+            return cajaActual - inflowsDespues + outflowsDespues;
+        }
+
+        async function reconstruirSaldoCajaAFecha(br, fechaISO) {
+            const movimientos = await obtenerMovimientosCaja(br);
+            const cajaActual = parseFloat(finanzas[br]?.cajaChica || 0);
+            const saldo = calcularSaldoAFecha(fechaISO, cajaActual, movimientos);
+            return { saldo, posibleHueco: fechaISO < FECHA_FIX_AUDITORIA_ISO };
+        }
+
+        // Créditos cuya SOLICITUD fue creada en fechaISO, en cualquier sucursal
+        // (el id del cliente = "c" + timestamp de creación, es la única fecha de
+        // creación disponible en el sistema).
+        function creditosCreadosEnFecha(fechaISO) {
+            const resultado = [];
+            [1,2,3,4].forEach(br => {
+                Object.values(store[br]||{}).forEach(c => {
+                    if(!c.id || c.id[0] !== 'c') return;
+                    const ts = parseInt(c.id.slice(1));
+                    if(isNaN(ts)) return;
+                    const isoCreacion = new Date(ts - (6*3600000)).toISOString().split('T')[0];
+                    if(isoCreacion === fechaISO) resultado.push({ nombre:c.nombre, monto:c.monto, sucursal:br, estado:c.tipo });
+                });
+            });
+            return resultado;
+        }
+
+        // Créditos ACTIVADOS/otorgados en fechaSV (dd/mm/yyyy), en la sucursal indicada.
+        function creditosActivadosEnFecha(br, fechaSV) {
+            return Object.values(store[br]||{}).filter(c => c.fechaInicio === fechaSV && (c.tipo==='ACTIVO'||c.tipo==='ARCHIVO'));
+        }
+
+        // --- CIERRE DIARIO AUTOMÁTICO DE CAJA CHICA (AUDITORÍA) ---
+        // Cada vez que se abre la app, revisa si hay días ya terminados (anteriores a hoy)
+        // sin un saldo de cierre guardado, y lo genera automáticamente reconstruyendo
+        // hacia atrás desde el saldo actual. Cubre hasta 90 días atrás por ejecución.
+        async function backfillCierresSucursal(br, hoyISO) {
+            const pathC = br===1 ? 'config/cierresCaja' : `config/cierresCaja${br}`;
+            const snap = await db.ref(pathC).once('value');
+            const existentes = snap.val() || {};
+
+            const LIMITE_DIAS = 90;
+            const pendientes = [];
+            let d = new Date(hoyISO + 'T12:00:00');
+            for(let i=1; i<=LIMITE_DIAS; i++) {
+                d.setDate(d.getDate() - 1);
+                const iso = d.toISOString().split('T')[0];
+                if(!existentes[iso]) pendientes.push(iso); else break;
+            }
+            if(pendientes.length === 0) return;
+            pendientes.reverse();
+
+            const movimientos = await obtenerMovimientosCaja(br);
+            const cajaActual = parseFloat(finanzas[br]?.cajaChica || 0);
+            const updates = {};
+            pendientes.forEach(fechaISO => {
+                const saldo = calcularSaldoAFecha(fechaISO, cajaActual, movimientos);
+                updates[fechaISO] = {
+                    saldo: saldo.toFixed(2),
+                    generadoEn: new Date().toISOString(),
+                    metodo: fechaISO < FECHA_FIX_AUDITORIA_ISO ? 'reconstruccion_parcial' : 'exacto',
+                    automatico: true
+                };
+            });
+            await db.ref(pathC).update(updates);
+        }
+
+        async function verificarCierresDiarios() {
+            const hoyISO = getHoyISO();
+            for(const br of [1,2,3,4]) {
+                try { await backfillCierresSucursal(br, hoyISO); } catch(e) { console.error('Cierre diario caja chica, sucursal ' + br, e); }
+            }
+        }
+
         function initSync() {
             [1, 2, 3, 4].forEach(br => {
                 const suffix = br === 1 ? '' : br;
@@ -777,7 +919,15 @@
         }
         let syncInit = false;
         firebase.auth().onAuthStateChanged(user => {
-            if(user && !syncInit) { syncInit = true; initSync(); }
+            if(user && !syncInit) {
+                syncInit = true;
+                initSync();
+                // Esperamos unos segundos a que los listeners de finanzas/clientes carguen
+                // los datos actuales antes de reconstruir/cerrar días pasados.
+                setTimeout(verificarCierresDiarios, 5000);
+                // Revisión periódica por si la app se queda abierta cruzando la medianoche.
+                setInterval(verificarCierresDiarios, 60 * 60 * 1000);
+            }
         });
 
         function switchBranch(br) {
@@ -1833,6 +1983,21 @@
             updates[finPath + '/capitalInvertido'] = currentCap.toFixed(2);
 
             await db.ref().update(updates);
+
+            // Registro de auditoría: si el crédito se financió con Caja Chica, queda
+            // asentado en incidencias para que la bitácora retroactiva pueda reconstruir
+            // el saldo de caja chica de ese día con exactitud.
+            if(aprobData.src === 'CAJA') {
+                const pathIncDest = brDest===1 ? 'config/incidencias' : `config/incidencias${brDest}`;
+                await db.ref(pathIncDest).push({
+                    monto, tipo:'CREDITO_CAJA',
+                    motivo: `CRÉDITO OTORGADO (Caja Chica): ${s.nombre}`,
+                    responsable: 'Sistema',
+                    fecha: getFechaHoySV(),
+                    hora: new Date().toLocaleTimeString()
+                });
+            }
+
             document.getElementById('modal-aprobar').classList.remove('active');
             toast("Solicitud aprobada en INVER " + brDest, "success");
             closeClientModal();
@@ -2478,6 +2643,12 @@
             document.getElementById('tk-nombre').textContent = c.nombre;
             document.getElementById('tk-dui').textContent = 'DUI: ' + (c.dui||'—') + '  |  Tel: ' + (c.tel||'—');
             document.getElementById('tk-fecha-emision').textContent = '📅 ' + getFechaHoySV();
+            const montoCredito = parseFloat(c.monto||0);
+            const totalCredito = parseFloat(c.total||0);
+            const interesCredito = totalCredito - montoCredito;
+            document.getElementById('tk-credito-monto').textContent = fmt(montoCredito);
+            document.getElementById('tk-credito-interes').textContent = fmt(interesCredito);
+            document.getElementById('tk-credito-total').textContent = fmt(totalCredito);
             document.getElementById('tk-total-pagado').textContent = fmt(totalPagado);
             document.getElementById('tk-recargo').value = totalMoraCliente.toFixed(2);
             const tkList = document.getElementById('tk-pagos-list');
@@ -2508,6 +2679,9 @@
             const totalPagado = cuotasPagadas.reduce((acc,q) => acc + parseFloat(q.valorPagado||0), 0);
             const recargo = parseFloat(document.getElementById('tk-recargo').value) || 0;
             const granTotal = totalPagado + recargo;
+            const montoCredito = parseFloat(c.monto||0);
+            const totalCredito = parseFloat(c.total||0);
+            const interesCredito = totalCredito - montoCredito;
             const filas = cuotasPagadas.map(q => `<tr>
                 <td style="padding:6px 4px;border-bottom:1px solid #f0f0f0;font-size:11px">Cuota #${q.n}</td>
                 <td style="padding:6px 4px;border-bottom:1px solid #f0f0f0;font-size:11px;color:#555">${q.fecha_ISO ? q.fecha_ISO.split('-').reverse().join('/') : (q.fecha||'—')}</td>
@@ -2515,12 +2689,17 @@
             </tr>`).join('');
             const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Comprobante | ${c.nombre}</title>
             <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
-            <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Inter',sans-serif;background:#f1f5f9;display:flex;align-items:flex-start;justify-content:center;padding:20px;min-height:100vh}.ticket{background:#fff;width:380px;border-radius:20px;overflow:hidden;box-shadow:0 25px 60px rgba(0,0,0,0.18)}.tk-head{background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 100%);padding:28px 24px 36px;position:relative}.tk-head::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:28px;background:white;clip-path:ellipse(55% 100% at 50% 100%)}.tk-logo{font-family:'Syne',sans-serif;font-size:24px;font-weight:800;color:#fff}.tk-logo span{color:#0ea5e9}.tk-sub{color:rgba(255,255,255,0.5);font-size:9px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;margin-top:4px}.tk-body{padding:32px 24px 24px}.tk-badge{background:linear-gradient(135deg,rgba(14,165,233,0.1),rgba(14,165,233,0.03));border:1px solid rgba(14,165,233,0.25);border-radius:12px;padding:14px;margin-bottom:18px}.tk-cn{font-family:'Syne',sans-serif;font-size:18px;font-weight:800;color:#0f172a}.tk-cm{font-size:11px;color:#64748b;font-weight:600;margin-top:3px}.tk-dt{display:flex;justify-content:space-between;font-size:10px;color:#94a3b8;margin-bottom:16px}.tk-stitle{font-size:8px;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:#94a3b8;margin-bottom:8px}table{width:100%;border-collapse:collapse}th{font-size:8px;font-weight:800;text-transform:uppercase;color:#94a3b8;letter-spacing:0.08em;padding:6px 4px;border-bottom:2px solid #e2e8f0;text-align:left}th:last-child{text-align:right}.tk-div{border:none;border-top:2px dashed #e2e8f0;margin:16px 0}.tk-row{display:flex;justify-content:space-between;margin-bottom:8px;font-size:12px}.tk-row .lbl{color:#64748b;font-weight:600}.tk-row .val{font-family:'JetBrains Mono',monospace;font-weight:700;color:#0f172a}.tk-total{background:linear-gradient(135deg,#0f172a,#1e3a5f);border-radius:12px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;margin:14px 0}.tk-total .lbl{color:rgba(255,255,255,0.65);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em}.tk-total .val{font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;color:#0ea5e9}.tk-foot{text-align:center;padding:14px 0 0;border-top:1px solid #e2e8f0;margin-top:14px}.tk-foot p{font-size:9px;color:#94a3b8;line-height:1.7;font-weight:600}.tk-bc{font-family:'JetBrains Mono',monospace;font-size:8px;color:#cbd5e1;letter-spacing:0.15em;margin-top:6px}@media print{body{background:#fff;padding:0}.ticket{box-shadow:none;border-radius:0;width:100%}}</style></head>
+            <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Inter',sans-serif;background:#f1f5f9;display:flex;align-items:flex-start;justify-content:center;padding:20px;min-height:100vh}.ticket{background:#fff;width:380px;border-radius:20px;overflow:hidden;box-shadow:0 25px 60px rgba(0,0,0,0.18)}.tk-head{background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 100%);padding:28px 24px 36px;position:relative}.tk-head::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:28px;background:white;clip-path:ellipse(55% 100% at 50% 100%)}.tk-logo{font-family:'Syne',sans-serif;font-size:24px;font-weight:800;color:#fff}.tk-logo span{color:#0ea5e9}.tk-sub{color:rgba(255,255,255,0.5);font-size:9px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;margin-top:4px}.tk-body{padding:32px 24px 24px}.tk-badge{background:linear-gradient(135deg,rgba(14,165,233,0.1),rgba(14,165,233,0.03));border:1px solid rgba(14,165,233,0.25);border-radius:12px;padding:14px;margin-bottom:18px}.tk-cn{font-family:'Syne',sans-serif;font-size:18px;font-weight:800;color:#0f172a}.tk-cm{font-size:11px;color:#64748b;font-weight:600;margin-top:3px}.tk-dt{display:flex;justify-content:space-between;font-size:10px;color:#94a3b8;margin-bottom:16px}.tk-stitle{font-size:8px;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:#94a3b8;margin-bottom:8px}table{width:100%;border-collapse:collapse}th{font-size:8px;font-weight:800;text-transform:uppercase;color:#94a3b8;letter-spacing:0.08em;padding:6px 4px;border-bottom:2px solid #e2e8f0;text-align:left}th:last-child{text-align:right}.tk-div{border:none;border-top:2px dashed #e2e8f0;margin:16px 0}.tk-row{display:flex;justify-content:space-between;margin-bottom:8px;font-size:12px}.tk-row .lbl{color:#64748b;font-weight:600}.tk-row .val{font-family:'JetBrains Mono',monospace;font-weight:700;color:#0f172a}.tk-total{background:linear-gradient(135deg,#0f172a,#1e3a5f);border-radius:12px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;margin:14px 0}.tk-total .lbl{color:rgba(255,255,255,0.65);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em}.tk-total .val{font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;color:#0ea5e9}.tk-foot{text-align:center;padding:14px 0 0;border-top:1px solid #e2e8f0;margin-top:14px}.tk-foot p{font-size:9px;color:#94a3b8;line-height:1.7;font-weight:600}.tk-bc{font-family:'JetBrains Mono',monospace;font-size:8px;color:#cbd5e1;letter-spacing:0.15em;margin-top:6px}.tk-credgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px}.tk-credbox{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px 6px;text-align:center}.tk-credbox .lbl{font-size:8px;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;color:#94a3b8;margin-bottom:3px}.tk-credbox .val{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:12px;color:#0f172a}@media print{body{background:#fff;padding:0}.ticket{box-shadow:none;border-radius:0;width:100%}}</style></head>
             <body><div class="ticket">
                 <div class="tk-head"><div class="tk-logo">CREDI<span>LISTO</span></div><div class="tk-sub">Comprobante de Pago · V24 Pro</div></div>
                 <div class="tk-body">
                     <div class="tk-badge"><div class="tk-cn">${c.nombre}</div><div class="tk-cm">DUI: ${c.dui||'—'} &nbsp;|&nbsp; Tel: ${c.tel||'—'}</div></div>
                     <div class="tk-dt"><span>📅 Emisión: <strong>${getFechaHoySV()}</strong></span><span>INVER ${currentBranch}</span></div>
+                    <div class="tk-credgrid">
+                        <div class="tk-credbox"><div class="lbl">Crédito</div><div class="val">$${montoCredito.toFixed(2)}</div></div>
+                        <div class="tk-credbox"><div class="lbl">Interés</div><div class="val">$${interesCredito.toFixed(2)}</div></div>
+                        <div class="tk-credbox"><div class="lbl">Total Crédito</div><div class="val">$${totalCredito.toFixed(2)}</div></div>
+                    </div>
                     <div class="tk-stitle">Historial de Pagos Realizados</div>
                     <table><thead><tr><th>Cuota</th><th>Fecha</th><th style="text-align:right">Monto</th></tr></thead><tbody>${filas}</tbody></table>
                     <hr class="tk-div">
@@ -2539,30 +2718,38 @@
 
         /* ── BITÁCORA TEXTO (GENERACIÓN DIARIA) ── */
         async function generarBitacoraTexto() {
-            const fechaFmt = new Date().toLocaleDateString('es-SV', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+            const fechaISO = document.getElementById('bit-fecha-filtro').value || getHoyISO();
             const hoyISO = getHoyISO();
+            const esHoy = fechaISO === hoyISO;
+            const fechaFmt = new Date(fechaISO + 'T12:00:00').toLocaleDateString('es-SV', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+            const fechaSV = fechaISO.split('-').reverse().join('/');
             const fin = finanzas[currentBranch] || {};
             const clientes = Object.values(store[currentBranch] || {});
 
-            let cobrosDia = 0;
             let carActiva = 0;
             let totCobrar = 0;
             let deuPendiente = 0;
-            let detallePagos = [];
-
             clientes.forEach(c => {
                 if(c.tipo === 'ACTIVO') {
                     carActiva += parseFloat(c.monto || 0);
                     totCobrar += parseFloat(c.total || 0);
                     deuPendiente += parseFloat(c.saldo || 0);
                 }
-                (c.cuotas || []).forEach(q => {
-                    if(q.pagada && q.fecha_ISO === hoyISO) {
-                        const valor = parseFloat(q.valorPagado || 0);
-                        cobrosDia += valor;
-                        detallePagos.push(`  • ${c.nombre}: $${valor.toFixed(2)}`);
-                    }
-                });
+            });
+
+            // Cobros del día: se toman de pagos_clientes (el mismo libro que usa la
+            // reconstrucción de caja chica), no de las cuotas, para que el reporte
+            // sea consistente con el saldo mostrado abajo.
+            const movimientos = await obtenerMovimientosCaja(currentBranch);
+            let cobrosDia = 0;
+            let detallePagos = [];
+            movimientos.pagosSucursal.forEach(pago => {
+                if(pago.fecha_ISO === fechaISO) {
+                    const valor = parseFloat(pago.monto || 0);
+                    cobrosDia += valor;
+                    const nombreCliente = store[currentBranch]?.[pago.clienteId]?.nombre || `Cliente ${pago.clienteId}`;
+                    detallePagos.push(`  • ${nombreCliente}: $${valor.toFixed(2)}`);
+                }
             });
 
             // Moratorios del día
@@ -2570,15 +2757,41 @@
             let detalleMora = [];
             const morArr = moratorios[currentBranch] || [];
             morArr.forEach(m => {
-                if(m.fecha === hoyISO) {
+                if(m.fecha === fechaISO) {
                     const valor = parseFloat(m.monto || 0);
                     moraDia += valor;
                     detalleMora.push(`  • ${m.cliente || 'Desconocido'} (${m.concepto || 'Recargo'}): $${valor.toFixed(2)}`);
                 }
             });
 
+            // Saldo de caja chica: en vivo si es hoy; si es una fecha pasada, se busca
+            // primero el cierre oficial guardado y, si no existe, se reconstruye al vuelo.
+            let cajaChica, notaCaja;
+            if(esHoy) {
+                cajaChica = parseFloat(fin.cajaChica || 0);
+                notaCaja = 'Saldo actual en vivo. El cierre oficial de hoy se generará automáticamente al abrir la app mañana.';
+            } else {
+                const pathC = currentBranch===1 ? 'config/cierresCaja' : `config/cierresCaja${currentBranch}`;
+                const cierreSnap = await db.ref(pathC + '/' + fechaISO).once('value');
+                const cierre = cierreSnap.val();
+                if(cierre) {
+                    cajaChica = parseFloat(cierre.saldo || 0);
+                    notaCaja = cierre.metodo === 'exacto'
+                        ? '🔒 Cierre oficial de auditoría (generado automáticamente).'
+                        : '⚠️ Reconstruido — pueden existir créditos otorgados desde caja chica antes del 01/08/2026 que no quedaron registrados; el saldo real de ese día pudo ser distinto.';
+                } else {
+                    const cajaActual = parseFloat(finanzas[currentBranch]?.cajaChica || 0);
+                    cajaChica = calcularSaldoAFecha(fechaISO, cajaActual, movimientos);
+                    notaCaja = fechaISO < FECHA_FIX_AUDITORIA_ISO
+                        ? '⚠️ Reconstruido en tiempo real — pueden existir créditos otorgados desde caja chica sin registrar antes del 01/08/2026; el saldo real de ese día pudo ser distinto.'
+                        : '⚠️ Reconstruido en tiempo real (sin cierre oficial guardado para este día).';
+                }
+            }
+
+            const creadosEseDia = creditosCreadosEnFecha(fechaISO);
+            const activadosEseDia = creditosActivadosEnFecha(currentBranch, fechaSV);
+
             const capInvertido = parseFloat(fin.capitalInvertido || 0);
-            const cajaChica = parseFloat(fin.cajaChica || 0);
             const capReciclado = Math.max(0, carActiva - capInvertido);
             const recuperado = totCobrar - deuPendiente;
             const gananciasRet = parseFloat(fin.gananciasRetiradas || 0);
@@ -2598,7 +2811,7 @@
                 socios['SOCIO 3 (4%)']  = gananciaDisp * (4/20);
             }
 
-            let texto = `=== BITÁCORA DIARIA – ${fechaFmt} (INVER ${currentBranch}) ===\n\n`;
+            let texto = `=== BITÁCORA ${esHoy ? 'DIARIA' : 'RETROACTIVA'} – ${fechaFmt} (INVER ${currentBranch}) ===\n\n`;
             texto += `Cobros realizados este día: $${cobrosDia.toFixed(2)}\n`;
             if (detallePagos.length > 0) {
                 texto += `Detalle de cobros:\n${detallePagos.join('\n')}\n`;
@@ -2607,14 +2820,30 @@
             if (detalleMora.length > 0) {
                 texto += `Detalle de mora:\n${detalleMora.join('\n')}\n`;
             }
-            texto += `--- CONSOLIDADO FINANCIERO ---\n`;
+
+            texto += `\n--- CRÉDITOS ---\n`;
+            if(activadosEseDia.length > 0) {
+                texto += `Créditos otorgados/activados este día en INVER ${currentBranch}:\n`;
+                activadosEseDia.forEach(c => { texto += `  • ${c.nombre}: $${parseFloat(c.monto||0).toFixed(2)}\n`; });
+            } else {
+                texto += `No se activaron créditos este día en INVER ${currentBranch}.\n`;
+            }
+            if(creadosEseDia.length > 0) {
+                texto += `Solicitudes de crédito creadas este día (todas las sucursales):\n`;
+                creadosEseDia.forEach(c => { texto += `  • ${c.nombre} (INVER ${c.sucursal}, estado: ${c.estado}): $${parseFloat(c.monto||0).toFixed(2)}\n`; });
+            } else {
+                texto += `No se crearon solicitudes de crédito nuevas este día.\n`;
+            }
+
+            texto += `\n--- CONSOLIDADO FINANCIERO ---\n`;
             texto += `Capital invertido: $${capInvertido.toFixed(2)}\n`;
             texto += `Cartera activa: $${carActiva.toFixed(2)}\n`;
             texto += `Capital reinvertido: $${capReciclado.toFixed(2)}\n`;
             texto += `Total a cobrar (cap + int): $${totCobrar.toFixed(2)}\n`;
             texto += `Deuda por cobrar: $${deuPendiente.toFixed(2)}\n`;
             texto += `Recuperado / cobrado: $${recuperado.toFixed(2)}\n`;
-            texto += `Caja chica disponible: $${cajaChica.toFixed(2)}\n`;
+            texto += `Caja chica ${esHoy ? 'disponible' : 'al cierre de ese día'}: $${cajaChica.toFixed(2)}\n`;
+            texto += `  ${notaCaja}\n`;
             texto += `Registro moratorio total del día: $${moraDia.toFixed(2)}\n`;
             texto += `Ganancia disponible total: $${gananciaDisp.toFixed(2)}\n`;
             
